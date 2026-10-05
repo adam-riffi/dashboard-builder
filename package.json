@@ -13,6 +13,8 @@
     "test": "turbo run test",
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e",
+    "db:generate": "pnpm --filter @dash/db generate",
+    "db:migrate": "pnpm --filter @dash/db migrate",
     "lint": "biome check .",
     "format": "biome format --write .",
     "check": "biome check . && turbo run typecheck test build"
