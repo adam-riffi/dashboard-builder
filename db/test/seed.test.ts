@@ -60,18 +60,19 @@ describe("dash_demo.tick (pg_cron job)", () => {
   it("keeps one day of its own pg_cron run history and leaves other jobs alone", async () => {
     const [{ jobid } = {}] =
       await admin`select jobid from cron.job where jobname = 'dash_demo_tick'`;
-    const old = (
-      id: number,
-    ) => admin`insert into cron.job_run_details (jobid, status, start_time, end_time)
-      values (${id}, 'succeeded', now() - interval '2 days', now() - interval '2 days')
-      returning runid`;
-    const [ours] = await old(jobid);
-    const [other] = await old(-1);
+    // Explicit negative run ids: Supabase's postgres role may not use cron.runid_seq.
+    const runs = [
+      { jobid, runid: -1 },
+      { jobid: -1, runid: -2 },
+    ];
+    for (const run of runs) {
+      await admin`insert into cron.job_run_details (jobid, runid, status, start_time, end_time)
+        values (${run.jobid}, ${run.runid}, 'succeeded', now() - interval '2 days', now() - interval '2 days')`;
+    }
     await admin`select dash_demo.tick()`;
-    const left = await admin`select runid from cron.job_run_details
-      where runid in ${admin([ours?.runid, other?.runid])}`;
-    expect(left.map((r) => r.runid)).toEqual([other?.runid]);
-    await admin`delete from cron.job_run_details where jobid = -1`;
+    const left = await admin`select runid::int from cron.job_run_details where runid < 0`;
+    expect(left.map((r) => r.runid)).toEqual([-2]);
+    await admin`delete from cron.job_run_details where runid < 0`;
   });
 
   it("is scheduled every minute", async () => {
