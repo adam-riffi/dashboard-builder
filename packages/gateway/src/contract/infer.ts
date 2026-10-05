@@ -20,7 +20,10 @@ const TYPES: Record<string, FieldType> = {
   timestamptz: "date",
 };
 
-const AVERAGED = /price|rate|ratio|pct|percent|score/i;
+const AVERAGED = new Set(["price", "rate", "ratio", "pct", "percent", "score"]);
+/** Lowercased, singular parts of a snake_case or camelCase name; "duration" is not "ratio". */
+const nameParts = (name: string) =>
+  name.split(/_|(?<=[a-z0-9])(?=[A-Z])/).map((w) => w.toLowerCase().replace(/s$/, ""));
 const HIGH_CARDINALITY = 10_000;
 
 const typeOf = (c: CatalogColumn): FieldType | undefined => (c.isEnum ? "string" : TYPES[c.pgType]);
@@ -40,7 +43,7 @@ function inferColumn(c: CatalogColumn, type: FieldType, t: CatalogTable): Contra
   if (isKey) return { ...base, role: "id", highCardinality: false };
   if (type === "date") return { ...base, role: "time", highCardinality: false };
   if (type === "number") {
-    const aggregation = AVERAGED.test(c.name) ? "AVG" : "SUM";
+    const aggregation = nameParts(c.name).some((w) => AVERAGED.has(w)) ? "AVG" : "SUM";
     return { ...base, role: "measure", aggregation, highCardinality: false };
   }
   const highCardinality = distinct !== null && distinct > HIGH_CARDINALITY;
