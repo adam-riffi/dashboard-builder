@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m0/03..06 · #3–#6 (review fixes)
+- Done: Addressed the independent review. #3: tests for `dash.dashboards` owner-only RLS and Data API denial; RLS settings evaluated once per statement; ADR 0001 (`app.user_id`). #4: generator cut to one order a minute (ADR 0002; was ~0.4 GB at steady state), tick purges its own pg_cron run log, tests pause the cron job and refuse non-local databases, seed runs on any Node 24. #5: CSP/Referrer-Policy/nosniff headers, health failures logged as JSON. #6: smoke now runs on PRs, preview comment found by marker (no longer overwrites the meme), Vercel token passed through env.
+- Tests: new RLS, tick and header tests (integration/e2e verified in CI; Docker unavailable locally); headers checked against a local `next start`; actionlint clean.
+- Scope/decisions: ADRs 0001 and 0002 are Proposed. Skipped nits: composite FK on order_items, ordered_at index for the purge, `@types/node` 24 pin, gateway coverage tooling (M1), `persist-credentials`, dev-only double sign-in, smoke anonymous users (cleanup job per DESIGN.md §14).
+- Next: Georges accepts or rejects ADRs 0001–0002 and does the one-time setup below.
+
 ## 2026-10-05 · claude · stack/m0/06-deploy · #6 (setup)
 - Done: Triaged failing checks (no code faults). Created Vercel project `dashboard-builder` (team Wuxinggraph, root `apps/demo`, `cdg1`, default Vercel Authentication kept). Repo settings: squash only with PR title, delete head branches, Actions read-only; ruleset `main` (PR, linear history, squash, required checks from DESIGN.md §11). Confirmed the `portfolio` JWKS URL.
 - Tests: none (configuration).
@@ -50,7 +56,7 @@ Entry format:
 - Scope/decisions: `integration` and `e2e` jobs land with their first tests (PRs 03 and 05).
 - Next: stack/m0/03-db.
 
-## 2026-10-05 · claude · stack/m0/01-monorepo · (this PR)
+## 2026-10-05 · claude · stack/m0/01-monorepo · #1
 - Done: pnpm + Turborepo workspace, strict TypeScript base config, Biome, Vitest, `.nvmrc`, `.env.example`, pr-meme caller, Dependabot.
 - Tests: none (scaffolding); `pnpm check` runs clean with zero packages.
 - Scope/decisions: `core`, `react` and `visuals` are created in the milestones that first use them, not as empty shells. Turbo's `agentGuidance` is off so it stops rewriting AGENTS.md.
