@@ -15,6 +15,13 @@
       "when": 1791186773683,
       "tag": "0001_order_generator",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791226218774,
+      "tag": "0002_protect_history",
+      "breakpoints": true
     }
   ]
 }
