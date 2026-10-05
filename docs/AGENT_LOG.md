@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/ops/01-history-revoke · #13
+- Done: `db/local-roles.sql` mirrors the dash section of portfolio-infra's `bootstrap.sql` (schemas, default privileges), and migration `0002_protect_history` revokes `dash_app` on `dash.__drizzle_migrations` and its sequence.
+- Tests: `db/test/rls.test.ts` "migration history is out of reach of dash_app" (red with production-like privileges, green after the migration; checked on PGlite, CI authoritative).
+- Scope/decisions: found by the portfolio-infra M5 review (#14 there): default privileges would let the internet-facing role rewrite migration history.
+- Next: portfolio-infra M5 merged and bootstrap run on `portfolio`; then the three database secrets and a production deploy.
+
 ## 2026-10-05 · claude · stack/m1/02..06 · #8–#12 (review fixes)
 - Done: Addressed the independent review (no blockers, 7 should-fix). #8: `percentage` averaged, camelCase `*Id` keys, relationships ordered by target, ADR 0004 (name parts, Proposed). #10: USAGE on the schema required, ADR 0005 (statistics under RLS, Proposed). #11: tokens must carry `exp` (jose only checks it when present), case-insensitive bearer, stateless host regexes, bounded int ids, DESIGN.md §9 M1 row records JWT auth. #12: `/contract` serves no `rowCount`/`distinct` (cross-tenant leak via `reltuples`), RFC 9110 If-None-Match, HEAD, request ids and durations in logs, handler back under the 90% coverage gate with a "no database before auth" test.
 - Tests: new failing tests first for every fix; goldens unchanged (rechecked on PGlite); gateway unit coverage 91.6%.

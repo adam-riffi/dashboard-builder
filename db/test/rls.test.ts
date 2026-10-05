@@ -127,3 +127,16 @@ describe("dash.dashboards row-level security", () => {
     ).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("dash migration history", () => {
+  // bootstrap.sql's default privileges make every postgres-created table in dash read-write for
+  // dash_app, the internet-facing role; the history must stay out of its reach.
+  it("is out of reach of dash_app", async () => {
+    await expect(
+      asUser(null, (sql) => sql`select 1 from dash.__drizzle_migrations`),
+    ).rejects.toThrow("permission denied for table __drizzle_migrations");
+    await expect(
+      asUser(null, (sql) => sql`select nextval('dash.__drizzle_migrations_id_seq')`),
+    ).rejects.toThrow("permission denied for sequence __drizzle_migrations_id_seq");
+  });
+});
