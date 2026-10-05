@@ -53,9 +53,9 @@ export async function authenticate(
   let claims: JWTPayload;
   try {
     claims = await verify(token);
-  } catch {
-    // jose's reasons (expired, bad signature, wrong audience) stay server-side.
-    throw new AuthError("Invalid token");
+  } catch (error) {
+    // jose's reason (expired, bad signature, wrong audience) is logged, never returned.
+    throw new AuthError("Invalid token", { cause: error });
   }
 
   const value = claims[identity.claim];

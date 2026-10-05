@@ -51,6 +51,10 @@ export function createGateway(config: GatewayConfig): Handler {
       return await route(request);
     } catch (error) {
       if (error instanceof AuthError) {
+        const cause = error.cause instanceof Error ? error.cause.message : error.message;
+        console.warn(
+          JSON.stringify({ level: "warn", msg: "request unauthorized", route: name, cause }),
+        );
         return json({ error: error.message }, 401, { "www-authenticate": "Bearer" });
       }
       const cause = error instanceof Error ? error.message : String(error);
