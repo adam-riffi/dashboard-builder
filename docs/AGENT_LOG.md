@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m0/03-db · #3
+- Done: First migration (hand-written SQL applied by Drizzle Kit, history table in `dash`): the `dash` and `dash_demo` tables from DESIGN.md §8 with RLS; `integration` CI job on `supabase/postgres:17.11.0.003`.
+- Tests: `db/test/rls.test.ts`: dash_reader sees only rows in `app.tenant_ids`, nothing without a scope, and cannot write.
+- Scope/decisions: `dash.dashboards` owner-only is enforced for dash_app through `app.user_id` (needs confirmation before M5). Docker Desktop did not start locally, so the integration tests ran in CI only.
+- Next: stack/m0/04-seed.
+
 ## 2026-10-05 · claude · stack/m0/02-ci · #2
 - Done: `ci.yml` with `lint`, `typecheck`, `test` and `build` jobs (read-only permissions, concurrency, 15-minute timeouts, pnpm cache, SHA-pinned third-party actions).
 - Tests: actionlint clean; the workflow runs on this PR.
