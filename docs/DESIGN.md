@@ -126,7 +126,7 @@ export default defineGateway({
 | `POST /query` | `{ queries: QuerySpec[] }` → `{ results: [{ columns, data (column-major), meta: { cache, ms } }] }` |
 | `GET /health` | `{ status: "ok", db: "ok" }` after `select 1` |
 
-**QuerySpec:** `{ dimensions: [{ field, timeGrain? }], measures: [{ name } | { formula }], filters: [{ field, op, values }], sort?, limit? }`.
+**QuerySpec:** `{ dimensions: [{ field, timeGrain? }], measures: [{ field, aggregation? } | { name } | { formula }], filters: [{ field, op, values }], sort?: [{ by: "dimension" | "measure", index, dir }], limit? }`. Column measures (`{ field, aggregation? }`) arrive in M2; names and formulas in M3 ([ADR 0006](adr/0006-column-measures-in-m2.md)).
 
 **DashboardSpec (stored JSON, versioned):** `{ specVersion: 1, contractVersion, title, refreshIntervalSec, measures: [{ name, formula, format }], filters: [...], layout: [{ i, x, y, w, h }], visuals: [{ id, type, slots: { category: [...], value: [...] }, options }] }`.
 
