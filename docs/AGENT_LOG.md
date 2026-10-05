@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m0/04-seed · #4
+- Done: Deterministic idempotent seed (`pnpm db:seed`, SQL with `setseed`) and the `dash_demo_tick` pg_cron job (orders every minute, 90-day retention).
+- Tests: `db/test/seed.test.ts`: seed fills all tenants, rerun changes nothing, tick adds orders with items, old orders deleted, job scheduled.
+- Scope/decisions: retention deletes all orders older than 90 days, seeded ones included.
+- Next: stack/m0/05-demo-health.
+
 ## 2026-10-05 · claude · stack/m0/03-db · #3
 - Done: First migration (hand-written SQL applied by Drizzle Kit, history table in `dash`): the `dash` and `dash_demo` tables from DESIGN.md §8 with RLS; `integration` CI job on `supabase/postgres:17.11.0.003`.
 - Tests: `db/test/rls.test.ts`: dash_reader sees only rows in `app.tenant_ids`, nothing without a scope, and cannot write.
