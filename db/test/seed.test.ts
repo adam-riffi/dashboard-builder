@@ -39,16 +39,14 @@ describe("seed", () => {
 });
 
 describe("dash_demo.tick (pg_cron job)", () => {
-  it("adds orders with items for every tenant", async () => {
-    const before =
-      await admin`select tenant_id, count(*)::int as n from dash_demo.orders group by 1 order by 1`;
+  it("adds one order with one or two items per run", async () => {
+    const [before] = await admin`select max(id) as id from dash_demo.orders`;
     await admin`select dash_demo.tick()`;
-    const after =
-      await admin`select tenant_id, count(*)::int as n from dash_demo.orders group by 1 order by 1`;
-    for (const [i, row] of after.entries()) expect(row.n).toBeGreaterThan(before[i]?.n ?? 0);
-    const orphans = await admin`select count(*)::int as n from dash_demo.orders o
-      where not exists (select from dash_demo.order_items i where i.order_id = o.id)`;
-    expect(orphans[0]?.n).toBe(0);
+    const added = await admin`select o.id, count(i.id)::int as items
+      from dash_demo.orders o left join dash_demo.order_items i on i.order_id = o.id
+      where o.id > ${before?.id} group by o.id`;
+    expect(added).toHaveLength(1);
+    expect([1, 2]).toContain(added[0]?.items);
   });
 
   it("deletes orders older than 90 days", async () => {
@@ -57,6 +55,23 @@ describe("dash_demo.tick (pg_cron job)", () => {
       values (1, 1, now() - interval '91 days', 'paid', 'web') returning id`;
     await admin`select dash_demo.tick()`;
     expect(await admin`select 1 from dash_demo.orders where id = ${old?.id}`).toHaveLength(0);
+  });
+
+  it("keeps one day of its own pg_cron run history and leaves other jobs alone", async () => {
+    const [{ jobid } = {}] =
+      await admin`select jobid from cron.job where jobname = 'dash_demo_tick'`;
+    const old = (
+      id: number,
+    ) => admin`insert into cron.job_run_details (jobid, status, start_time, end_time)
+      values (${id}, 'succeeded', now() - interval '2 days', now() - interval '2 days')
+      returning runid`;
+    const [ours] = await old(jobid);
+    const [other] = await old(-1);
+    await admin`select dash_demo.tick()`;
+    const left = await admin`select runid from cron.job_run_details
+      where runid in ${admin([ours?.runid, other?.runid])}`;
+    expect(left.map((r) => r.runid)).toEqual([other?.runid]);
+    await admin`delete from cron.job_run_details where jobid = -1`;
   });
 
   it("is scheduled every minute", async () => {
