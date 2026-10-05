@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthError } from "../../src/auth.ts";
-import { matches, withoutStatistics } from "../../src/gateway.ts";
+import { matches, settingsFor, withoutStatistics } from "../../src/gateway.ts";
 import { createGateway, defineGateway, postgresSource } from "../../src/index.ts";
 
 /** A gateway whose database must not be touched: every test here stops before any query. */
@@ -125,5 +125,73 @@ describe("served contracts", () => {
     [null, false],
   ])("If-None-Match %s matches %s", (header, expected) => {
     expect(matches(header, '"v1"')).toBe(expected);
+  });
+});
+
+describe("POST /query (no database)", () => {
+  const USER = "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
+  const signedIn = createGateway(
+    defineGateway({
+      source,
+      auth: async () => ({ sub: USER }),
+      identity: { claim: "sub", format: "uuid" },
+      tables: ["s.t"],
+    }),
+  );
+  const post = (body: string, path = "query") =>
+    signedIn(
+      new Request(`http://demo.test/api/dash/${path}`, {
+        method: "POST",
+        headers: { authorization: "Bearer t", "content-type": "application/json" },
+        body,
+      }),
+    );
+
+  it("allows only POST on /query and only GET or HEAD on /contract", async () => {
+    const get = await signedIn(new Request("http://demo.test/api/dash/query"));
+    expect(get.status).toBe(405);
+    expect(get.headers.get("allow")).toBe("POST");
+    const postContract = await post("{}", "contract");
+    expect(postContract.status).toBe(405);
+    expect(postContract.headers.get("allow")).toBe("GET, HEAD");
+  });
+
+  it("authenticates before reading the body", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await call("query", { method: "POST", body: "not json" });
+    expect(res.status).toBe(401);
+    expect(source).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["not json", "Request body must be JSON"],
+    [JSON.stringify({ queries: [] }), "Invalid request"],
+    [
+      JSON.stringify({
+        queries: Array.from({ length: 21 }, () => ({ measures: [{ field: "s.t.c" }] })),
+      }),
+      "Invalid request",
+    ],
+    [
+      JSON.stringify({ queries: [{ measures: [{ field: "s.t.c" }], sql: "drop table t" }] }),
+      "Invalid request",
+    ],
+  ])("answers 400 to a bad body without touching the database (%#)", async (body, error) => {
+    const res = await post(body);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error });
+    expect(source).not.toHaveBeenCalled();
+  });
+});
+
+describe("settingsFor", () => {
+  it("maps scope entries to transaction-local app.* settings for RLS", () => {
+    expect(
+      settingsFor({ tenantIds: [1, 2], userId: "u-1", region: "eu", nested: { a: 1 } }),
+    ).toEqual({
+      "app.tenant_ids": "1,2",
+      "app.user_id": "u-1",
+      "app.region": "eu",
+    });
   });
 });

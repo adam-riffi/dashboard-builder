@@ -27,3 +27,11 @@ test("the contract is refused without a token @smoke", async ({ request }) => {
   const res = await request.get("/api/dash/contract");
   expect(res.status()).toBe(401);
 });
+
+test("a signed-in visitor sees units sold by category for their tenants @smoke", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText(/units sold by category/i)).toBeVisible();
+  await expect(page.getByRole("listitem").first()).toHaveText(/\S+: [\d,]+/);
+});

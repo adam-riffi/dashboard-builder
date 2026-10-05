@@ -1,5 +1,6 @@
 import { dataContract } from "@adam-riffi/dash-core";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import postgres from "postgres";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createGateway, defineGateway, jwtAuth, postgresSource } from "../../src/index.ts";
 import { AUDIENCE, ISSUER, startJwks, USER } from "./jwks.ts";
 
@@ -107,5 +108,94 @@ describe("gateway handler", () => {
   it("answers 404 for unknown routes and 405 for other methods", async () => {
     expect((await call("nope")).status).toBe(404);
     expect((await call("contract", { method: "POST", headers: await bearer() })).status).toBe(405);
+  });
+});
+
+describe("POST /query", () => {
+  const adminUrl =
+    process.env.DATABASE_URL_MIGRATIONS ?? "postgres://postgres:postgres@localhost:54322/postgres";
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(new URL(adminUrl).hostname)) {
+    throw new Error("Refusing to create fixture schemas outside a local database");
+  }
+  const admin = postgres(adminUrl, { onnotice: () => {} });
+  let scope: Record<string, unknown> = { tenantIds: [1, 2] };
+  const api = createGateway(
+    defineGateway({
+      source: postgresSource({
+        url:
+          process.env.DASH_SOURCE_URL ?? "postgres://dash_reader:password@localhost:54322/postgres",
+      }),
+      auth: jwtAuth({ jwksUrl: jwks.url, issuer: ISSUER, audience: AUDIENCE }),
+      identity: { claim: "sub", format: "uuid" },
+      tables: ["fx_api.sales"],
+      policies: [{ table: "fx_api.sales", column: "tenant_id", in: "tenantIds" }],
+      resolveScope: async () => scope,
+    }),
+  );
+  const query = async (body: unknown) =>
+    api(
+      new Request("http://demo.test/api/dash/query", {
+        method: "POST",
+        headers: { ...(await bearer()), "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  const byRegion = {
+    dimensions: [{ field: "fx_api.sales.region" }],
+    measures: [{ field: "fx_api.sales.amount" }],
+  };
+
+  beforeAll(async () => {
+    await admin.unsafe(`
+      drop schema if exists fx_api cascade;
+      create schema fx_api;
+      create table fx_api.sales (id int primary key, tenant_id int not null, region text not null, amount numeric(10, 2) not null);
+      insert into fx_api.sales values (1, 1, 'north', 10), (2, 1, 'south', 20), (3, 2, 'north', 30), (4, 3, 'east', 40);
+      alter table fx_api.sales enable row level security;
+      create policy scoped on fx_api.sales for select to dash_reader
+        using (tenant_id = any(string_to_array(current_setting('app.tenant_ids', true), ',')::int[]));
+      grant usage on schema fx_api to dash_reader;
+      grant select on fx_api.sales to dash_reader;
+    `);
+  });
+  afterAll(() => admin.end());
+
+  it("answers every query with column-major results for the caller's scope", async () => {
+    scope = { tenantIds: [1, 2] };
+    const res = await query({
+      queries: [byRegion, { measures: [{ field: "fx_api.sales.id", aggregation: "COUNT" }] }],
+    });
+    expect(res.status).toBe(200);
+    const { results } = await res.json();
+    expect(results[0]).toMatchObject({
+      columns: [
+        { key: "d0", kind: "dimension" },
+        { key: "m0", kind: "measure", aggregation: "SUM" },
+      ],
+      data: [
+        ["north", "south"],
+        [40, 20],
+      ],
+      meta: { cache: "miss", truncated: false },
+    });
+    expect(results[1].data).toEqual([[3]]);
+  });
+
+  it("reports invalid queries one by one, next to valid ones", async () => {
+    const res = await query({
+      queries: [{ measures: [{ field: "fx_api.sales.nope" }] }, byRegion],
+    });
+    const { results } = await res.json();
+    expect(results[0]).toEqual({ errors: ["fx_api.sales.nope: unknown column"] });
+    expect(results[1].data[0]).toEqual(["north", "south"]);
+  });
+
+  it("fails closed when the scope lacks a policy's list", async () => {
+    scope = { userId: "x" };
+    const res = await query({ queries: [byRegion] });
+    expect((await res.json()).results[0]).toEqual({
+      errors: ["scope has no list tenantIds for the policy on fx_api.sales"],
+    });
+    scope = { tenantIds: [1, 2] };
   });
 });
