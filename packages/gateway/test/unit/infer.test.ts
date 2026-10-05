@@ -75,6 +75,12 @@ describe("inferTables: types", () => {
 });
 
 describe("inferTables: roles", () => {
+  it("marks camelCase and bare id columns as id", () => {
+    expect(only(col("customerId", "int4"))?.role).toBe("id");
+    expect(only(col("id", "int8"))?.role).toBe("id");
+    expect(only(col("paid", "int4"))?.role).toBe("measure");
+  });
+
   it("marks primary keys, foreign keys and *_id columns as id", () => {
     const cols = columnsOf(
       table("s.orders", {
@@ -104,6 +110,8 @@ describe("inferTables: roles", () => {
     "score",
     "unitPrice",
     "exchange_rates",
+    "margin_percentage",
+    "percentage",
   ])("averages %s", (name) => {
     expect(only(col(name, "numeric"))).toMatchObject({ role: "measure", aggregation: "AVG" });
   });
@@ -253,6 +261,28 @@ describe("inferTables: relationships", () => {
       foreignKeys: [{ columns: ["tags"], references: "s.docs", referencedColumns: ["tags"] }],
     });
     expect(describeRels([docs])).toEqual([]);
+  });
+
+  it("orders relationships by target too, so constraint names do not matter", () => {
+    const bills = table("s.bills", {
+      columns: [col("party", "text")],
+      foreignKeys: [
+        { columns: ["party"], references: "s.vendors", referencedColumns: ["code"] },
+        { columns: ["party"], references: "s.clients", referencedColumns: ["code"] },
+      ],
+    });
+    const targets = ["s.vendors", "s.clients"].map((name) =>
+      table(name, { primaryKey: ["code"], columns: [col("code", "text")] }),
+    );
+    expect(describeRels([bills, ...targets])).toEqual([
+      "s.bills(party) -> s.clients(code)",
+      "s.bills(party) -> s.vendors(code)",
+    ]);
+  });
+
+  it("sorts by code point, not by locale", () => {
+    const names = inferTables({ tables: [table("s.a"), table("s.B")] }).tables.map((t) => t.name);
+    expect(names).toEqual(["s.B", "s.a"]);
   });
 
   it("sorts tables by name", () => {
