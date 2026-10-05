@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+test-results/
+playwright-report/
+.vercel/
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+supabase/.temp/
