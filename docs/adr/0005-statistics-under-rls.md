@@ -1,8 +1,8 @@
 # 0005 — Column statistics under row-level security
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-05
-- Proposed by: claude; decided by: Georges
+- Proposed by: claude; decided by: Georges (accepted on 2026-10-05 after the M1 review)
 
 ## Context
 DESIGN.md §6 reads `pg_stats` for distinct-value estimates and flags dimensions above 10,000 distinct values as `highCardinality`, which keeps them off axis slots. Two facts change the picture:
@@ -21,4 +21,4 @@ DESIGN.md §6 reads `pg_stats` for distinct-value estimates and flags dimensions
 
 ## Consequences
 - The contract's `rowCount` and `distinct` fields remain for server-side use (later planning and caching), but they are redacted in responses.
-- Once accepted, DESIGN.md §6 notes the RLS limitation and the optional statistics source.
+- DESIGN.md §6 notes the RLS limitation and that statistics are not served.
