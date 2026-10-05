@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m1/02-inference · #8
+- Done: Pure `inferTables(catalog)` in `packages/gateway/src/contract/`: pg type → field type (unsupported types omitted, enums as strings), roles and default aggregations per DESIGN.md §6, distinct estimates from `n_distinct`, high-cardinality dimensions, many-to-one relationships from foreign keys inside the allowlist.
+- Tests: `packages/gateway/test/unit/infer.test.ts` (47 cases, 100% lines). Gateway tests split into `test/unit` (`pnpm test`, coverage) and `test/integration`.
+- Scope/decisions: tables without supported columns are omitted; sorting is by code point so goldens and hashes do not depend on ICU.
+- Next: stack/m1/03-schema-hash.
+
 ## 2026-10-05 · claude · stack/m1/01-core-contract · #7
 - Done: New `packages/core` (`@adam-riffi/dash-core`) with the zod `DataContract` schema and types; coverage tooling with the 90% line threshold from DESIGN.md §10.
 - Tests: `packages/core/test/contract.test.ts` (valid contract, version format, roles/types, aggregation only on measures, schema.table names, relationship columns).

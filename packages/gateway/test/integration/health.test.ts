@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { health } from "../src/index.ts";
+import { health } from "../../src/index.ts";
 
 const up = postgres(
   process.env.DASH_SOURCE_URL ?? "postgres://dash_reader:password@localhost:54322/postgres",
