@@ -20,7 +20,8 @@ const TYPES: Record<string, FieldType> = {
   timestamptz: "date",
 };
 
-const AVERAGED = new Set(["price", "rate", "ratio", "pct", "percent", "score"]);
+// DESIGN.md §6 words, matched as whole name parts (ADR 0004); "percentage" spelled out.
+const AVERAGED = new Set(["price", "rate", "ratio", "pct", "percent", "percentage", "score"]);
 /** Lowercased, singular parts of a snake_case or camelCase name; "duration" is not "ratio". */
 const nameParts = (name: string) =>
   name.split(/_|(?<=[a-z0-9])(?=[A-Z])/).map((w) => w.toLowerCase().replace(/s$/, ""));
@@ -37,7 +38,7 @@ function inferColumn(c: CatalogColumn, type: FieldType, t: CatalogTable): Contra
   const isKey =
     t.primaryKey.includes(c.name) ||
     t.foreignKeys.some((fk) => fk.columns.includes(c.name)) ||
-    c.name.endsWith("_id");
+    nameParts(c.name).at(-1) === "id";
   const distinct = distinctOf(c, t.rowCount);
   const base = { name: c.name, pgType: c.pgType, type, nullable: c.nullable, distinct };
   if (isKey) return { ...base, role: "id", highCardinality: false };
@@ -60,7 +61,8 @@ function inferTable(t: CatalogTable): ContractTable {
 
 // Code-point order, not localeCompare: goldens and the schema hash must not depend on ICU.
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-const byKey = (r: Relationship) => `${r.from.table}\0${r.from.columns.join(",")}`;
+const byKey = (r: Relationship) =>
+  [r.from.table, r.from.columns.join(","), r.to.table, r.to.columns.join(",")].join("\0");
 
 /**
  * Typed columns with roles, and many-to-one relationships from foreign keys. Columns of
