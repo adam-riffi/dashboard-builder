@@ -26,7 +26,7 @@ Operating manual for coding agents in this repository. Codex and Copilot read th
 | Lint / format | `pnpm lint` / `pnpm format` |
 | Type check | `pnpm typecheck` |
 | Build | `pnpm build` |
-| Local database (Postgres + Auth) | Once: `echo "[$(pnpm exec supabase gen signing-key --algorithm ES256 2>/dev/null)]" > supabase/signing_keys.json` (git-ignored ES256 key). Then `pnpm exec supabase start` (creates the local roles), then `pnpm db:migrate && pnpm db:seed`; `pnpm exec supabase status` prints the API URL and publishable key for `.env.local` (`DASH_JWKS_URL` = API URL + `/auth/v1/.well-known/jwks.json`) |
+| Local database (Postgres + Auth) | Once: `echo "[]" > supabase/signing_keys.json && pnpm exec supabase gen signing-key --algorithm ES256` (git-ignored ES256 key, so tokens verify through the JWKS). Then `pnpm exec supabase start` (creates the local roles), then `pnpm db:migrate && pnpm db:seed`; `pnpm exec supabase status` prints the API URL and publishable key for `.env.local` (`DASH_JWKS_URL` = API URL + `/auth/v1/.well-known/jwks.json`) |
 | Dev server (demo at localhost:3000) | `pnpm dev` |
 | Integration tests (local Postgres) | `pnpm test:integration` |
 | End-to-end tests | `pnpm test:e2e` |
