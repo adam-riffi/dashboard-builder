@@ -1,0 +1,298 @@
+{
+  "contractVersion": "6453c557a4d1bc6b71fc584528d431d5db6e7b48d2a09fb951da37afd8bcea19",
+  "tables": [
+    {
+      "name": "dash_demo.customers",
+      "rowCount": null,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "tenant_id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "name",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": null,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "country",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": null,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "segment",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": null,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "created_at",
+          "pgType": "timestamptz",
+          "type": "date",
+          "nullable": false,
+          "distinct": null,
+          "role": "time",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "dash_demo.order_items",
+      "rowCount": null,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "int8",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "order_id",
+          "pgType": "int8",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "tenant_id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "product_id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "quantity",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "measure",
+          "aggregation": "SUM",
+          "highCardinality": false
+        },
+        {
+          "name": "unit_price",
+          "pgType": "numeric",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "measure",
+          "aggregation": "AVG",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "dash_demo.orders",
+      "rowCount": null,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "int8",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "tenant_id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "customer_id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "ordered_at",
+          "pgType": "timestamptz",
+          "type": "date",
+          "nullable": false,
+          "distinct": null,
+          "role": "time",
+          "highCardinality": false
+        },
+        {
+          "name": "status",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": null,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "channel",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": null,
+          "role": "dimension",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "dash_demo.products",
+      "rowCount": null,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "tenant_id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "name",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": null,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "category",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": null,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "unit_price",
+          "pgType": "numeric",
+          "type": "number",
+          "nullable": false,
+          "distinct": null,
+          "role": "measure",
+          "aggregation": "AVG",
+          "highCardinality": false
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": {
+        "table": "dash_demo.order_items",
+        "columns": [
+          "order_id"
+        ]
+      },
+      "to": {
+        "table": "dash_demo.orders",
+        "columns": [
+          "id"
+        ]
+      },
+      "kind": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "dash_demo.order_items",
+        "columns": [
+          "product_id"
+        ]
+      },
+      "to": {
+        "table": "dash_demo.products",
+        "columns": [
+          "id"
+        ]
+      },
+      "kind": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "dash_demo.orders",
+        "columns": [
+          "customer_id"
+        ]
+      },
+      "to": {
+        "table": "dash_demo.customers",
+        "columns": [
+          "id"
+        ]
+      },
+      "kind": "many-to-one"
+    }
+  ]
+}

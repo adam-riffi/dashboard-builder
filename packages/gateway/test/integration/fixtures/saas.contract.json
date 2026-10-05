@@ -1,0 +1,285 @@
+{
+  "contractVersion": "4799efcb5b76a8713b843c143a94ddd5c73941024027a845f030fbd296efa8da",
+  "tables": [
+    {
+      "name": "fx_saas.accounts",
+      "rowCount": 60,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "uuid",
+          "type": "string",
+          "nullable": false,
+          "distinct": 60,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "plan_id",
+          "pgType": "int2",
+          "type": "number",
+          "nullable": false,
+          "distinct": 3,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "name",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": 60,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "country",
+          "pgType": "bpchar",
+          "type": "string",
+          "nullable": false,
+          "distinct": 3,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "stripe_customer_id",
+          "pgType": "text",
+          "type": "string",
+          "nullable": true,
+          "distinct": 30,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "churn_score",
+          "pgType": "float4",
+          "type": "number",
+          "nullable": true,
+          "distinct": 10,
+          "role": "measure",
+          "aggregation": "AVG",
+          "highCardinality": false
+        },
+        {
+          "name": "is_active",
+          "pgType": "bool",
+          "type": "boolean",
+          "nullable": false,
+          "distinct": 2,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "signed_up_on",
+          "pgType": "date",
+          "type": "date",
+          "nullable": false,
+          "distinct": 60,
+          "role": "time",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "fx_saas.events",
+      "rowCount": 12000,
+      "primaryKey": [],
+      "columns": [
+        {
+          "name": "session_key",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": 12000,
+          "role": "dimension",
+          "highCardinality": true
+        },
+        {
+          "name": "kind",
+          "pgType": "varchar",
+          "type": "string",
+          "nullable": false,
+          "distinct": 3,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "happened_at",
+          "pgType": "timestamptz",
+          "type": "date",
+          "nullable": false,
+          "distinct": 12000,
+          "role": "time",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "fx_saas.invoices",
+      "rowCount": 300,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "int8",
+          "type": "number",
+          "nullable": false,
+          "distinct": 300,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "account_id",
+          "pgType": "uuid",
+          "type": "string",
+          "nullable": false,
+          "distinct": 60,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "issued_at",
+          "pgType": "timestamp",
+          "type": "date",
+          "nullable": false,
+          "distinct": 300,
+          "role": "time",
+          "highCardinality": false
+        },
+        {
+          "name": "paid_at",
+          "pgType": "timestamptz",
+          "type": "date",
+          "nullable": true,
+          "distinct": 240,
+          "role": "time",
+          "highCardinality": false
+        },
+        {
+          "name": "amount",
+          "pgType": "numeric",
+          "type": "number",
+          "nullable": false,
+          "distinct": 7,
+          "role": "measure",
+          "aggregation": "SUM",
+          "highCardinality": false
+        },
+        {
+          "name": "tax_rate",
+          "pgType": "numeric",
+          "type": "number",
+          "nullable": false,
+          "distinct": 1,
+          "role": "measure",
+          "aggregation": "AVG",
+          "highCardinality": false
+        },
+        {
+          "name": "discount_pct",
+          "pgType": "float8",
+          "type": "number",
+          "nullable": true,
+          "distinct": 1,
+          "role": "measure",
+          "aggregation": "AVG",
+          "highCardinality": false
+        },
+        {
+          "name": "seats",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": 10,
+          "role": "measure",
+          "aggregation": "SUM",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "fx_saas.plans",
+      "rowCount": 3,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "int2",
+          "type": "number",
+          "nullable": false,
+          "distinct": 3,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "tier",
+          "pgType": "plan_tier",
+          "type": "string",
+          "nullable": false,
+          "distinct": 3,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "monthly_price",
+          "pgType": "numeric",
+          "type": "number",
+          "nullable": false,
+          "distinct": 3,
+          "role": "measure",
+          "aggregation": "AVG",
+          "highCardinality": false
+        },
+        {
+          "name": "seat_limit",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": true,
+          "distinct": 2,
+          "role": "measure",
+          "aggregation": "SUM",
+          "highCardinality": false
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": {
+        "table": "fx_saas.accounts",
+        "columns": [
+          "plan_id"
+        ]
+      },
+      "to": {
+        "table": "fx_saas.plans",
+        "columns": [
+          "id"
+        ]
+      },
+      "kind": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "fx_saas.invoices",
+        "columns": [
+          "account_id"
+        ]
+      },
+      "to": {
+        "table": "fx_saas.accounts",
+        "columns": [
+          "id"
+        ]
+      },
+      "kind": "many-to-one"
+    }
+  ]
+}

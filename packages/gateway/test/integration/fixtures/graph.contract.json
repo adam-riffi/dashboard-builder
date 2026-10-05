@@ -1,0 +1,299 @@
+{
+  "contractVersion": "a9e89bc51915656b00a68f2f0c897d81f465c3517074069626e7989225feb504",
+  "tables": [
+    {
+      "name": "fx_graph.airports",
+      "rowCount": 3,
+      "primaryKey": [
+        "code"
+      ],
+      "columns": [
+        {
+          "name": "code",
+          "pgType": "bpchar",
+          "type": "string",
+          "nullable": false,
+          "distinct": 3,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "city",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": 3,
+          "role": "dimension",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "fx_graph.audit",
+      "rowCount": 2,
+      "primaryKey": [],
+      "columns": [
+        {
+          "name": "at",
+          "pgType": "timestamptz",
+          "type": "date",
+          "nullable": false,
+          "distinct": 2,
+          "role": "time",
+          "highCardinality": false
+        },
+        {
+          "name": "note",
+          "pgType": "text",
+          "type": "string",
+          "nullable": true,
+          "distinct": 1,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "hangar",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": true,
+          "distinct": 1,
+          "role": "id",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "fx_graph.employees",
+      "rowCount": 3,
+      "primaryKey": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": 3,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "name",
+          "pgType": "text",
+          "type": "string",
+          "nullable": false,
+          "distinct": 3,
+          "role": "dimension",
+          "highCardinality": false
+        },
+        {
+          "name": "manager_id",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": true,
+          "distinct": 1,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "hired_on",
+          "pgType": "date",
+          "type": "date",
+          "nullable": true,
+          "distinct": 2,
+          "role": "time",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "fx_graph.flights",
+      "rowCount": 3,
+      "primaryKey": [
+        "carrier",
+        "number"
+      ],
+      "columns": [
+        {
+          "name": "carrier",
+          "pgType": "bpchar",
+          "type": "string",
+          "nullable": false,
+          "distinct": 2,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "number",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": 3,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "origin",
+          "pgType": "bpchar",
+          "type": "string",
+          "nullable": false,
+          "distinct": 2,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "destination",
+          "pgType": "bpchar",
+          "type": "string",
+          "nullable": false,
+          "distinct": 3,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "departs_at",
+          "pgType": "timestamptz",
+          "type": "date",
+          "nullable": false,
+          "distinct": 3,
+          "role": "time",
+          "highCardinality": false
+        },
+        {
+          "name": "pilot",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": true,
+          "distinct": 2,
+          "role": "id",
+          "highCardinality": false
+        }
+      ]
+    },
+    {
+      "name": "fx_graph.legs",
+      "rowCount": 4,
+      "primaryKey": [],
+      "columns": [
+        {
+          "name": "carrier",
+          "pgType": "bpchar",
+          "type": "string",
+          "nullable": false,
+          "distinct": 2,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "number",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": 3,
+          "role": "id",
+          "highCardinality": false
+        },
+        {
+          "name": "seq",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": 2,
+          "role": "measure",
+          "aggregation": "SUM",
+          "highCardinality": false
+        },
+        {
+          "name": "duration_minutes",
+          "pgType": "int4",
+          "type": "number",
+          "nullable": false,
+          "distinct": 4,
+          "role": "measure",
+          "aggregation": "SUM",
+          "highCardinality": false
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": {
+        "table": "fx_graph.employees",
+        "columns": [
+          "manager_id"
+        ]
+      },
+      "to": {
+        "table": "fx_graph.employees",
+        "columns": [
+          "id"
+        ]
+      },
+      "kind": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "fx_graph.flights",
+        "columns": [
+          "destination"
+        ]
+      },
+      "to": {
+        "table": "fx_graph.airports",
+        "columns": [
+          "code"
+        ]
+      },
+      "kind": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "fx_graph.flights",
+        "columns": [
+          "origin"
+        ]
+      },
+      "to": {
+        "table": "fx_graph.airports",
+        "columns": [
+          "code"
+        ]
+      },
+      "kind": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "fx_graph.flights",
+        "columns": [
+          "pilot"
+        ]
+      },
+      "to": {
+        "table": "fx_graph.employees",
+        "columns": [
+          "id"
+        ]
+      },
+      "kind": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "fx_graph.legs",
+        "columns": [
+          "carrier",
+          "number"
+        ]
+      },
+      "to": {
+        "table": "fx_graph.flights",
+        "columns": [
+          "carrier",
+          "number"
+        ]
+      },
+      "kind": "many-to-one"
+    }
+  ]
+}
