@@ -36,6 +36,7 @@ export function Session() {
         Signed in as guest <code>{state.userId.slice(0, 8)}</code>
       </p>
       <ContractSummary token={state.token} />
+      <UnitsByCategory token={state.token} />
     </>
   );
 }
@@ -55,4 +56,46 @@ function ContractSummary({ token }: { token: string }) {
   }, [token]);
 
   return <p className="muted">{text}</p>;
+}
+
+/** A first live query through `POST /api/dash/query`, scoped to the visitor's tenants. */
+function UnitsByCategory({ token }: { token: string }) {
+  const [rows, setRows] = useState<[string, number][] | "error" | undefined>();
+
+  useEffect(() => {
+    const queries = [
+      {
+        dimensions: [{ field: "dash_demo.products.category" }],
+        measures: [{ field: "dash_demo.order_items.quantity" }],
+      },
+    ];
+    fetch("/api/dash/query", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ queries }),
+    })
+      .then(async (res) => {
+        const { results } = await res.json();
+        const [first] = results ?? [];
+        if (!res.ok || !first?.data) throw new Error(`query: ${res.status}`);
+        const [categories, units] = first.data as [string[], number[]];
+        setRows(categories.map((c, i) => [c, units[i] ?? 0]));
+      })
+      .catch(() => setRows("error"));
+  }, [token]);
+
+  if (rows === undefined) return <p className="muted">Counting your orders…</p>;
+  if (rows === "error") return <p className="muted">Your orders are unavailable right now.</p>;
+  return (
+    <section>
+      <h2>Units sold by category</h2>
+      <ul>
+        {rows.map(([category, units]) => (
+          <li key={category}>
+            {category}: {units.toLocaleString("en-US")}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
