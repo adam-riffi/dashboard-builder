@@ -1,6 +1,6 @@
 # 0002 — Demo order rate that fits the 50 MB budget
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-05
 - Proposed by: claude; decided by: Georges
 
@@ -11,7 +11,6 @@ DESIGN.md §8 asks the `pg_cron` job for "a few orders per tenant every minute",
 - Each run adds **one order for a random tenant** with one or two items, and still deletes orders older than 90 days.
 - Estimated steady state: 129,600 orders × ~120 B ≈ 16 MB, ~194,000 items × ~110 B ≈ 21 MB, plus about 4 MB of seed data: **~40 MB** with indexes.
 - The job deletes its own `cron.job_run_details` rows older than a day (pg_cron never purges them; 1,440 rows a day otherwise). It only touches rows of `dash_demo_tick`, since the table is shared with other apps.
-- Update DESIGN.md §8 to "one order a minute" once accepted.
 
 ## Alternatives considered
 - **Keep the per-tenant rate with a 7-day window.** Fits the budget, but the line charts would lose the 90-day history the demo script shows.
