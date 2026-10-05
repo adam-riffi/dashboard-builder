@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m1/04-introspect · #10
+- Done: `introspect(sql, tables)` reads tables, columns, keys, `reltuples` and `pg_stats` from `pg_catalog` (not `information_schema`, which hides foreign keys from read-only roles), failing with the names of missing or unreadable tables. CI migrates before the integration suites.
+- Tests: golden contracts for `saas`, `graph` and `dash_demo` (as `dash_reader`, row counts nulled) via `toMatchFileSnapshot`; RLS hides `pg_stats` from the reader; missing tables named. Goldens generated and checked against PGlite locally (Docker unavailable); CI runs them on real Postgres.
+- Scope/decisions: golden review caught `duration_minutes` averaged ("ratio" inside "duration"); #8 now matches whole snake/camelCase name parts. Domains and other unlisted types are omitted.
+- Next: stack/m1/05-auth.
+
 ## 2026-10-05 · claude · stack/m1/03-schema-hash · #9
 - Done: `schemaHash(catalog, config)` (SHA-256 of canonical JSON of the inferred structure plus the sorted allowlist, statistics excluded) and `inferContract(catalog, config)` returning a `DataContract`.
 - Tests: `packages/gateway/test/unit/hash.test.ts`: fast-check properties (hex digest; invariant under table, allowlist and foreign-key order and under statistics; changes with type, nullability, primary key, foreign keys and allowlist; inferred contracts parse with the core schema).
