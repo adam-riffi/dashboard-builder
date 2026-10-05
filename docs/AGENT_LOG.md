@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m1/03-schema-hash · #9
+- Done: `schemaHash(catalog, config)` (SHA-256 of canonical JSON of the inferred structure plus the sorted allowlist, statistics excluded) and `inferContract(catalog, config)` returning a `DataContract`.
+- Tests: `packages/gateway/test/unit/hash.test.ts`: fast-check properties (hex digest; invariant under table, allowlist and foreign-key order and under statistics; changes with type, nullability, primary key, foreign keys and allowlist; inferred contracts parse with the core schema).
+- Scope/decisions: the hash covers inferred roles too, so a change in inference rules also bumps the contract version.
+- Next: stack/m1/04-introspect.
+
 ## 2026-10-05 · claude · stack/m1/02-inference · #8
 - Done: Pure `inferTables(catalog)` in `packages/gateway/src/contract/`: pg type → field type (unsupported types omitted, enums as strings), roles and default aggregations per DESIGN.md §6, distinct estimates from `n_distinct`, high-cardinality dimensions, many-to-one relationships from foreign keys inside the allowlist.
 - Tests: `packages/gateway/test/unit/infer.test.ts` (47 cases, 100% lines). Gateway tests split into `test/unit` (`pnpm test`, coverage) and `test/integration`.
