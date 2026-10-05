@@ -39,6 +39,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
@@ -48,22 +50,33 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: >-
-          pnpm exec vercel pull --yes --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm exec vercel pull --yes --token="$VERCEL_TOKEN"
           --environment=${{ env.PROD == 'true' && 'production' || 'preview' }}
-      - run: pnpm exec vercel build --token="${{ secrets.VERCEL_TOKEN }}" ${{ env.PROD == 'true' && '--prod' || '' }}
+      - run: pnpm exec vercel build --token="$VERCEL_TOKEN" ${{ env.PROD == 'true' && '--prod' || '' }}
       - id: deploy
         run: |
-          url=$(pnpm exec vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}" ${{ env.PROD == 'true' && '--prod' || '' }})
+          url=$(pnpm exec vercel deploy --prebuilt --token="$VERCEL_TOKEN" ${{ env.PROD == 'true' && '--prod' || '' }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
+      # One preview comment per PR, found by its marker (pr-meme also posts as github-actions).
       - if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           URL: ${{ steps.deploy.outputs.url }}
-        run: >-
-          gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none
-          --body "Preview: $URL"
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          marker='<!-- dash-preview -->'
+          body=$(printf '%s\nPreview: %s' "$marker" "$URL")
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" > /dev/null
+          else
+            gh pr comment "$PR" --body "$body"
+          fi
   smoke:
     needs: deploy
+    # A skipped migrate (pull requests) would otherwise skip smoke through the implicit success().
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
