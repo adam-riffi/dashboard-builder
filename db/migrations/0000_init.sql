@@ -85,7 +85,8 @@ grant usage on schema dash_demo to dash_reader;
 grant select on all tables in schema dash_demo to dash_reader;
 
 -- Defense in depth (DESIGN.md §6): the gateway sets app.tenant_ids per transaction;
--- the subselect is evaluated once per statement instead of once per row.
+-- the subselect is evaluated once per statement instead of once per row, and the ::int[]
+-- cast keeps any() in its array form (any((select …)) alone would be the subquery form).
 do $$
 declare
   t text;
@@ -93,7 +94,7 @@ begin
   foreach t in array array['customers', 'products', 'orders', 'order_items'] loop
     execute format('alter table dash_demo.%I enable row level security', t);
     execute format(
-      'create policy tenant_scope on dash_demo.%I for select to dash_reader using (tenant_id = any((select string_to_array(current_setting(''app.tenant_ids'', true), '','')::int[])))',
+      'create policy tenant_scope on dash_demo.%I for select to dash_reader using (tenant_id = any((select string_to_array(current_setting(''app.tenant_ids'', true), '','')::int[])::int[]))',
       t
     );
   end loop;
@@ -101,4 +102,4 @@ end
 $$;
 alter table dash_demo.tenants enable row level security;
 create policy tenant_scope on dash_demo.tenants for select to dash_reader
-  using (id = any((select string_to_array(current_setting('app.tenant_ids', true), ',')::int[])));
+  using (id = any((select string_to_array(current_setting('app.tenant_ids', true), ',')::int[])::int[]));
