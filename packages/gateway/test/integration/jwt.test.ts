@@ -1,66 +1,38 @@
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
-import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { generateKeyPair } from "jose";
+import { afterAll, describe, expect, it } from "vitest";
 import { jwtAuth } from "../../src/auth.ts";
+import { AUDIENCE, ISSUER, startJwks, USER } from "./jwks.ts";
 
-// A local JWKS endpoint and real ES256 tokens, the way Supabase Auth signs them.
-const ISSUER = "http://auth.test/auth/v1";
-const AUDIENCE = "authenticated";
-
-const { publicKey, privateKey } = await generateKeyPair("ES256");
+const jwks = await startJwks();
 const stranger = await generateKeyPair("ES256");
-const jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: "k1", alg: "ES256", use: "sig" }] };
+const verify = jwtAuth({ jwksUrl: jwks.url, issuer: ISSUER, audience: AUDIENCE });
 
-const server = createServer((_, res) => {
-  res.setHeader("content-type", "application/json");
-  res.end(JSON.stringify(jwks));
-});
-let verify: ReturnType<typeof jwtAuth>;
-
-beforeAll(async () => {
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
-  verify = jwtAuth({
-    jwksUrl: `http://127.0.0.1:${port}/auth/v1/.well-known/jwks.json`,
-    issuer: ISSUER,
-    audience: AUDIENCE,
-  });
-});
-afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
-
-/** Signs with the JWKS key; `exp: null` leaves the expiry claim out. */
-const sign = (claims: JWTPayload, options: { key?: CryptoKey; exp?: string | null } = {}) => {
-  const jwt = new SignJWT(claims).setProtectedHeader({ alg: "ES256", kid: "k1" }).setIssuedAt();
-  if (options.exp !== null) jwt.setExpirationTime(options.exp ?? "5m");
-  return jwt.sign(options.key ?? privateKey);
-};
-
-const valid = { sub: "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f", iss: ISSUER, aud: AUDIENCE };
+afterAll(() => jwks.close());
 
 describe("jwtAuth", () => {
   it("verifies a token signed by a key from the JWKS", async () => {
-    await expect(verify(await sign(valid))).resolves.toMatchObject({ sub: valid.sub });
+    await expect(verify(await jwks.sign({ sub: USER }))).resolves.toMatchObject({ sub: USER });
   });
 
   it("rejects an expired token", async () => {
-    await expect(verify(await sign(valid, { exp: "-1m" }))).rejects.toThrow();
+    await expect(verify(await jwks.sign({ sub: USER }, { exp: "-1m" }))).rejects.toThrow();
   });
 
   it("rejects a token without an expiry, which would never expire", async () => {
-    await expect(verify(await sign(valid, { exp: null }))).rejects.toThrow();
+    await expect(verify(await jwks.sign({ sub: USER }, { exp: null }))).rejects.toThrow();
   });
 
   it("rejects a token for another audience", async () => {
-    await expect(verify(await sign({ ...valid, aud: "service_role" }))).rejects.toThrow();
+    await expect(verify(await jwks.sign({ sub: USER, aud: "service_role" }))).rejects.toThrow();
   });
 
   it("rejects a token from another issuer", async () => {
-    await expect(verify(await sign({ ...valid, iss: "http://evil.test" }))).rejects.toThrow();
+    await expect(verify(await jwks.sign({ sub: USER, iss: "http://evil.test" }))).rejects.toThrow();
   });
 
   it("rejects a token signed by a key outside the JWKS", async () => {
-    await expect(verify(await sign(valid, { key: stranger.privateKey }))).rejects.toThrow();
+    const token = await jwks.sign({ sub: USER }, { key: stranger.privateKey });
+    await expect(verify(token)).rejects.toThrow();
   });
 
   it("rejects a malformed token", async () => {

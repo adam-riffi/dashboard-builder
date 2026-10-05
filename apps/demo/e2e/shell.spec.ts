@@ -17,3 +17,13 @@ test("pages send the security headers @smoke", async ({ request }) => {
   expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
   expect(headers["x-content-type-options"]).toBe("nosniff");
 });
+
+test("a signed-in visitor sees the tables of the data contract @smoke", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText(/4 tables available/i)).toBeVisible();
+});
+
+test("the contract is refused without a token @smoke", async ({ request }) => {
+  const res = await request.get("/api/dash/contract");
+  expect(res.status()).toBe(401);
+});
