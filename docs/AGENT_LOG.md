@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m0/06-deploy · #6 (setup)
+- Done: Triaged failing checks (no code faults). Created Vercel project `dashboard-builder` (team Wuxinggraph, root `apps/demo`, `cdg1`, default Vercel Authentication kept). Repo settings: squash only with PR title, delete head branches, Actions read-only; ruleset `main` (PR, linear history, squash, required checks from DESIGN.md §11). Confirmed the `portfolio` JWKS URL.
+- Tests: none (configuration).
+- Scope/decisions: `meme` fails until `portfolio-infra` reaches its M4 (`v1` tag); `bootstrap.sql` is its M5.
+- Next: Georges sets GitHub secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, `DATABASE_URL_MIGRATIONS` and the Vercel env vars from DESIGN.md §12; then a different agent reviews PRs 1–6 and Georges merges bottom-up.
+
 ## 2026-10-05 · claude · stack/m0/06-deploy · #6
 - Done: Mode B `deploy.yml` (migrate + seed on main → Vercel prebuilt deploy, preview URL comment → Playwright `@smoke`); `apps/demo/vercel.json` pinned to `cdg1`; AGENTS.md commands table now describes real scripts.
 - Tests: actionlint; the `@smoke` subset from PR 05 runs against each deployment.
