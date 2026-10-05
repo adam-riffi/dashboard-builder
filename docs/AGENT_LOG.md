@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/03-join-paths · #17
+- Done: `planJoins(query, contract)` (hand-written core): base = the measures' single fact table; BFS over many-to-one edges counting shortest paths; rejects several fact tables, ambiguous paths (names both relationships), fan-out (reachable only through one-to-many) and unrelated tables; joins ordered nearest first.
+- Tests: `packages/gateway/test/unit/paths.test.ts` on the demo and graph golden contracts (multi-hop, composite key, ambiguity at airports, fan-out orders→products, unrelated audit, self reference); paths.ts 100% lines.
+- Scope/decisions: self references never become joins in v1 (no table aliases); chasm traps stay v1.1.
+- Next: stack/m2/04-compile.
+
 ## 2026-10-06 · claude · stack/m2/02-validate · #16
 - Done: Pure `validateQuery(spec, contract)`: resolves `schema.table.column` fields, fills the contract's default aggregation and the 10,000-row limit, and reports every problem prefixed with its field (unknown table/column, aggregation vs type, time grains only on dates, typed filter values incl. ISO dates and booleans, sort targets).
 - Tests: `packages/gateway/test/unit/validate.test.ts` (demo and saas golden contracts as fixtures); validate.ts 100% lines.
