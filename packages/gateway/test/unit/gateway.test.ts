@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthError } from "../../src/auth.ts";
+import { matches, withoutStatistics } from "../../src/gateway.ts";
 import { createGateway, defineGateway, postgresSource } from "../../src/index.ts";
 
 /** A gateway whose database must not be touched: every test here stops before any query. */
@@ -84,5 +85,45 @@ describe("postgresSource", () => {
   it("reuses one client per source", () => {
     const get = postgresSource({ url: "postgres://u:p@127.0.0.1:1/db" });
     expect(get()).toBe(get());
+  });
+});
+
+describe("served contracts", () => {
+  it("drop row counts and distinct estimates but keep the high-cardinality flag", () => {
+    const contract = withoutStatistics({
+      contractVersion: "a".repeat(64),
+      relationships: [],
+      tables: [
+        {
+          name: "s.t",
+          rowCount: 1200,
+          primaryKey: [],
+          columns: [
+            {
+              name: "email",
+              pgType: "text",
+              type: "string",
+              nullable: false,
+              role: "dimension",
+              distinct: 12_000,
+              highCardinality: true,
+            },
+          ],
+        },
+      ],
+    });
+    expect(contract.tables[0]).toMatchObject({ rowCount: null });
+    expect(contract.tables[0]?.columns[0]).toMatchObject({ distinct: null, highCardinality: true });
+  });
+
+  it.each([
+    ['"v1"', true],
+    ['W/"v1"', true],
+    ['"v0", W/"v1"', true],
+    ["*", true],
+    ['"v0"', false],
+    [null, false],
+  ])("If-None-Match %s matches %s", (header, expected) => {
+    expect(matches(header, '"v1"')).toBe(expected);
   });
 });
