@@ -37,7 +37,7 @@ export async function introspect(sql: postgres.Sql, tables: string[]): Promise<C
     select c.oid::text as oid, n.nspname || '.' || c.relname as name, c.reltuples::float8 as reltuples
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where c.relkind in ('r', 'p') and n.nspname || '.' || c.relname = any(${tables})
-      and has_table_privilege(c.oid, 'select')`;
+      and has_schema_privilege(n.oid, 'usage') and has_table_privilege(c.oid, 'select')`;
   const missing = tables.filter((t) => !found.some((f) => f.name === t));
   if (missing.length > 0) {
     throw new Error(`Tables not found or not readable: ${missing.join(", ")}`);
