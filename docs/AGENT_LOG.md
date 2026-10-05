@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m1/02..06 · #8–#12 (review fixes)
+- Done: Addressed the independent review (no blockers, 7 should-fix). #8: `percentage` averaged, camelCase `*Id` keys, relationships ordered by target, ADR 0004 (name parts, Proposed). #10: USAGE on the schema required, ADR 0005 (statistics under RLS, Proposed). #11: tokens must carry `exp` (jose only checks it when present), case-insensitive bearer, stateless host regexes, bounded int ids, DESIGN.md §9 M1 row records JWT auth. #12: `/contract` serves no `rowCount`/`distinct` (cross-tenant leak via `reltuples`), RFC 9110 If-None-Match, HEAD, request ids and durations in logs, handler back under the 90% coverage gate with a "no database before auth" test.
+- Tests: new failing tests first for every fix; goldens unchanged (rechecked on PGlite); gateway unit coverage 91.6%.
+- Scope/decisions: skipped nits: relationship column-length refine (#7), double inference per request and duplicate allowlist entries (#9), partitioned-table stats and domain types (#10), JWKS outage as 503 (#12), last-segment routing (#12).
+- Next: Georges accepts or rejects ADRs 0004–0005, then merges #7–#12 bottom-up; then M2.
+
 ## 2026-10-05 · claude · stack/m1/06-contract-endpoint · #12
 - Done: `defineGateway`, `postgresSource` (lazy, fails loudly on an empty URL), `createGateway` Fetch handler (`/health` public, `/contract` with JWT, ETag/304, 401/404/405/500 with JSON logs). Demo: `dash.config.ts`, catch-all `/api/dash/[...path]`, page shows "N tables available". `jwtAuth` reads its URL lazily (Next evaluates config at build time). Local/CI Supabase signs ES256 from a git-ignored generated key.
 - Tests: `test/integration/gateway.test.ts` (health, 401 variants, contract + ETag, 304, 404/405), shared `jwks.ts` helper, unit test for lazy `jwtAuth`, Playwright `@smoke` (4 tables after sign-in, 401 without token). Local `next start` probe without env: 401/500/404/405 as designed.
