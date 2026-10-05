@@ -72,6 +72,30 @@ describe("gateway handler", () => {
     expect(res.headers.get("cache-control")).toBe("private, no-cache");
   });
 
+  it("serves no statistics, which ignore RLS and would leak across tenants (ADR 0005)", async () => {
+    const res = await call("contract", { headers: await bearer() });
+    const contract = dataContract.parse(await res.json());
+    for (const t of contract.tables) {
+      expect(t.rowCount).toBeNull();
+      expect(t.columns.every((c) => c.distinct === null)).toBe(true);
+    }
+  });
+
+  it("matches If-None-Match lists, weak tags and *", async () => {
+    const first = await call("contract", { headers: await bearer() });
+    const etag = first.headers.get("etag") as string;
+    for (const header of [`W/"old", ${etag}`, `W/${etag}`, "*"]) {
+      const res = await call("contract", {
+        headers: { ...(await bearer()), "if-none-match": header },
+      });
+      expect(res.status).toBe(304);
+    }
+    const stale = await call("contract", {
+      headers: { ...(await bearer()), "if-none-match": '"old"' },
+    });
+    expect(stale.status).toBe(200);
+  });
+
   it("answers 304 when the client already has this version", async () => {
     const first = await call("contract", { headers: await bearer() });
     const etag = first.headers.get("etag") as string;
