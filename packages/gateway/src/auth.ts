@@ -20,13 +20,16 @@ export class AuthError extends Error {}
 
 const FORMATS = {
   uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-  int: /^-?\d+$/,
+  // Fits int8 with room to spare, so a bound parameter never overflows.
+  int: /^-?\d{1,18}$/,
 };
 
 /** JWT verification against a JWKS endpoint; keys are fetched once and refreshed by jose. */
 export function jwtAuth({ jwksUrl, issuer, audience }: AuthConfig): Verifier {
   const keys = createRemoteJWKSet(new URL(jwksUrl));
-  return async (token) => (await jwtVerify(token, keys, { issuer, audience })).payload;
+  // jose checks exp only when present; a token without one would never expire.
+  return async (token) =>
+    (await jwtVerify(token, keys, { issuer, audience, requiredClaims: ["exp"] })).payload;
 }
 
 /**
@@ -38,7 +41,8 @@ export async function authenticate(
   verify: Verifier,
   identity: IdentityConfig,
 ): Promise<{ id: string; claims: JWTPayload }> {
-  const token = /^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1];
+  // The scheme is case-insensitive (RFC 9110).
+  const token = /^Bearer (\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
   if (!token) throw new AuthError("Missing bearer token");
 
   let claims: JWTPayload;
@@ -50,7 +54,11 @@ export async function authenticate(
   }
 
   const value = claims[identity.claim];
-  const pattern = typeof identity.format === "string" ? FORMATS[identity.format] : identity.format;
+  // A copy without g/y: those flags make test() stateful, alternating answers per request.
+  const pattern =
+    typeof identity.format === "string"
+      ? FORMATS[identity.format]
+      : new RegExp(identity.format.source, identity.format.flags.replace(/[gy]/g, ""));
   const id = typeof value === "string" || typeof value === "number" ? String(value) : undefined;
   if (id === undefined || !pattern.test(id)) {
     throw new AuthError(`Identity claim ${identity.claim} is malformed`);
