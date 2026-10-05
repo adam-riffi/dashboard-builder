@@ -95,10 +95,24 @@ describe("inferTables: roles", () => {
     expect(only(col("quantity", "int4"))).toMatchObject({ role: "measure", aggregation: "SUM" });
   });
 
-  it.each(["unit_price", "tax_rate", "conversion_ratio", "discount_pct", "percent_done", "score"])(
-    "averages %s",
+  it.each([
+    "unit_price",
+    "tax_rate",
+    "conversion_ratio",
+    "discount_pct",
+    "percent_done",
+    "score",
+    "unitPrice",
+    "exchange_rates",
+  ])("averages %s", (name) => {
+    expect(only(col(name, "numeric"))).toMatchObject({ role: "measure", aggregation: "AVG" });
+  });
+
+  // The averaged words must be whole name parts: "duration" contains "ratio".
+  it.each(["duration_minutes", "accurate_count", "operators", "scoreboard_rows"])(
+    "sums %s",
     (name) => {
-      expect(only(col(name, "numeric"))).toMatchObject({ role: "measure", aggregation: "AVG" });
+      expect(only(col(name, "int4"))).toMatchObject({ role: "measure", aggregation: "SUM" });
     },
   );
 
