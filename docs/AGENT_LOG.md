@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m1/06-contract-endpoint · #12
+- Done: `defineGateway`, `postgresSource` (lazy, fails loudly on an empty URL), `createGateway` Fetch handler (`/health` public, `/contract` with JWT, ETag/304, 401/404/405/500 with JSON logs). Demo: `dash.config.ts`, catch-all `/api/dash/[...path]`, page shows "N tables available". `jwtAuth` reads its URL lazily (Next evaluates config at build time). Local/CI Supabase signs ES256 from a git-ignored generated key.
+- Tests: `test/integration/gateway.test.ts` (health, 401 variants, contract + ETag, 304, 404/405), shared `jwks.ts` helper, unit test for lazy `jwtAuth`, Playwright `@smoke` (4 tables after sign-in, 401 without token). Local `next start` probe without env: 401/500/404/405 as designed.
+- Scope/decisions: previews show "Your data is unavailable" until `DASH_SOURCE_URL` exists (bootstrap.sql). M1 acceptance: CI goldens (#10) plus e2e.
+- Next: independent review of #7–#12; Georges merges; then M2 (query engine).
+
 ## 2026-10-05 · claude · stack/m1/05-auth · #11
 - Done: `jwtAuth` (jose, remote JWKS: signature, issuer, audience, expiry) and `authenticate(request, verify, identity)` (bearer token, identity format `uuid`/`int`/regex, fixed 401 messages). ADR 0003: auth in M1 (Georges' decision).
 - Tests: `test/unit/auth.test.ts` (header shapes, verifier failures not echoed, each format, missing claim); `test/integration/jwt.test.ts` (local JWKS server, real ES256 tokens: valid, expired, wrong audience/issuer, foreign key, malformed).
