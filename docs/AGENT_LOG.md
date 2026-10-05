@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m1/01-core-contract · #7
+- Done: New `packages/core` (`@adam-riffi/dash-core`) with the zod `DataContract` schema and types; coverage tooling with the 90% line threshold from DESIGN.md §10.
+- Tests: `packages/core/test/contract.test.ts` (valid contract, version format, roles/types, aggregation only on measures, schema.table names, relationship columns).
+- Scope/decisions: M1 plan (6 PRs): core schema → inference → schema hash → introspection with golden fixtures → JWT auth (ADR 0003, Georges chose auth in M1) → `GET /contract`.
+- Next: stack/m1/02-inference.
+
 ## 2026-10-05 · claude · main · #1–#6 (merge)
 - Done: Georges accepted ADRs 0001–0002 (DESIGN.md §8 updated) and asked to merge the M0 stack. Setup finished: Vercel secrets and env vars, anonymous sign-ins on. PR previews deploy and pass the sign-in and header smoke tests.
 - Tests: all six required checks green on every PR. PRs 1–4 predate some required CI jobs, so #6→#2 were squash-merged down into #1 (same tree as the tested #6 head) and #1 went to main through the full required checks; the ruleset was not changed.
