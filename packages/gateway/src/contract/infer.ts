@@ -55,6 +55,8 @@ function inferTable(t: CatalogTable): ContractTable {
   return { name: t.name, rowCount: t.rowCount, primaryKey: t.primaryKey, columns };
 }
 
+// Code-point order, not localeCompare: goldens and the schema hash must not depend on ICU.
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const byKey = (r: Relationship) => `${r.from.table}\0${r.from.columns.join(",")}`;
 
 /**
@@ -69,7 +71,7 @@ export function inferTables(catalog: Catalog): {
   const tables = catalog.tables
     .map(inferTable)
     .filter((t) => t.columns.length > 0)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => compare(a.name, b.name));
   const columnsByTable = new Map(
     tables.map((t) => [t.name, new Set(t.columns.map((c) => c.name))]),
   );
@@ -88,6 +90,6 @@ export function inferTables(catalog: Catalog): {
           }),
         ),
     )
-    .sort((a, b) => byKey(a).localeCompare(byKey(b)));
+    .sort((a, b) => compare(byKey(a), byKey(b)));
   return { tables, relationships };
 }
