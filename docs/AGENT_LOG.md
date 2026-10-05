@@ -16,8 +16,8 @@ Entry format:
 
 ## 2026-10-05 · claude · main · #1–#6 (merge)
 - Done: Georges accepted ADRs 0001–0002 (DESIGN.md §8 updated) and asked to merge the M0 stack. Setup finished: Vercel secrets and env vars, anonymous sign-ins on. PR previews deploy and pass the sign-in and header smoke tests.
-- Tests: all six required checks green on every PR; restacked heads keep the tested trees. The required-checks rule was paused while merging PRs 1–4, which predate some CI jobs, and restored afterwards.
-- Scope/decisions: none.
+- Tests: all six required checks green on every PR. PRs 1–4 predate some required CI jobs, so #6→#2 were squash-merged down into #1 (same tree as the tested #6 head) and #1 went to main through the full required checks; the ruleset was not changed.
+- Scope/decisions: M0 lands on main as one squash commit; per-PR history stays on #1–#6.
 - Next: health smoke stays 503 until `portfolio-infra` ships `bootstrap.sql` (dash roles, `DASH_SOURCE_URL`, `DASH_APP_DATABASE_URL`, `DATABASE_URL_MIGRATIONS`); the production deploy waits on the same secret. Then M1 (contract).
 
 ## 2026-10-05 · claude · stack/m0/03..06 · #3–#6 (review fixes)
