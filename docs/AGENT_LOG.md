@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/04-compile · #18
+- Done: `compileQuery(query, plan, policies, scope)`: parameterized Postgres SQL with contract-only quoted identifiers (aliases t0…), `date_trunc` grains from the enum, aggregates (count distinct), left joins on composite keys, a mandatory `column = any($n)` predicate for every query table with a policy (fails closed without the scope list), typed filters, group/order by, `limit` one above the request for truncation; output column descriptors (d0…, m0…).
+- Tests: `packages/gateway/test/unit/compile.test.ts`: hand-written expected SQL and params, every operator, fail-closed scope, fast-check property that filter values never reach the SQL text; compile.ts 100% lines.
+- Scope/decisions: policies are injected before filters; results default to dimension order for stable output.
+- Next: stack/m2/05-execute.
+
 ## 2026-10-06 · claude · stack/m2/03-join-paths · #17
 - Done: `planJoins(query, contract)` (hand-written core): base = the measures' single fact table; BFS over many-to-one edges counting shortest paths; rejects several fact tables, ambiguous paths (names both relationships), fan-out (reachable only through one-to-many) and unrelated tables; joins ordered nearest first.
 - Tests: `packages/gateway/test/unit/paths.test.ts` on the demo and graph golden contracts (multi-hop, composite key, ambiguity at airports, fan-out orders→products, unrelated audit, self reference); paths.ts 100% lines.
