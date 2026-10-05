@@ -150,7 +150,7 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 | `dash_demo.orders` | `id`, `tenant_id`, `customer_id`, `ordered_at`, `status`, `channel` | Indexed on `(tenant_id, ordered_at)` |
 | `dash_demo.order_items` | `id`, `order_id`, `tenant_id`, `product_id`, `quantity`, `unit_price` | |
 
-`dash_demo` tables carry RLS policies on `tenant_id = ANY(string_to_array(current_setting('app.tenant_ids', true), ',')::int[])`. A `pg_cron` job inserts a few orders per tenant every minute and deletes generated orders older than 90 days, keeping the schema under 50 MB. Migrations use Drizzle Kit with the history table in `dash`.
+`dash_demo` tables carry RLS policies on `tenant_id = ANY(string_to_array(current_setting('app.tenant_ids', true), ',')::int[])`. A `pg_cron` job inserts one order a minute for a random tenant and deletes orders older than 90 days, keeping the schema near 40 MB, under the 50 MB budget ([ADR 0002](adr/0002-demo-order-rate.md)). Migrations use Drizzle Kit with the history table in `dash`.
 
 ## 9. Development plan
 

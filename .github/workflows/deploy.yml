@@ -1,0 +1,92 @@
+name: deploy
+# Mode B (ENGINEERING.md §10): migrations first, then a prebuilt Vercel deploy, then smoke tests.
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  PROD: ${{ github.event_name == 'push' }}
+jobs:
+  migrate:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@v7
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+  deploy:
+    needs: migrate
+    # Runs after migrations on main; on pull requests migrate is skipped. Secrets are absent on forks.
+    if: >-
+      always() && needs.migrate.result != 'failure' && needs.migrate.result != 'cancelled' &&
+      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@v7
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: >-
+          pnpm exec vercel pull --yes --token="$VERCEL_TOKEN"
+          --environment=${{ env.PROD == 'true' && 'production' || 'preview' }}
+      - run: pnpm exec vercel build --token="$VERCEL_TOKEN" ${{ env.PROD == 'true' && '--prod' || '' }}
+      - id: deploy
+        run: |
+          url=$(pnpm exec vercel deploy --prebuilt --token="$VERCEL_TOKEN" ${{ env.PROD == 'true' && '--prod' || '' }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      # One preview comment per PR, found by its marker (pr-meme also posts as github-actions).
+      - if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.url }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          marker='<!-- dash-preview -->'
+          body=$(printf '%s\nPreview: %s' "$marker" "$URL")
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" > /dev/null
+          else
+            gh pr comment "$PR" --body "$body"
+          fi
+  smoke:
+    needs: deploy
+    # A skipped migrate (pull requests) would otherwise skip smoke through the implicit success().
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: ${{ needs.deploy.outputs.url }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@v7
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dash/demo exec playwright install --with-deps chromium
+      - run: pnpm --filter @dash/demo exec playwright test --grep @smoke

@@ -5,6 +5,7 @@
   "scripts": {
     "generate": "drizzle-kit generate --custom",
     "migrate": "drizzle-kit migrate",
+    "seed": "node seed.ts",
     "typecheck": "tsc --noEmit",
     "test:integration": "drizzle-kit migrate && vitest run"
   },
