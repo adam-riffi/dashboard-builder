@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-05
-- Proposed by: claude; decided by: Georges
+- Proposed by: claude; decided by: Georges (chose "auth in M1" when the M1 plan was reviewed on 2026-10-05)
 
 ## Context
 DESIGN.md §4 puts "JWT auth with JWKS; identity format validation" in v1, but no milestone in §9 names it. The first endpoint that needs it is `GET /contract` (M1): the contract lists the host's allowlisted tables, columns and row estimates, which an embeddable library must not serve to anonymous callers.
