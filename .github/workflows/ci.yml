@@ -96,9 +96,9 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm --filter @dash/demo exec playwright install --with-deps chromium
       - run: pnpm test:e2e
-      - if: failure()
+      - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-traces
+          name: playwright-results
           path: apps/demo/test-results
           retention-days: 7
