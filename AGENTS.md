@@ -26,14 +26,14 @@ Operating manual for coding agents in this repository. Codex and Copilot read th
 | Lint / format | `pnpm lint` / `pnpm format` |
 | Type check | `pnpm typecheck` |
 | Build | `pnpm build` |
-| Local database (Postgres + Auth) | `supabase start`, then `pnpm db:migrate && pnpm db:seed` |
+| Local database (Postgres + Auth) | `pnpm exec supabase start` (creates the local roles), then `pnpm db:migrate && pnpm db:seed`; `pnpm exec supabase status` prints the publishable key for `.env.local` |
 | Dev server (demo at localhost:3000) | `pnpm dev` |
 | Integration tests (local Postgres) | `pnpm test:integration` |
 | End-to-end tests | `pnpm test:e2e` |
 | New migration | `pnpm db:generate` |
 | Check all | `pnpm check` |
 
-Keep this table accurate: when you add or change a script, update the table in the same PR. Until milestone M0 creates them, these commands describe the intended scripts.
+Keep this table accurate: when you add or change a script, update the table in the same PR.
 
 ## Rules
 

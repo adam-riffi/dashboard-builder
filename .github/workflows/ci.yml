@@ -92,7 +92,6 @@ jobs:
           eval "$(pnpm exec supabase status -o env)"
           echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}" >> "$GITHUB_ENV"
-      - run: psql "$DATABASE_URL_MIGRATIONS" -v ON_ERROR_STOP=1 -f db/local-roles.sql
       - run: pnpm db:migrate
       - run: pnpm --filter @dash/demo exec playwright install --with-deps chromium
       - run: pnpm test:e2e
