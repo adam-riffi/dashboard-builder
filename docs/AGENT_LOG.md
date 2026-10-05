@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m0/02-ci · #2
+- Done: `ci.yml` with `lint`, `typecheck`, `test` and `build` jobs (read-only permissions, concurrency, 15-minute timeouts, pnpm cache, SHA-pinned third-party actions).
+- Tests: actionlint clean; the workflow runs on this PR.
+- Scope/decisions: `integration` and `e2e` jobs land with their first tests (PRs 03 and 05).
+- Next: stack/m0/03-db.
+
 ## 2026-10-05 · claude · stack/m0/01-monorepo · (this PR)
 - Done: pnpm + Turborepo workspace, strict TypeScript base config, Biome, Vitest, `.nvmrc`, `.env.example`, pr-meme caller, Dependabot.
 - Tests: none (scaffolding); `pnpm check` runs clean with zero packages.
