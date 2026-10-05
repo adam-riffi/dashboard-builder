@@ -2,11 +2,27 @@
   "$schema": "https://turbo.build/schema.json",
   "agentGuidance": false,
   "tasks": {
-    "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**", "!.next/cache/**"] },
-    "typecheck": { "dependsOn": ["^build"] },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": ["NEXT_PUBLIC_*"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
     "test": {},
-    "test:integration": { "cache": false, "env": ["DATABASE_URL*", "DASH_*"] },
-    "test:e2e": { "cache": false, "dependsOn": ["build"] },
-    "dev": { "cache": false, "persistent": true }
+    "test:integration": {
+      "cache": false,
+      "env": ["DATABASE_URL*", "DASH_*"]
+    },
+    "test:e2e": {
+      "cache": false,
+      "dependsOn": ["build"],
+      "env": ["BASE_URL", "CI", "DASH_*", "NEXT_PUBLIC_*"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
   }
 }
