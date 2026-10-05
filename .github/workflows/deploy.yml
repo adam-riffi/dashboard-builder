@@ -30,9 +30,11 @@ jobs:
       - run: pnpm db:seed
   deploy:
     needs: migrate
-    # Runs after migrations on main; on pull requests migrate is skipped. Secrets are absent on forks.
+    # On main only after migrations succeeded (a timed-out migrate reads as neither failure nor
+    # success); on pull requests migrate is skipped. Secrets are absent on forks.
     if: >-
-      always() && needs.migrate.result != 'failure' && needs.migrate.result != 'cancelled' &&
+      always() &&
+      (needs.migrate.result == 'success' || (github.event_name == 'pull_request' && needs.migrate.result == 'skipped')) &&
       (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
