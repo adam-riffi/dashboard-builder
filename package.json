@@ -25,6 +25,7 @@
     "supabase": "2.119.0",
     "turbo": "2.11.7",
     "typescript": "7.0.2",
+    "vercel": "62.2.0",
     "vitest": "5.0.3"
   }
 }

@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m0/06-deploy · #6
+- Done: Mode B `deploy.yml` (migrate + seed on main → Vercel prebuilt deploy, preview URL comment → Playwright `@smoke`); `apps/demo/vercel.json` pinned to `cdg1`; AGENTS.md commands table now describes real scripts.
+- Tests: actionlint; the `@smoke` subset from PR 05 runs against each deployment.
+- Scope/decisions: smoke check for the seeded sample dashboard waits for M4. Local roles now load through Supabase's seed config.
+- Next: M0 acceptance blocked on one-time setup (ENGINEERING.md §16): Vercel project + `VERCEL_*` secrets, bootstrap.sql + `DATABASE_URL_MIGRATIONS`, Vercel env vars, repo settings and ruleset. The pr-meme caller fails until `portfolio-infra` publishes the `v1` tag. Docker Desktop did not start on the dev machine; integration and e2e were verified in CI only.
+
 ## 2026-10-05 · claude · stack/m0/05-demo-health · #5
 - Done: `@adam-riffi/dash-gateway` `health()`; Next.js demo shell (anonymous sign-in, `/api/dash/health`); local Supabase config; `e2e` CI job (supabase start + Playwright).
 - Tests: `packages/gateway/test/health.test.ts` (ok, unreachable → 503 without leaking errors); Playwright `@smoke` sign-in and health.
