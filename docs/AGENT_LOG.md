@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m1/05-auth · #11
+- Done: `jwtAuth` (jose, remote JWKS: signature, issuer, audience, expiry) and `authenticate(request, verify, identity)` (bearer token, identity format `uuid`/`int`/regex, fixed 401 messages). ADR 0003: auth in M1 (Georges' decision).
+- Tests: `test/unit/auth.test.ts` (header shapes, verifier failures not echoed, each format, missing claim); `test/integration/jwt.test.ts` (local JWKS server, real ES256 tokens: valid, expired, wrong audience/issuer, foreign key, malformed).
+- Scope/decisions: `/health` stays public; scopes and row policies stay in M2.
+- Next: stack/m1/06-contract-endpoint.
+
 ## 2026-10-05 · claude · stack/m1/04-introspect · #10
 - Done: `introspect(sql, tables)` reads tables, columns, keys, `reltuples` and `pg_stats` from `pg_catalog` (not `information_schema`, which hides foreign keys from read-only roles), failing with the names of missing or unreadable tables. CI migrates before the integration suites.
 - Tests: golden contracts for `saas`, `graph` and `dash_demo` (as `dash_reader`, row counts nulled) via `toMatchFileSnapshot`; RLS hides `pg_stats` from the reader; missing tables named. Goldens generated and checked against PGlite locally (Docker unavailable); CI runs them on real Postgres.
