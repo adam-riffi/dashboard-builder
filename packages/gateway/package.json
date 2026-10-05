@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@adam-riffi/dash-core": "workspace:*",
+    "jose": "6.2.12",
     "postgres": "3.4.9"
   },
   "devDependencies": {

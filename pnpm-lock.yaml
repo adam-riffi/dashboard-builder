@@ -264,6 +264,9 @@ importers:
       '@adam-riffi/dash-core':
         specifier: workspace:*
         version: link:../core
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       postgres:
         specifier: 3.4.9
         version: 3.4.9
