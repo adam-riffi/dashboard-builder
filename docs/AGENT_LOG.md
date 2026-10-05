@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/ops/02-deploy-needs-migrate · #14
+- Done: `deploy.yml` deploys production only after `migrate` succeeded (or was skipped on pull requests). A `migrate` job that never got a runner and timed out did not block the deploy before. Session also ran portfolio-infra M5 (bootstrap.sql live on `portfolio`, check.sql 54 rows, 0 mismatches) and merged #13 here.
+- Tests: actionlint; the next main deploy exercises it.
+- Scope/decisions: none.
+- Next: `DATABASE_URL_MIGRATIONS` still fails with "password authentication failed for user postgres" (pooler logs): Georges re-checks the database password in the secret; then migrate, seed, production deploy and smoke ("4 tables available"). Then M2.
+
 ## 2026-10-05 · claude · stack/ops/01-history-revoke · #13
 - Done: `db/local-roles.sql` mirrors the dash section of portfolio-infra's `bootstrap.sql` (schemas, default privileges), and migration `0002_protect_history` revokes `dash_app` on `dash.__drizzle_migrations` and its sequence.
 - Tests: `db/test/rls.test.ts` "migration history is out of reach of dash_app" (red with production-like privileges, green after the migration; checked on PGlite, CI authoritative).
