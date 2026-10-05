@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AuthError, authenticate, type IdentityConfig } from "../../src/auth.ts";
+import { AuthError, authenticate, type IdentityConfig, jwtAuth } from "../../src/auth.ts";
 
 const USER = "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
 const uuid: IdentityConfig = { claim: "sub", format: "uuid" };
@@ -13,6 +13,13 @@ const verifies = (claims: Record<string, unknown>) => async () => claims;
 const rejects = async () => {
   throw new Error("signature verification failed: key abc123");
 };
+
+describe("jwtAuth", () => {
+  // Next.js evaluates the gateway config at build time, when DASH_JWKS_URL may be unset.
+  it("does not read the JWKS URL until a token arrives", () => {
+    expect(() => jwtAuth({ jwksUrl: "", issuer: "i", audience: "a" })).not.toThrow();
+  });
+});
 
 describe("authenticate", () => {
   it("returns the claims and the identity of a verified token", async () => {
@@ -38,6 +45,11 @@ describe("authenticate", () => {
   it("rejects tokens the verifier refuses, without echoing the reason", async () => {
     const error = await authenticate(request("Bearer t"), rejects, uuid).catch((e: unknown) => e);
     expect(error).toEqual(new AuthError("Invalid token"));
+  });
+
+  it("keeps the verifier's reason as the cause, for server-side logs", async () => {
+    const error = await authenticate(request("Bearer t"), rejects, uuid).catch((e: unknown) => e);
+    expect((error as Error).cause).toEqual(new Error("signature verification failed: key abc123"));
   });
 
   it.each([

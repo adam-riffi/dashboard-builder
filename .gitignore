@@ -11,4 +11,5 @@ playwright-report/
 !.env.example
 .claude/settings.local.json
 supabase/.temp/
+supabase/signing_keys.json
 next-env.d.ts
