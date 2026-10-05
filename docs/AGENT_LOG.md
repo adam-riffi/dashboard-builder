@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/02-validate · #16
+- Done: Pure `validateQuery(spec, contract)`: resolves `schema.table.column` fields, fills the contract's default aggregation and the 10,000-row limit, and reports every problem prefixed with its field (unknown table/column, aggregation vs type, time grains only on dates, typed filter values incl. ISO dates and booleans, sort targets).
+- Tests: `packages/gateway/test/unit/validate.test.ts` (demo and saas golden contracts as fixtures); validate.ts 100% lines.
+- Scope/decisions: any column may be a dimension; non-measure columns need an explicit aggregation.
+- Next: stack/m2/03-join-paths.
+
 ## 2026-10-06 · claude · stack/m2/01-query-spec · #15
 - Done: `querySpec` and `queryRequest` (zod, `packages/core`): dimensions with time grains, column measures with optional aggregation (ADR 0006), filters with operator arity, sort by dimension/measure index, limit ≤ 10,000, 1–20 queries per request. DESIGN.md §7 updated.
 - Tests: `packages/core/test/query.test.ts` (15 cases), core coverage 100%.
