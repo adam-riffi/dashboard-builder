@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-05 · claude · stack/m0/05-demo-health · #5
+- Done: `@adam-riffi/dash-gateway` `health()`; Next.js demo shell (anonymous sign-in, `/api/dash/health`); local Supabase config; `e2e` CI job (supabase start + Playwright).
+- Tests: `packages/gateway/test/health.test.ts` (ok, unreachable → 503 without leaking errors); Playwright `@smoke` sign-in and health.
+- Scope/decisions: `@supabase/supabase-js` added for demo auth (not in §6 list). Gateway exports TS source via `transpilePackages` until the M7 release build.
+- Next: stack/m0/06-deploy.
+
 ## 2026-10-05 · claude · stack/m0/04-seed · #4
 - Done: Deterministic idempotent seed (`pnpm db:seed`, SQL with `setseed`) and the `dash_demo_tick` pg_cron job (orders every minute, 90-day retention).
 - Tests: `db/test/seed.test.ts`: seed fills all tenants, rerun changes nothing, tick adds orders with items, old orders deleted, job scheduled.

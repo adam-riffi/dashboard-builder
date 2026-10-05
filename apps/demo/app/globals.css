@@ -1,0 +1,45 @@
+/* DESIGN.md §7: warm off-white canvas, ink-dark text, one saturated accent, monospace numerals. */
+:root {
+  --canvas: #f7f4ee;
+  --ink: #1c1f24;
+  --muted: #6b6f76;
+  --accent: #e4572e;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #16181c;
+    --ink: #ece8e1;
+    --muted: #9a9ea6;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font:
+    16px / 1.5 system-ui,
+    sans-serif;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 16px;
+}
+
+h1 {
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+code {
+  font-family: ui-monospace, monospace;
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+}
