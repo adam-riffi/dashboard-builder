@@ -24,12 +24,17 @@ const FORMATS = {
   int: /^-?\d{1,18}$/,
 };
 
-/** JWT verification against a JWKS endpoint; keys are fetched once and refreshed by jose. */
+/**
+ * JWT verification against a JWKS endpoint; keys are fetched once and refreshed by jose. The URL
+ * is read on the first token, not here: Next.js evaluates the config at build time.
+ */
 export function jwtAuth({ jwksUrl, issuer, audience }: AuthConfig): Verifier {
-  const keys = createRemoteJWKSet(new URL(jwksUrl));
-  // jose checks exp only when present; a token without one would never expire.
-  return async (token) =>
-    (await jwtVerify(token, keys, { issuer, audience, requiredClaims: ["exp"] })).payload;
+  let keys: ReturnType<typeof createRemoteJWKSet> | undefined;
+  return async (token) => {
+    keys ??= createRemoteJWKSet(new URL(jwksUrl));
+    // jose checks exp only when present; a token without one would never expire.
+    return (await jwtVerify(token, keys, { issuer, audience, requiredClaims: ["exp"] })).payload;
+  };
 }
 
 /**

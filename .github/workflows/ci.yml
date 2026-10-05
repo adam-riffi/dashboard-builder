@@ -85,6 +85,8 @@ jobs:
       - uses: actions/setup-node@v7
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # A throwaway ES256 key, so local Auth signs tokens the way the hosted project does.
+      - run: echo "[$(pnpm exec supabase gen signing-key --algorithm ES256 2>/dev/null)]" > supabase/signing_keys.json
       # Auth (anonymous sign-in) and Postgres only.
       - run: >-
           pnpm exec supabase start -x
@@ -94,6 +96,8 @@ jobs:
           eval "$(pnpm exec supabase status -o env)"
           echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}" >> "$GITHUB_ENV"
+          echo "DASH_JWKS_URL=$API_URL/auth/v1/.well-known/jwks.json" >> "$GITHUB_ENV"
+          echo "DASH_JWT_ISSUER=$API_URL/auth/v1" >> "$GITHUB_ENV"
       - run: pnpm db:migrate
       - run: pnpm --filter @dash/demo exec playwright install --with-deps chromium
       - run: pnpm test:e2e
