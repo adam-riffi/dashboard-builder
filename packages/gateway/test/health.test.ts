@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { health } from "../src/index.ts";
 
 const up = postgres(
@@ -16,5 +16,15 @@ describe("health", () => {
 
   it("reports 503 without leaking the driver error when the database is unreachable", async () => {
     expect(await health(down)).toEqual({ status: 503, body: { status: "error", db: "error" } });
+  });
+
+  it("logs the failure as structured JSON for operators", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await health(down);
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+      level: "error",
+      msg: "health check failed",
+    });
+    log.mockRestore();
   });
 });
