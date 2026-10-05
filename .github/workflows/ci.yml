@@ -70,6 +70,8 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: psql "$DATABASE_URL_MIGRATIONS" -v ON_ERROR_STOP=1 -f db/local-roles.sql
+      # Migrate first: the gateway suite introspects dash_demo while the db suite runs.
+      - run: pnpm db:migrate
       - run: pnpm test:integration
   e2e:
     runs-on: ubuntu-latest
