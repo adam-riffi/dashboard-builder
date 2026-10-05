@@ -1,0 +1,15 @@
+name: pr-meme
+on:
+  pull_request:
+    types: [opened, reopened]
+permissions:
+  pull-requests: write
+jobs:
+  meme:
+    if: >-
+      github.repository_owner == 'adam-riffi' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: adam-riffi/portfolio-infra/actions/pr-meme@v1
