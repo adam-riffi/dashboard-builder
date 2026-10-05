@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/07-leakage · #21
+- Done: M2 acceptance test `test/integration/isolation.test.ts`: fast-check random queries (dimensions from every table incl. day/month grains, SUM/MIN/MAX/COUNT/COUNT DISTINCT, status filters) and random tenant scopes over an `fx_iso` four-tenant fixture without RLS, run as postgres through validate → plan → compile → execute, must equal a TypeScript aggregation of only the scope's rows; an empty scope returns nothing.
+- Tests: the property itself (60 runs) plus the empty-scope case; CI authoritative (no local Docker).
+- Scope/decisions: running as the table owner without RLS isolates the planner's injected policies as the only protection, which is what the property must prove.
+- Next: independent review of #15–#21, fixes, merge; then M3 (formulas).
+
 ## 2026-10-06 · claude · stack/m2/06-query-endpoint · #20
 - Done: `POST /query` (JWT first, JSON and `queryRequest` checked before any database access, scope from `resolveScope`, per query validate → plan → compile → execute with per-query errors, `private, no-store`); routes declare their methods (405 with Allow); `settingsFor(scope)` maps scope entries to `app.*` RLS settings. Config gains `policies` and `resolveScope`. Demo: tenant policies on all four tables, `tenantsOf` assigns two demo tenants at first sign-in through `dash_app`, page lists units sold by category. CI e2e seeds demo data and has `DASH_APP_DATABASE_URL`.
 - Tests: unit (methods, auth before body, 400s without DB, `settingsFor`); integration on an `fx_api` RLS fixture (scoped results, per-query errors, fail-closed scope); Playwright `@smoke` units by category.
