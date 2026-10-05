@@ -73,6 +73,18 @@ describe("introspect", () => {
     expect(await distinct(reader)).toBeNull();
   });
 
+  it("treats tables in schemas the reader cannot use as unreadable", async () => {
+    await admin.unsafe(`
+      drop schema if exists fx_nousage cascade;
+      create schema fx_nousage;
+      create table fx_nousage.t (k int);
+      grant select on fx_nousage.t to dash_reader;
+    `);
+    await expect(introspect(reader, ["fx_nousage.t"])).rejects.toThrow(
+      "Tables not found or not readable: fx_nousage.t",
+    );
+  });
+
   it("names the tables it cannot find or read", async () => {
     await expect(
       introspect(reader, ["dash_demo.orders", "dash.dashboards", "nope.nothing"]),
