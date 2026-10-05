@@ -157,7 +157,7 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 | Milestone | Stack of PRs | Acceptance criteria |
 | --- | --- | --- |
 | M0 Scaffold | monorepo tooling; CI; demo app shell with Supabase anonymous auth; `/api/dash/health`; migrations + seed; pr-meme caller | Preview and production deploy; health returns ok |
-| M1 Contract | introspection; role inference; relationships; schema hash; `GET /contract` | Golden contracts for three fixture schemas |
+| M1 Contract | introspection; role inference; relationships; schema hash; JWT auth with JWKS and identity format ([ADR 0003](adr/0003-jwt-auth-in-m1.md)); `GET /contract` | Golden contracts for three fixture schemas |
 | M2 Query engine | QuerySpec validation; join paths; policy injection; SQL compiler; execution with limits; `POST /query` | Integration tests against Postgres; leakage property test passes |
 | M3 Formulas | lexer and Pratt parser; type checker with spans; compiler; measures in contract and specs | Error messages point at the right span; golden SQL |
 | M4 Viewer | visual registry; KPI, bar, line, table; viewer from a spec; loading/empty/error states | Saved fixture specs render identically (visual tests) |
