@@ -1,6 +1,6 @@
 # 0001 — Dashboard ownership through `app.user_id`
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-05
 - Proposed by: claude; decided by: Georges
 
