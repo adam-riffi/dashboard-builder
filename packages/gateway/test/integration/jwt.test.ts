@@ -29,12 +29,12 @@ beforeAll(async () => {
 });
 afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-const sign = (claims: JWTPayload, options: { key?: CryptoKey; exp?: string } = {}) =>
-  new SignJWT(claims)
-    .setProtectedHeader({ alg: "ES256", kid: "k1" })
-    .setIssuedAt()
-    .setExpirationTime(options.exp ?? "5m")
-    .sign(options.key ?? privateKey);
+/** Signs with the JWKS key; `exp: null` leaves the expiry claim out. */
+const sign = (claims: JWTPayload, options: { key?: CryptoKey; exp?: string | null } = {}) => {
+  const jwt = new SignJWT(claims).setProtectedHeader({ alg: "ES256", kid: "k1" }).setIssuedAt();
+  if (options.exp !== null) jwt.setExpirationTime(options.exp ?? "5m");
+  return jwt.sign(options.key ?? privateKey);
+};
 
 const valid = { sub: "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f", iss: ISSUER, aud: AUDIENCE };
 
@@ -45,6 +45,10 @@ describe("jwtAuth", () => {
 
   it("rejects an expired token", async () => {
     await expect(verify(await sign(valid, { exp: "-1m" }))).rejects.toThrow();
+  });
+
+  it("rejects a token without an expiry, which would never expire", async () => {
+    await expect(verify(await sign(valid, { exp: null }))).rejects.toThrow();
   });
 
   it("rejects a token for another audience", async () => {

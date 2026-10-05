@@ -20,6 +20,12 @@ describe("authenticate", () => {
     expect(result).toEqual({ id: USER, claims: { sub: USER } });
   });
 
+  it("accepts the bearer scheme in any case (RFC 9110)", async () => {
+    await expect(
+      authenticate(request("bearer t"), verifies({ sub: USER }), uuid),
+    ).resolves.toMatchObject({ id: USER });
+  });
+
   it.each([undefined, "t", "Basic dXNlcjpwYXNz", "Bearer "])(
     "rejects a request without a bearer token (%s)",
     async (header) => {
@@ -42,6 +48,8 @@ describe("authenticate", () => {
     ["int", 42, true],
     ["int", "4x2", false],
     ["int", 4.2, false],
+    ["int", "123456789012345678", true],
+    ["int", "1234567890123456789", false],
   ] as const)("checks the %s format of %s", async (format, sub, ok) => {
     const result = authenticate(request("Bearer t"), verifies({ sub }), { claim: "sub", format });
     if (ok) await expect(result).resolves.toMatchObject({ id: String(sub) });
@@ -56,6 +64,15 @@ describe("authenticate", () => {
     await expect(
       authenticate(request("Bearer t"), verifies({ org: "acme" }), identity),
     ).rejects.toThrow(new AuthError("Identity claim org is malformed"));
+  });
+
+  it("gives the same answer every time for a host regex with the g flag", async () => {
+    const identity: IdentityConfig = { claim: "org", format: /^org_[a-z]+$/g };
+    for (let i = 0; i < 3; i++) {
+      await expect(
+        authenticate(request("Bearer t"), verifies({ org: "org_acme" }), identity),
+      ).resolves.toMatchObject({ id: "org_acme" });
+    }
   });
 
   it("rejects tokens without the identity claim", async () => {
