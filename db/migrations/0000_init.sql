@@ -25,11 +25,11 @@ create table dash.memberships (
 alter table dash.dashboards enable row level security;
 alter table dash.memberships enable row level security;
 
--- The server sets app.user_id per transaction; no policy exists for the Data API roles,
--- so anon and authenticated see nothing.
+-- The server sets app.user_id per transaction (ADR 0001); no grant exists for the Data API
+-- roles, so anon and authenticated see nothing. The subselects run once per statement, not per row.
 create policy dashboards_owner on dash.dashboards to dash_app
-  using (owner_id = nullif(current_setting('app.user_id', true), '')::uuid)
-  with check (owner_id = nullif(current_setting('app.user_id', true), '')::uuid);
+  using (owner_id = (select nullif(current_setting('app.user_id', true), '')::uuid))
+  with check (owner_id = (select nullif(current_setting('app.user_id', true), '')::uuid));
 -- Memberships are assigned and looked up by the server itself (first sign-in, resolveScope).
 create policy memberships_server on dash.memberships to dash_app using (true) with check (true);
 
@@ -84,7 +84,8 @@ create index on dash_demo.order_items (order_id);
 grant usage on schema dash_demo to dash_reader;
 grant select on all tables in schema dash_demo to dash_reader;
 
--- Defense in depth (DESIGN.md §6): the gateway sets app.tenant_ids per transaction.
+-- Defense in depth (DESIGN.md §6): the gateway sets app.tenant_ids per transaction;
+-- the subselect is evaluated once per statement instead of once per row.
 do $$
 declare
   t text;
@@ -92,7 +93,7 @@ begin
   foreach t in array array['customers', 'products', 'orders', 'order_items'] loop
     execute format('alter table dash_demo.%I enable row level security', t);
     execute format(
-      'create policy tenant_scope on dash_demo.%I for select to dash_reader using (tenant_id = any(string_to_array(current_setting(''app.tenant_ids'', true), '','')::int[]))',
+      'create policy tenant_scope on dash_demo.%I for select to dash_reader using (tenant_id = any((select string_to_array(current_setting(''app.tenant_ids'', true), '','')::int[])))',
       t
     );
   end loop;
@@ -100,4 +101,4 @@ end
 $$;
 alter table dash_demo.tenants enable row level security;
 create policy tenant_scope on dash_demo.tenants for select to dash_reader
-  using (id = any(string_to_array(current_setting('app.tenant_ids', true), ',')::int[]));
+  using (id = any((select string_to_array(current_setting('app.tenant_ids', true), ',')::int[])));
