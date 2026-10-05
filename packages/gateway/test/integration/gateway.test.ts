@@ -1,5 +1,5 @@
 import { dataContract } from "@adam-riffi/dash-core";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { createGateway, defineGateway, jwtAuth, postgresSource } from "../../src/index.ts";
 import { AUDIENCE, ISSUER, startJwks, USER } from "./jwks.ts";
 
@@ -41,6 +41,20 @@ describe("gateway handler", () => {
     const res = await call("contract", { headers: { authorization: "Bearer not.a.jwt" } });
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "Invalid token" });
+  });
+
+  it("logs why a token was rejected without returning the reason", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const token = await jwks.sign({ sub: USER }, { exp: "-1m" });
+    const res = await call("contract", { headers: { authorization: `Bearer ${token}` } });
+    expect(await res.json()).toEqual({ error: "Invalid token" });
+    expect(JSON.parse(String(warn.mock.calls[0]?.[0]))).toMatchObject({
+      level: "warn",
+      msg: "request unauthorized",
+      route: "contract",
+      cause: expect.stringContaining("exp"),
+    });
+    warn.mockRestore();
   });
 
   it("refuses /contract when the identity claim is malformed", async () => {

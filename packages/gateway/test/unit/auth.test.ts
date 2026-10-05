@@ -47,6 +47,11 @@ describe("authenticate", () => {
     expect(error).toEqual(new AuthError("Invalid token"));
   });
 
+  it("keeps the verifier's reason as the cause, for server-side logs", async () => {
+    const error = await authenticate(request("Bearer t"), rejects, uuid).catch((e: unknown) => e);
+    expect((error as Error).cause).toEqual(new Error("signature verification failed: key abc123"));
+  });
+
   it.each([
     ["uuid", USER, true],
     ["uuid", "not-a-uuid", false],
