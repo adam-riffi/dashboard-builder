@@ -81,9 +81,9 @@ dashboard-builder/
 **Hand-written core:** contract inference, join-path resolution, policy injection, formula language (lexer, Pratt parser, type checker, SQL compiler), cache keying, cross-filter coordinator, field-well logic. Libraries allowed around it: `postgres` (postgres.js) driver, `jose` (JWT/JWKS), zod, React, dnd-kit (drag and drop), react-grid-layout, CodeMirror 6 (formula editor), Apache ECharts (chart drawing only), TanStack Query.
 
 **Contract inference.** Read `information_schema` and `pg_catalog` for the allowlisted tables: columns, types, nullability, primary keys, foreign keys, and `pg_stats` estimates (row counts, distinct values). Assign each column a role:
-- `id`: primary keys, foreign keys, names ending in `_id`.
+- `id`: primary keys, foreign keys, names whose last part is `id` (`customer_id`, `customerId`).
 - `time`: `date`, `timestamp`, `timestamptz`.
-- `measure` candidate: numeric, not a key; default aggregation `SUM`, or `AVG` when the name matches `price|rate|ratio|pct|percent|score`.
+- `measure` candidate: numeric, not a key; default aggregation `SUM`, or `AVG` when a whole part of the name (split at `_` and camelCase, plural `s` dropped) is `price`, `rate`, `ratio`, `pct`, `percent`, `percentage` or `score` ([ADR 0004](adr/0004-measure-names-as-whole-parts.md)).
 - `dimension`: everything else; flagged `highCardinality` above 10,000 distinct values (excluded from axis slots by default).
 
 Foreign keys become many-to-one relationships. The contract carries `schemaHash` (SHA-256 of the normalized schema plus config), which is its version.

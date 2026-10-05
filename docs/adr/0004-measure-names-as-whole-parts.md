@@ -1,8 +1,8 @@
 # 0004 — Match averaged measure names and key names on whole name parts
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-05
-- Proposed by: claude; decided by: Georges
+- Proposed by: claude; decided by: Georges (accepted on 2026-10-05 after the M1 review)
 
 ## Context
 DESIGN.md §6 averages a measure "when the name matches `price|rate|ratio|pct|percent|score`" and treats "names ending in `_id`" as keys.
@@ -20,4 +20,4 @@ Read as a substring match, the averaging rule misfires: the golden contracts in 
 
 ## Consequences
 - Run-together names without a separator (`unitprice`) are summed. A host can rename the column or, once DashboardSpec measures exist (M3), define the measure explicitly.
-- Once accepted, update DESIGN.md §6 to describe whole-part matching.
+- DESIGN.md §6 describes whole-part matching.
