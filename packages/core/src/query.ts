@@ -4,8 +4,13 @@ import { z } from "zod";
 export const MAX_ROWS = 10_000;
 export const MAX_QUERIES = 20;
 
+/** Caps on request size at the trust boundary. */
+const MAX_LIST = 20;
+const MAX_VALUES = 1_000;
+
 const field = z
   .string()
+  .max(200)
   .regex(/^[^.\s]+\.[^.\s]+\.[^.\s]+$/, "fields are named schema.table.column");
 
 export const timeGrain = z.enum(["day", "week", "month", "quarter", "year"]);
@@ -27,7 +32,10 @@ const filter = z
   .object({
     field,
     op: filterOp,
-    values: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1),
+    values: z
+      .array(z.union([z.string().max(200), z.number(), z.boolean()]))
+      .min(1)
+      .max(MAX_VALUES),
   })
   .strict()
   .refine((f) => ARITY[f.op] === null || f.values.length === ARITY[f.op], {
@@ -41,11 +49,15 @@ const filter = z
  */
 export const querySpec = z
   .object({
-    dimensions: z.array(z.object({ field, timeGrain: timeGrain.optional() }).strict()).default([]),
+    dimensions: z
+      .array(z.object({ field, timeGrain: timeGrain.optional() }).strict())
+      .max(10)
+      .default([]),
     measures: z
       .array(z.object({ field, aggregation: measureAggregation.optional() }).strict())
-      .min(1),
-    filters: z.array(filter).default([]),
+      .min(1)
+      .max(MAX_LIST),
+    filters: z.array(filter).max(MAX_LIST).default([]),
     /** Sorts by a dimension or measure, by its position in the spec. */
     sort: z
       .array(
@@ -57,6 +69,7 @@ export const querySpec = z
           })
           .strict(),
       )
+      .max(10)
       .optional(),
     limit: z.number().int().positive().max(MAX_ROWS).optional(),
   })
