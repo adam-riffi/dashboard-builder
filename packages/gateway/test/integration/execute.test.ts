@@ -27,13 +27,13 @@ beforeAll(async () => {
     create schema fx_exec;
     create table fx_exec.sales (
       id int primary key, tenant_id int not null, region text not null,
-      amount numeric(10, 2) not null, sold_at timestamptz not null
+      amount numeric(10, 2) not null, sold_at timestamptz not null, refunded boolean not null
     );
     insert into fx_exec.sales values
-      (1, 1, 'north', 10, '2026-01-01T23:30:00Z'),
-      (2, 1, 'south', 20, '2026-01-02T00:30:00Z'),
-      (3, 2, 'north', 30, '2026-01-02T10:00:00Z'),
-      (4, 3, 'east', 40, '2026-01-03T10:00:00Z');
+      (1, 1, 'north', 10, '2026-01-01T23:30:00Z', false),
+      (2, 1, 'south', 20, '2026-01-02T00:30:00Z', true),
+      (3, 2, 'north', 30, '2026-01-02T10:00:00Z', false),
+      (4, 3, 'east', 40, '2026-01-03T10:00:00Z', false);
     alter table fx_exec.sales enable row level security;
     create policy scoped on fx_exec.sales for select to dash_reader
       using (tenant_id = any(string_to_array(current_setting('app.tenant_ids', true), ',')::int[]));
@@ -137,5 +137,49 @@ describe("executeQuery", () => {
     await expect(
       executeQuery(reader, slow, { limit: 1, settings: {}, timeoutMs: 100 }),
     ).rejects.toThrow(/statement timeout/);
+  });
+
+  it("filters on true/false columns", async () => {
+    const { query, limit } = compiled(
+      {
+        measures: [amount],
+        filters: [{ field: "fx_exec.sales.refunded", op: "in", values: [true] }],
+      },
+      { tenantIds: [1, 2, 3] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2,3" },
+    });
+    expect(result.data).toEqual([[20]]);
+  });
+
+  it("runs read-only, so a statement can never write", async () => {
+    const write: CompiledQuery = {
+      text: "insert into fx_exec.sales values (9, 1, 'x', 1, now(), false) returning 1 as m0",
+      params: [],
+      columns: [
+        { key: "m0", kind: "measure", field: "x.y.z", aggregation: "COUNT", type: "number" },
+      ],
+    };
+    await expect(executeQuery(admin, write, { limit: 1, settings: {} })).rejects.toThrow(
+      /read-only transaction/,
+    );
+  });
+
+  it("never carries one caller's scope to the next query on the same connection", async () => {
+    const single = postgres(
+      process.env.DASH_SOURCE_URL ?? "postgres://dash_reader:password@localhost:54322/postgres",
+      { max: 1 },
+    );
+    const { query, limit } = compiled({ measures: [amount] }, {}, []);
+    try {
+      expect(
+        (await executeQuery(single, query, { limit, settings: { "app.tenant_ids": "1" } })).data,
+      ).toEqual([[30]]);
+      expect((await executeQuery(single, query, { limit, settings: {} })).data).toEqual([[null]]);
+    } finally {
+      await single.end();
+    }
   });
 });
