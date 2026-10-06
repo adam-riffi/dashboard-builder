@@ -108,9 +108,12 @@ export function compileQuery(
 
   const filterPredicates = query.filters.map((f) => {
     const column = ref(f.table, f.column.name);
-    // The driver would send a list of booleans as a single boolean; send text and cast instead.
+    // postgres.js mangles boolean lists (a list of booleans is typed as one boolean, and strings
+    // in an inferred boolean[] all become 'f'), so booleans go as a ready-made array literal.
     const list = () =>
-      f.column.type === "boolean" ? `${bind(f.values.map(String))}::boolean[]` : bind(f.values);
+      f.column.type === "boolean"
+        ? `${bind(`{${f.values.map((v) => (v === true ? "t" : "f")).join(",")}}`)}::boolean[]`
+        : bind(f.values);
     switch (f.op) {
       case "in":
         return `${column} = any(${list()})`;
