@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/01-query-spec · #15
+- Done: `querySpec` and `queryRequest` (zod, `packages/core`): dimensions with time grains, column measures with optional aggregation (ADR 0006), filters with operator arity, sort by dimension/measure index, limit ≤ 10,000, 1–20 queries per request. DESIGN.md §7 updated.
+- Tests: `packages/core/test/query.test.ts` (15 cases), core coverage 100%.
+- Scope/decisions: M2 plan (7 PRs): spec → validate → join paths → compile with policies → execute with limits → POST /query and demo scope → leakage and equivalence properties (acceptance). Production M0 acceptance reached this session (migrate, seed, deploy, 5/5 smoke on https://dashboard-builder-rose.vercel.app).
+- Next: stack/m2/02-validate.
+
 ## 2026-10-06 · claude · stack/ops/02-deploy-needs-migrate · #14
 - Done: `deploy.yml` deploys production only after `migrate` succeeded (or was skipped on pull requests). A `migrate` job that never got a runner and timed out did not block the deploy before. Session also ran portfolio-infra M5 (bootstrap.sql live on `portfolio`, check.sql 54 rows, 0 mismatches) and merged #13 here.
 - Tests: actionlint; the next main deploy exercises it.
