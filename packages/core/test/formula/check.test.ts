@@ -227,4 +227,12 @@ describe("check", () => {
       "unknown function FOO",
     ]);
   });
+
+  it("rejects measures that grow too large once expanded, without expanding them", () => {
+    const measures = new Map([["M0", "SUM(order_items.quantity)"]]);
+    for (let i = 1; i <= 40; i++) measures.set(`M${i}`, `[M${i - 1}] + [M${i - 1}]`);
+    const result = check("[M40]", { contract, measures });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors[0]?.message).toContain("too large");
+  });
 });
