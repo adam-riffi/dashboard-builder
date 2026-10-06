@@ -46,7 +46,9 @@ export function renderFormula(
     case "string":
       return `${bind(t.value)}::text`;
     case "column":
-      return ref(t.table, t.column);
+      // The contract types enum, uuid and char columns as strings; as text they compare with
+      // string literals and with each other (a no-op for text columns).
+      return t.type === "string" ? `${ref(t.table, t.column)}::text` : ref(t.table, t.column);
     case "unary":
       return t.op === "-" ? `(-${r(t.operand)})` : `(not ${r(t.operand)})`;
     case "binary":
