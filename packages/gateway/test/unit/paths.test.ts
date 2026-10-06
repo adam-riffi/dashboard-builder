@@ -140,3 +140,61 @@ describe("planJoins", () => {
     expect(describeJoins(graph, query)).toEqual({ base: "fx_graph.employees", joins: [] });
   });
 });
+
+describe("fact tables of formula measures", () => {
+  const formulas = (...list: string[]) =>
+    valid(demo, { measures: list.map((formula) => ({ formula })) });
+
+  it("looks up many-to-one tables from the measure's fact table", () => {
+    expect(
+      describeJoins(demo, formulas("SUM(order_items.quantity * products.unit_price)")),
+    ).toEqual({
+      base: "dash_demo.order_items",
+      joins: ["dash_demo.order_items(product_id) -> dash_demo.products(id)"],
+    });
+  });
+
+  it("lets duplicate-insensitive aggregates read the one side", () => {
+    expect(
+      describeJoins(demo, formulas("SUM(order_items.quantity) / COUNTDISTINCT(orders.id)")),
+    ).toEqual({
+      base: "dash_demo.order_items",
+      joins: ["dash_demo.order_items(order_id) -> dash_demo.orders(id)"],
+    });
+  });
+
+  it("rejects SUM, AVG and COUNT over the one side, which would repeat its rows", () => {
+    expect(describeJoins(demo, formulas("SUM(order_items.quantity) / COUNT(orders.id)"))).toEqual({
+      errors: [
+        "measures[0]: COUNT over dash_demo.orders would count each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
+      ],
+    });
+  });
+
+  it("needs one fact table per query, even when one measure could reach the other", () => {
+    expect(describeJoins(demo, formulas("SUM(order_items.quantity)", "COUNT(orders.id)"))).toEqual({
+      errors: [
+        "measures come from dash_demo.order_items and dash_demo.orders; a query has one fact table",
+      ],
+    });
+  });
+
+  it("rejects a measure whose tables have no common fact table", () => {
+    expect(
+      describeJoins(demo, formulas("SUM(products.unit_price) + COUNTDISTINCT(orders.id)")),
+    ).toEqual({
+      errors: [
+        "measures[0]: dash_demo.orders and dash_demo.products are not both reached from one table through many-to-one relationships",
+      ],
+    });
+  });
+
+  it("gives field-less measures the query's fact table, and needs one", () => {
+    expect(describeJoins(demo, formulas("COUNT(1)", "SUM(order_items.quantity)"))).toMatchObject({
+      base: "dash_demo.order_items",
+    });
+    expect(describeJoins(demo, formulas("COUNT(1)"))).toEqual({
+      errors: ["a query needs a measure that reads a column, to know its fact table"],
+    });
+  });
+});

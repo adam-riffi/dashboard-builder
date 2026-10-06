@@ -190,6 +190,37 @@ describe("POST /query", () => {
     expect(results[1].data[0]).toEqual(["north", "south"]);
   });
 
+  it("answers formula and named measures, taking the dashboard's measures from the request", async () => {
+    scope = { tenantIds: [1, 2] };
+    const res = await query({
+      measures: [{ name: "Doubled", formula: "SUM(sales.amount) * 2" }],
+      queries: [
+        {
+          dimensions: [{ field: "fx_api.sales.region" }],
+          measures: [{ name: "Doubled" }, { formula: "COUNT(sales.id) / 2" }],
+        },
+        { measures: [{ formula: "SUM(sales.nope)" }] },
+      ],
+    });
+    expect(res.status).toBe(200);
+    const { results } = await res.json();
+    expect(results[0]).toMatchObject({
+      columns: [
+        { key: "d0", kind: "dimension" },
+        { key: "m0", kind: "measure", name: "Doubled", type: "number" },
+        { key: "m1", kind: "measure", formula: "COUNT(sales.id) / 2", type: "number" },
+      ],
+      data: [
+        ["north", "south"],
+        [80, 40],
+        [1, 0.5],
+      ],
+    });
+    expect(results[1]).toEqual({
+      errors: ["measures[0]: unknown column sales.nope (characters 4–14)"],
+    });
+  });
+
   it("fails closed when the scope lacks a policy's list, without naming the policy", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     scope = { userId: "x" };

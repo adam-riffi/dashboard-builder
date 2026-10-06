@@ -154,6 +154,34 @@ describe("executeQuery", () => {
     expect(result.data).toEqual([[20]]);
   });
 
+  it("computes formulas: numeric division, DIVIDE by zero, conditions, rounding, grains", async () => {
+    const { query, limit } = compiled(
+      {
+        dimensions: [region],
+        measures: [
+          { formula: "COUNT(sales.id) / 2" },
+          { formula: "DIVIDE(SUM(sales.amount), SUM(IF(sales.refunded, sales.amount, 0)))" },
+          { formula: 'COUNT(IF(sales.region = "north", sales.id))' },
+          { formula: "ROUND(AVG(sales.amount) / 3, 1)" },
+          { formula: 'MIN(DATE_TRUNC("month", sales.sold_at))' },
+        ],
+      },
+      { tenantIds: [1, 2] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2" },
+    });
+    expect(result.data).toEqual([
+      ["north", "south"],
+      [1, 0.5],
+      [null, 1],
+      [2, 0],
+      [6.7, 6.7],
+      ["2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z"],
+    ]);
+  });
+
   it("runs read-only, so a statement can never write", async () => {
     const write: CompiledQuery = {
       text: "insert into fx_exec.sales values (9, 1, 'x', 1, now(), false) returning 1 as m0",

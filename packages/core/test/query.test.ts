@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { MAX_QUERIES, MAX_ROWS, queryRequest, querySpec } from "../src/index.ts";
+import {
+  MAX_FORMULA_LENGTH,
+  MAX_NAMED_MEASURES,
+  MAX_QUERIES,
+  MAX_ROWS,
+  queryRequest,
+  querySpec,
+} from "../src/index.ts";
 
 const revenue = { field: "dash_demo.order_items.unit_price", aggregation: "SUM" } as const;
 const parse = (spec: unknown) => querySpec.safeParse(spec);
@@ -100,5 +107,37 @@ describe("queryRequest", () => {
     expect(queryRequest.safeParse(queries(0)).success).toBe(false);
     expect(queryRequest.safeParse(queries(MAX_QUERIES)).success).toBe(true);
     expect(queryRequest.safeParse(queries(MAX_QUERIES + 1)).success).toBe(false);
+  });
+});
+
+describe("formula and named measures", () => {
+  it("accepts column, formula and named measures side by side", () => {
+    const measures = [revenue, { formula: "SUM(order_items.quantity)" }, { name: "Revenue" }];
+    expect(querySpec.parse({ measures }).measures).toEqual(measures);
+  });
+
+  it("rejects mixed, empty and overlong formulas", () => {
+    expect(parse({ measures: [{ formula: "COUNT(1)", name: "X" }] }).success).toBe(false);
+    expect(parse({ measures: [{ formula: "" }] }).success).toBe(false);
+    const long = "1".repeat(MAX_FORMULA_LENGTH + 1);
+    expect(parse({ measures: [{ formula: long }] }).success).toBe(false);
+  });
+
+  it.each(["", "a]b", "[x", " Padded", "Padded ", "x".repeat(101)])(
+    "rejects the measure name %j",
+    (name) => {
+      expect(parse({ measures: [{ name }] }).success).toBe(false);
+    },
+  );
+
+  it(`carries up to ${MAX_NAMED_MEASURES} uniquely named dashboard measures per request`, () => {
+    const queries = [{ measures: [{ name: "M0" }] }];
+    const named = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ name: `M${i}`, formula: "COUNT(1)" }));
+    const request = (measures: unknown) => queryRequest.safeParse({ measures, queries });
+    expect(request(named(MAX_NAMED_MEASURES)).success).toBe(true);
+    expect(request(named(MAX_NAMED_MEASURES + 1)).success).toBe(false);
+    expect(request([...named(1), ...named(1)]).success).toBe(false);
+    expect(queryRequest.parse({ queries }).measures).toBeUndefined();
   });
 });

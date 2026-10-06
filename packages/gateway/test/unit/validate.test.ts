@@ -176,3 +176,56 @@ describe("validateQuery", () => {
     ).toEqual([`${active}: values must be true or false`]);
   });
 });
+
+describe("formula and named measures", () => {
+  const named = new Map([
+    ["Revenue", "SUM(order_items.quantity * order_items.unit_price)"],
+    ["Broken", "SUM(order_items.nope)"],
+  ]);
+  const validate = (s: Partial<QuerySpec> & Pick<QuerySpec, "measures">) =>
+    validateQuery(spec(s), contract, named);
+
+  it("checks formulas and resolves named measures to their expressions", () => {
+    expect(
+      validate({ measures: [{ formula: "COUNT(orders.id)" }, { name: "Revenue" }] }),
+    ).toMatchObject({
+      ok: true,
+      query: {
+        measures: [
+          {
+            formula: "COUNT(orders.id)",
+            tables: ["dash_demo.orders"],
+            expr: { kind: "call", name: "COUNT", type: "number" },
+          },
+          {
+            name: "Revenue",
+            tables: ["dash_demo.order_items"],
+            expr: { kind: "call", name: "SUM" },
+          },
+        ],
+      },
+    });
+  });
+
+  it("reports formula errors with the measure's position and the characters they are about", () => {
+    const result = validate({ measures: [quantity, { formula: "SUM(orders.nope) + FOO(1)" }] });
+    expect(result.ok || result.errors).toEqual([
+      "measures[1]: unknown column orders.nope (characters 4–15)",
+      "measures[1]: unknown function FOO (characters 19–22)",
+    ]);
+  });
+
+  it("reports unknown and invalid named measures", () => {
+    const result = validate({ measures: [{ name: "Nope" }, { name: "Broken" }] });
+    expect(result.ok || result.errors).toEqual([
+      "measures[0]: unknown measure [Nope]",
+      "measures[1]: in [Broken]: unknown column order_items.nope",
+    ]);
+  });
+
+  it("knows no named measures unless they are given", () => {
+    expect(errorsOf(spec({ measures: [{ name: "Revenue" }] }))).toEqual([
+      "measures[0]: unknown measure [Revenue]",
+    ]);
+  });
+});
