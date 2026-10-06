@@ -283,12 +283,12 @@ describe("compileQuery with formulas", () => {
     ],
     [
       'COUNT(IF(orders.status = "paid", orders.id))',
-      'count(case when ("t0"."status" = $2::text) then "t0"."id" end)',
+      'count(case when ("t0"."status"::text = $2::text) then "t0"."id" end)',
       ["paid"],
     ],
     [
       'SUM(IF(NOT orders.status = "a" OR orders.status <> "b", 1, 0))',
-      'sum(case when ((not ("t0"."status" = $2::text)) or ("t0"."status" <> $3::text)) then $4::numeric else $5::numeric end)',
+      'sum(case when ((not ("t0"."status"::text = $2::text)) or ("t0"."status"::text <> $3::text)) then $4::numeric else $5::numeric end)',
       ["a", "b", 1, 0],
     ],
     [
@@ -316,6 +316,33 @@ describe("compileQuery with formulas", () => {
     const query = compileFormulas(formula);
     expect(query.text.split("\n")[0]).toEqual(`select ${sql} as "m0"`);
     expect(query.params).toEqual([[1], ...values, 101]);
+  });
+
+  it("compares enum and uuid columns as text, so string literals match them", () => {
+    const saas = dataContract.parse(
+      JSON.parse(
+        readFileSync(
+          new URL("../integration/fixtures/saas.contract.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    const sqlOf = (formula: string) => {
+      const checked = check(formula, { contract: saas });
+      if (!checked.ok) throw new Error(checked.errors.map((e) => e.message).join("; "));
+      const measures = [{ formula, expr: checked.expr, tables: tablesOf(checked.expr) }];
+      const query: ValidQuery = { dimensions: [], measures, filters: [], sort: [], limit: 10 };
+      const planned = planJoins(query, saas);
+      if (!planned.ok) throw new Error(planned.errors.join("; "));
+      const compiled = compileQuery(query, planned.plan, [], {});
+      return compiled.ok ? compiled.query.text.split("\n")[0] : compiled.errors;
+    };
+    expect(sqlOf('COUNT(IF(plans.tier = "pro", plans.id))')).toEqual(
+      'select count(case when ("t0"."tier"::text = $1::text) then "t0"."id" end) as "m0"',
+    );
+    expect(sqlOf('MAX(COALESCE(accounts.id, accounts.name, "none"))')).toEqual(
+      'select max(coalesce("t0"."id"::text, "t0"."name"::text, $1::text)) as "m0"',
+    );
   });
 
   it("echoes the formula and its type in the output columns", () => {
