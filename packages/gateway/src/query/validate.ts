@@ -28,6 +28,16 @@ export type Validation = { ok: true; query: ValidQuery } | { ok: false; errors: 
 const NUMERIC_ONLY = new Set<MeasureAggregation>(["SUM", "AVG"]);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}([T ][\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
 
+/** An ISO date or timestamp whose calendar date exists: Date.parse rolls 2026-02-30 into March. */
+function isIsoDate(value: unknown): boolean {
+  if (typeof value !== "string" || !ISO_DATE.test(value) || Number.isNaN(Date.parse(value))) {
+    return false;
+  }
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number) as [number, number, number];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 /**
  * Checks a QuerySpec against the contract (pure). Every problem is reported, each prefixed with
  * the field it is about; on success the fields are resolved and the defaults filled in.
@@ -111,11 +121,7 @@ function valuesProblem(
     case "string":
       return values.every((v) => typeof v === "string") ? undefined : "values must be strings";
     case "date":
-      return values.every(
-        (v) => typeof v === "string" && ISO_DATE.test(v) && !Number.isNaN(Date.parse(v)),
-      )
-        ? undefined
-        : "values must be ISO dates";
+      return values.every(isIsoDate) ? undefined : "values must be ISO dates";
     case "boolean":
       if (op !== "in" && op !== "not_in") return `${op} does not apply to true/false columns`;
       return values.every((v) => typeof v === "boolean")
