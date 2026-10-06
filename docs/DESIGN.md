@@ -112,8 +112,9 @@ export default defineGateway({
   auth: jwtAuth({ jwksUrl: process.env.DASH_JWKS_URL!, issuer: process.env.DASH_JWT_ISSUER!, audience: "authenticated" }),
   identity: { claim: "sub", format: "uuid" },
   tables: ["dash_demo.orders", "dash_demo.order_items", "dash_demo.products", "dash_demo.customers"],
-  resolveScope: async (claims, db) => ({ userId: claims.sub, tenantIds: await tenantsOf(db, claims.sub) }),
+  resolveScope: async (claims) => ({ userId: claims.sub, tenantIds: await tenantsOf(appDb(), claims.sub) }),
   policies: [{ table: "dash_demo.orders", column: "tenant_id", in: "tenantIds" }],
+  measures: [{ name: "Revenue", formula: "SUM(order_items.quantity * order_items.unit_price)" }], // ADR 0007
   cache: memoryCache({ maxBytes: 50_000_000 }),
 });
 ```
@@ -122,7 +123,7 @@ export default defineGateway({
 
 | Method and path | Body / response |
 | --- | --- |
-| `GET /contract` | DataContract; `ETag` = schema hash |
+| `GET /contract` | DataContract, including the host measures with their types; `ETag` = schema hash |
 | `POST /query` | `{ measures?: [{ name, formula }] (≤ 50, the dashboard's), queries: QuerySpec[] }` (1–20) → `{ results: [{ columns, data (column-major), meta: { cache, ms, truncated } } \| { errors: string[] }] }`; one entry per query, in order. `400` for a malformed body, `429` with `Retry-After` past 60 queries a minute per user (§13) |
 | `GET /health` | `{ status: "ok", db: "ok" }` after `select 1` |
 

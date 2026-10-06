@@ -25,4 +25,10 @@ export default defineGateway({
     const userId = String(claims.sub);
     return { userId, tenantIds: await tenantsOf(appDb(), userId) };
   },
+  // Every dashboard can use these (ADR 0007); all three share order_items as their fact table.
+  measures: [
+    { name: "Revenue", formula: "SUM(order_items.quantity * order_items.unit_price)" },
+    { name: "Orders", formula: "COUNTDISTINCT(order_items.order_id)" },
+    { name: "Average order value", formula: "DIVIDE([Revenue], [Orders])" },
+  ],
 });

@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/06-contract-measures · #28
+- Done: host measures. `defineGateway({ measures })` (names checked and unique at startup); `inferContract` checks them against the inferred tables, types them and lists them in the contract (`measures: [{ name, formula, type }]`, part of `contractVersion` only when present, so existing versions are unchanged); a host measure that does not check fails the request with a logged 500. `POST /query` resolves names against host and dashboard measures; a dashboard measure reusing a host name is a 400. Demo: Revenue, Orders, Average order value; the page shows revenue by category through `{ name: "Revenue" }`. DESIGN §7 config example and contract row updated (and `resolveScope(claims)` drift fixed).
+- Tests: core contract schema; unit hash/inference (types, versioning, unchanged hash without measures, named failure), gateway (startup checks, 400 on clashes before any database access); integration on `fx_api` (contract serves measures, host and dashboard measures by name, 500 on a bad host measure); goldens gain `"measures": []`; Playwright `@smoke` now expects a dollar amount per category. Demo measures checked and planned against the demo golden contract locally.
+- Scope/decisions: no `format` on measures yet (M4 viewer).
+- Next: stack/m3/07-formula-properties (formulas in the isolation and equivalence property), then the M3 review and merges.
+
 ## 2026-10-06 · claude · stack/m3/05-query-measures · #27
 - Done: QuerySpec measures are `{ field, aggregation? } | { formula } | { name }`; `POST /query` takes the dashboard's named measures (`measures`, ≤ 50, unique, names without brackets or surrounding spaces). `validateQuery(spec, contract, named)` checks formulas and names (errors `measures[i]: … (characters a–b)`); the planner gives each measure its own fact table (RELATED-style lookups), requires one per query, and rejects SUM/AVG/COUNT over looked-up tables (fan trap). ADR 0007 records the measure sources, fact-table rule and grammar details; DESIGN §7 updated.
 - Tests: core schema (union, names, request measures); validate (formula and named measures, spans, unknown/invalid names); paths (lookups, COUNTDISTINCT allowed, fan guard, one fact table per query, unrelated tables, field-less measures); integration on `fx_exec` (numeric division, DIVIDE by zero, conditional count, ROUND, DATE_TRUNC) and `fx_api` (request measures through `POST /query`, error format). The whole pipeline ran on PGlite with the same expectations.

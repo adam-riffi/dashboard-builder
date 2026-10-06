@@ -56,6 +56,7 @@ const valid: DataContract = {
       kind: "many-to-one",
     },
   ],
+  measures: [],
 };
 
 const withColumn = (patch: object) => ({

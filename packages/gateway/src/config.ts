@@ -1,3 +1,4 @@
+import type { NamedMeasure } from "@adam-riffi/dash-core";
 import type { JWTPayload } from "jose";
 import postgres from "postgres";
 import type { IdentityConfig, Verifier } from "./auth.ts";
@@ -18,6 +19,8 @@ export interface GatewayConfig {
    * become transaction-local `app.*` settings for row-level security.
    */
   resolveScope?: (claims: JWTPayload) => Promise<Record<string, unknown>>;
+  /** Named measures every dashboard can use, served in the contract (ADR 0007). */
+  measures?: NamedMeasure[];
 }
 
 /** Typed identity function for `dash.config.ts`. */

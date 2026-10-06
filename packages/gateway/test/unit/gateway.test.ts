@@ -93,6 +93,7 @@ describe("served contracts", () => {
     const contract = withoutStatistics({
       contractVersion: "a".repeat(64),
       relationships: [],
+      measures: [],
       tables: [
         {
           name: "s.t",
