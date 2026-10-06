@@ -181,12 +181,12 @@ describe("check", () => {
     ],
     [
       "ROUND(SUM(order_items.quantity), 1.5)",
-      "ROUND's digits must be a whole number like 2",
+      "ROUND's digits must be a whole number from 0 to 15",
       "1.5",
     ],
     [
       "ROUND(SUM(order_items.quantity), order_items.id)",
-      "ROUND's digits must be a whole number like 2",
+      "ROUND's digits must be a whole number from 0 to 15",
       "order_items.id",
     ],
     [
@@ -198,6 +198,21 @@ describe("check", () => {
       'MAX(DATE_TRUNC("month", orders.status))',
       "DATE_TRUNC needs a date, not a string",
       "orders.status",
+    ],
+    [
+      "ROUND(SUM(order_items.quantity), 16)",
+      "ROUND's digits must be a whole number from 0 to 15",
+      "16",
+    ],
+    [
+      "COUNT(order_items.quantity > 100)",
+      "COUNT counts every row with a value, true or false; use COUNT(IF(condition, table.column)) or SUM(IF(condition, 1, 0))",
+      "order_items.quantity > 100",
+    ],
+    [
+      "COUNT(orders.refunded)",
+      "COUNT counts every row with a value, true or false; use COUNT(IF(condition, table.column)) or SUM(IF(condition, 1, 0))",
+      "orders.refunded",
     ],
     ["[Nope]", "unknown measure [Nope]", "[Nope]"],
     ["SUM([Revenue])", "aggregates cannot be nested", "[Revenue]"],
@@ -234,5 +249,17 @@ describe("check", () => {
     const result = check("[M40]", { contract, measures });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors[0]?.message).toContain("too large");
+  });
+
+  it("follows measure references up to 16 levels deep", () => {
+    const chain = (n: number) => {
+      const measures = new Map([[`M${n}`, "SUM(order_items.quantity)"]]);
+      for (let i = n - 1; i >= 0; i--) measures.set(`M${i}`, `[M${i + 1}] * 1`);
+      return check("[M0]", { contract, measures });
+    };
+    expect(chain(15).ok).toBe(true);
+    const deep = chain(17);
+    expect(deep.ok).toBe(false);
+    if (!deep.ok) expect(deep.errors[0]?.message).toContain("references nest more than 16 levels");
   });
 });
