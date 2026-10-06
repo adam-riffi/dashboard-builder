@@ -28,24 +28,42 @@ const customers = TENANTS.flatMap((t) =>
 const products = TENANTS.flatMap((t) =>
   [0, 1].map((k) => ({ id: t * 10 + k, tenant: t, category: ["Books", "Toys"][k] as string })),
 );
-const orders = TENANTS.flatMap((t) =>
-  [0, 1, 2].map((k) => ({
-    id: t * 100 + k,
-    tenant: t,
-    customer: t * 10 + (k % 2),
-    status: STATUSES[k] as string,
-    orderedAt: new Date(Date.UTC(2026, k % 2, 1 + k + t, 10 + k)),
-  })),
-);
-const items = orders.flatMap((o) =>
-  [0, 1].map((j) => ({
-    id: o.id * 10 + j,
-    tenant: o.tenant,
-    order: o.id,
-    product: o.tenant * 10 + j,
-    quantity: o.tenant * 7 + (o.id % 10) * 3 + j + 1,
-  })),
-);
+const orders = [
+  ...TENANTS.flatMap((t) =>
+    [0, 1, 2].map((k) => ({
+      id: t * 100 + k,
+      tenant: t,
+      customer: t * 10 + (k % 2),
+      status: STATUSES[k] as string,
+      orderedAt: new Date(Date.UTC(2026, k % 2, 1 + k + t, 10 + k)),
+    })),
+  ),
+  // Cross-tenant: a tenant 1 order for tenant 2's customer. Policies on joined tables must drop it.
+  {
+    id: 199,
+    tenant: 1,
+    customer: 21,
+    status: "paid",
+    orderedAt: new Date(Date.UTC(2026, 0, 9, 9)),
+  },
+];
+const items = [
+  ...orders
+    .filter((o) => o.id !== 199)
+    .flatMap((o) =>
+      [0, 1].map((j) => ({
+        id: o.id * 10 + j,
+        tenant: o.tenant,
+        order: o.id,
+        product: o.tenant * 10 + j,
+        quantity: o.tenant * 7 + (o.id % 10) * 3 + j + 1,
+      })),
+    ),
+  // Cross-tenant references: only the policies on the joined tables keep these out.
+  { id: 90_001, tenant: 1, order: 200, product: 30, quantity: 101 },
+  { id: 90_002, tenant: 2, order: 199, product: 20, quantity: 103 },
+  { id: 90_003, tenant: 3, order: 300, product: 10, quantity: 107 },
+];
 
 const tables = ["fx_iso.customers", "fx_iso.products", "fx_iso.orders", "fx_iso.order_items"];
 const policies: Policy[] = tables.map((table) => ({ table, column: "tenant_id", in: "tenantIds" }));
@@ -116,12 +134,20 @@ async function run(spec: QuerySpec, tenantIds: number[]) {
 function reference(spec: QuerySpec, tenantIds: number[]) {
   const inScope = (tenant: number) => tenantIds.includes(tenant);
   const statusFilter = spec.filters[0]?.values as string[] | undefined;
+  // A related table's policy applies only when the query joins it (customers go through orders).
+  const uses = (table: string) =>
+    spec.dimensions.some((d) => d.field.startsWith(`fx_iso.${table}.`));
+  const joinsCustomers = uses("customers");
+  const joinsOrders = joinsCustomers || uses("orders") || statusFilter !== undefined;
+  const joinsProducts = uses("products");
   const rows = items.flatMap((item) => {
     const order = orders.find((o) => o.id === item.order);
     const product = products.find((p) => p.id === item.product);
     const customer = customers.find((c) => c.id === order?.customer);
     if (!order || !product || !customer || !inScope(item.tenant)) return [];
-    if (!inScope(order.tenant) || !inScope(product.tenant) || !inScope(customer.tenant)) return [];
+    if (joinsOrders && !inScope(order.tenant)) return [];
+    if (joinsProducts && !inScope(product.tenant)) return [];
+    if (joinsCustomers && !inScope(customer.tenant)) return [];
     if (statusFilter && !statusFilter.includes(order.status)) return [];
     return [{ item, order, product, customer }];
   });
