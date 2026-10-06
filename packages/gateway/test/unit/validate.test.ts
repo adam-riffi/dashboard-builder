@@ -31,7 +31,18 @@ describe("validateQuery", () => {
       query: {
         dimensions: [{ table: "dash_demo.products", column: { name: "category" } }],
         measures: [
-          { table: "dash_demo.order_items", column: { name: "quantity" }, aggregation: "SUM" },
+          {
+            field: quantity.field,
+            aggregation: "SUM",
+            tables: ["dash_demo.order_items"],
+            expr: {
+              kind: "call",
+              name: "SUM",
+              type: "number",
+              level: "aggregate",
+              args: [{ kind: "column", table: "dash_demo.order_items", column: "quantity" }],
+            },
+          },
         ],
         filters: [],
         sort: [],

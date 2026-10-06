@@ -56,7 +56,8 @@ const A: Record<FieldType, string> = {
 };
 const MIXED = "a row value cannot be mixed with aggregates; aggregate it, e.g. SUM(...)";
 
-const children = (t: Typed): Typed[] =>
+/** The direct subexpressions of a checked node. */
+export const children = (t: Typed): Typed[] =>
   t.kind === "unary"
     ? [t.operand]
     : t.kind === "binary"

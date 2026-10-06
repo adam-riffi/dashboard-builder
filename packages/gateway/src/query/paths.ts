@@ -19,7 +19,7 @@ const via = (r: Relationship) => `${r.from.table}(${r.from.columns})`;
  * tables named.
  */
 export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanning {
-  const factTables = [...new Set(query.measures.map((m) => m.table))].sort(compare);
+  const factTables = [...new Set(query.measures.flatMap((m) => m.tables))].sort(compare);
   const [base] = factTables;
   if (base === undefined || factTables.length > 1) {
     return {

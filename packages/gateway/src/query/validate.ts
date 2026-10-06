@@ -1,11 +1,13 @@
 import {
   type ContractColumn,
+  children,
   type DataContract,
   type FilterOp,
   MAX_ROWS,
   type MeasureAggregation,
   type QuerySpec,
   type TimeGrain,
+  type Typed,
 } from "@adam-riffi/dash-core";
 
 /** A field resolved to its contract table and column. */
@@ -15,9 +17,19 @@ export interface ResolvedField {
   column: ContractColumn;
 }
 
+/**
+ * A measure ready to compile: its checked expression, the tables it reads, and what the spec
+ * asked for, echoed in the output columns. A column measure is the formula `AGG(field)` (ADR 0006).
+ */
+export type ValidMeasure = { expr: Typed; tables: string[] } & (
+  | { field: string; aggregation: MeasureAggregation }
+  | { formula: string }
+  | { name: string }
+);
+
 export interface ValidQuery {
   dimensions: (ResolvedField & { timeGrain?: TimeGrain })[];
-  measures: (ResolvedField & { aggregation: MeasureAggregation })[];
+  measures: ValidMeasure[];
   filters: (ResolvedField & { op: FilterOp; values: (string | number | boolean)[] })[];
   sort: NonNullable<QuerySpec["sort"]>;
   limit: number;
@@ -26,6 +38,31 @@ export interface ValidQuery {
 export type Validation = { ok: true; query: ValidQuery } | { ok: false; errors: string[] };
 
 const NUMERIC_ONLY = new Set<MeasureAggregation>(["SUM", "AVG"]);
+
+/** The tables a checked expression reads, sorted. */
+export function tablesOf(expr: Typed): string[] {
+  const found = new Set<string>();
+  const walk = (t: Typed): void => {
+    if (t.kind === "column") found.add(t.table);
+    else children(t).forEach(walk);
+  };
+  walk(expr);
+  return [...found].sort();
+}
+
+/** The formula a column measure stands for: `AGG(table.column)`. */
+function columnMeasure(r: ResolvedField, aggregation: MeasureAggregation): Typed {
+  const keepsType = aggregation === "MIN" || aggregation === "MAX";
+  return {
+    kind: "call",
+    name: aggregation === "COUNT_DISTINCT" ? "COUNTDISTINCT" : aggregation,
+    args: [
+      { kind: "column", table: r.table, column: r.column.name, type: r.column.type, level: "row" },
+    ],
+    type: keepsType ? r.column.type : "number",
+    level: "aggregate",
+  };
+}
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}([T ][\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
 
 /** An ISO date or timestamp whose calendar date exists: Date.parse rolls 2026-02-30 into March. */
@@ -84,7 +121,9 @@ export function validateQuery(spec: QuerySpec, contract: DataContract): Validati
     } else if (r.column.type === "boolean" && (aggregation === "MIN" || aggregation === "MAX")) {
       errors.push(`${m.field}: ${aggregation} needs a number, date or string column`);
     }
-    return [{ ...r, aggregation }];
+    return [
+      { field: m.field, aggregation, expr: columnMeasure(r, aggregation), tables: [r.table] },
+    ];
   });
 
   const filters = spec.filters.flatMap((f) => {

@@ -1,4 +1,4 @@
-import type { FieldType, MeasureAggregation, TimeGrain } from "@adam-riffi/dash-core";
+import type { FieldType, MeasureAggregation, TimeGrain, Typed } from "@adam-riffi/dash-core";
 import type { JoinPlan } from "./paths.ts";
 import type { ValidQuery } from "./validate.ts";
 
@@ -12,13 +12,11 @@ export interface Policy {
 /** One result column, in select order: dimensions `d0…`, then measures `m0…`. */
 export type OutputColumn =
   | { key: string; kind: "dimension"; field: string; timeGrain?: TimeGrain; type: FieldType }
-  | {
-      key: string;
-      kind: "measure";
-      field: string;
-      aggregation: MeasureAggregation;
-      type: FieldType;
-    };
+  | ({ key: string; kind: "measure"; type: FieldType } & (
+      | { field: string; aggregation: MeasureAggregation }
+      | { formula: string }
+      | { name: string }
+    ));
 
 export interface CompiledQuery {
   text: string;
@@ -29,6 +27,53 @@ export interface CompiledQuery {
 export type Compilation = { ok: true; query: CompiledQuery } | { ok: false; errors: string[] };
 
 const OPERATORS = { gt: ">", gte: ">=", lt: "<", lte: "<=" } as const;
+const AGGREGATES = new Set(["SUM", "AVG", "MIN", "MAX", "COUNT"]);
+
+/**
+ * Renders a checked formula as a Postgres expression (DESIGN.md §6). Every binary operation is
+ * parenthesized; literals are bound with a cast so Postgres never infers an integer type for
+ * them; division is numeric so integers do not truncate, and `DIVIDE` returns null on zero.
+ */
+export function renderFormula(
+  t: Typed,
+  ref: (table: string, column: string) => string,
+  bind: (value: unknown) => string,
+): string {
+  const r = (e: Typed) => renderFormula(e, ref, bind);
+  switch (t.kind) {
+    case "number":
+      return `${bind(t.value)}::numeric`;
+    case "string":
+      return `${bind(t.value)}::text`;
+    case "column":
+      return ref(t.table, t.column);
+    case "unary":
+      return t.op === "-" ? `(-${r(t.operand)})` : `(not ${r(t.operand)})`;
+    case "binary":
+      if (t.op === "/") return `((${r(t.left)})::numeric / ${r(t.right)})`;
+      return `(${r(t.left)} ${t.op === "AND" || t.op === "OR" ? t.op.toLowerCase() : t.op} ${r(t.right)})`;
+    case "call": {
+      const [a, b, c] = t.args as [Typed, Typed | undefined, Typed | undefined];
+      if (AGGREGATES.has(t.name)) return `${t.name.toLowerCase()}(${r(a)})`;
+      switch (t.name) {
+        case "COUNTDISTINCT":
+          return `count(distinct ${r(a)})`;
+        case "DIVIDE":
+          return `((${r(a)})::numeric / nullif(${r(b as Typed)}, 0))`;
+        case "IF":
+          return `case when ${r(a)} then ${r(b as Typed)}${c ? ` else ${r(c)}` : ""} end`;
+        case "COALESCE":
+          return `coalesce(${t.args.map(r).join(", ")})`;
+        case "ROUND":
+          // The checker only lets a whole-number literal through as the digits.
+          return `round((${r(a)})::numeric${b?.kind === "number" ? `, ${bind(b.value)}::int` : ""})`;
+        case "DATE_TRUNC":
+          return `date_trunc(${r(a)}, ${r(b as Typed)})`;
+      }
+      throw new Error(`no SQL for function ${t.name}`);
+    }
+  }
+}
 
 /** Identifiers only ever come from the contract, and are always quoted. */
 const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
@@ -88,21 +133,14 @@ export function compileQuery(
     }),
     ...query.measures.map((m, i) => {
       const key = `m${i}`;
-      const column = ref(m.table, m.column.name);
-      const counted = m.aggregation === "COUNT" || m.aggregation === "COUNT_DISTINCT";
-      columns.push({
-        key,
-        kind: "measure",
-        field: m.field,
-        aggregation: m.aggregation,
-        type:
-          counted || m.aggregation === "SUM" || m.aggregation === "AVG" ? "number" : m.column.type,
-      });
-      const call =
-        m.aggregation === "COUNT_DISTINCT"
-          ? `count(distinct ${column})`
-          : `${m.aggregation.toLowerCase()}(${column})`;
-      return `${call} as ${quote(key)}`;
+      const echo =
+        "field" in m
+          ? { field: m.field, aggregation: m.aggregation }
+          : "formula" in m
+            ? { formula: m.formula }
+            : { name: m.name };
+      columns.push({ key, kind: "measure", ...echo, type: m.expr.type });
+      return `${renderFormula(m.expr, ref, bind)} as ${quote(key)}`;
     }),
   ];
 

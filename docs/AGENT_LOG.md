@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/04-compile-formulas · #26
+- Done: `renderFormula` in `packages/gateway/src/query/compile.ts` renders checked formulas as Postgres: every binary operation parenthesized, literals bound with casts (`$n::numeric`, `$n::text`, `$n::int` for ROUND digits), numeric division, `DIVIDE` as `/ nullif(…, 0)`, `IF` as `case`, `COUNTDISTINCT` as `count(distinct …)`. Column measures are now the formula `AGG(field)` (ADR 0006), so every measure takes this path; `ValidMeasure` carries the checked expression, its tables and an echo of the spec for the output columns.
+- Tests: `test/unit/compile.test.ts`: golden SQL and parameters for 10 formulas, output columns, and a fast-check property that string and number literals never reach the SQL text; the M2 column-measure goldens are unchanged. The validate test now asserts the new measure shape. Rendered SQL ran on PGlite through postgres.js (7/2 = 3.5, DIVIDE by zero is null, casts resolve).
+- Scope/decisions: PR order swapped with the spec PR so each stays green (compile first, then wire formulas into QuerySpec); #24 is 558 lines, explained in its body.
+- Next: stack/m3/05-query-measures (QuerySpec formula and named measures, fact-table rule, ADR 0007).
+
 ## 2026-10-06 · claude · stack/m3/03-type-check · #24
 - Done: `check(source, { contract, measures })` in `packages/core/src/formula/check.ts`: resolves `table.column` (unique across schemas) and `schema.table.column` fields, inlines `[Measure]` references (memoized, cycles named), types every node (number, string, boolean, date) with its level (constant, row, aggregate), checks the 11 functions' arity and argument types, and requires an aggregate top level. Output is the typed tree the gateway will render as SQL.
 - Tests: `packages/core/test/formula/check.test.ts`: typed tree, 12 accepted formulas, 36 rejected ones each asserting the exact message and span, multiple errors at once, and a 2^40 measure expansion rejected without being expanded.
