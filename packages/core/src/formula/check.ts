@@ -28,6 +28,8 @@ export type Checking = { ok: true; expr: Typed } | { ok: false; errors: FormulaE
 
 /** Nodes a formula may have once its measure references are expanded. */
 export const MAX_FORMULA_NODES = 1_000;
+/** How deep measure references may chain, so a chain fails with a span, not a stack overflow. */
+export const MAX_REFERENCE_DEPTH = 16;
 
 const GRAINS = ["day", "week", "month", "quarter", "year"];
 const AGGREGATES = new Set(["SUM", "AVG", "MIN", "MAX", "COUNT", "COUNTDISTINCT"]);
@@ -137,6 +139,9 @@ function checkMeasure(
   function measure(e: Expr & { kind: "measure" }): Typed | undefined {
     const formula = env.measures?.get(e.name);
     if (formula === undefined) return report(`unknown measure [${e.name}]`, e);
+    if (active.length >= MAX_REFERENCE_DEPTH) {
+      return report(`measure references nest more than ${MAX_REFERENCE_DEPTH} levels deep`, e);
+    }
     if (active.includes(e.name)) {
       const loop = [...active.slice(active.indexOf(e.name)), e.name];
       return report(`circular reference ${loop.map((n) => `[${n}]`).join(" → ")}`, e);
@@ -213,6 +218,12 @@ function checkMeasure(
       if ((e.name === "MIN" || e.name === "MAX") && arg.type === "boolean") {
         return report(`${e.name} needs a number, date or string`, at);
       }
+      if (e.name === "COUNT" && arg.type === "boolean") {
+        return report(
+          "COUNT counts every row with a value, true or false; use COUNT(IF(condition, table.column)) or SUM(IF(condition, 1, 0))",
+          at,
+        );
+      }
       const minMax = e.name === "MIN" || e.name === "MAX";
       return node(minMax ? arg.type : "number", "aggregate");
     }
@@ -250,8 +261,9 @@ function checkMeasure(
         if (type !== "number") report(`ROUND needs a number, not ${A[type]}`, first[1]);
         if (second) {
           const digits = second[1];
-          if (digits.kind !== "number" || !Number.isInteger(digits.value)) {
-            report("ROUND's digits must be a whole number like 2", digits);
+          const whole = digits.kind === "number" && Number.isInteger(digits.value);
+          if (!whole || digits.value > 15) {
+            report("ROUND's digits must be a whole number from 0 to 15", digits);
           }
         }
         break;
