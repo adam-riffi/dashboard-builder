@@ -119,6 +119,19 @@ describe("planJoins", () => {
     });
   });
 
+  it("treats duplicate foreign key constraints as one relationship", () => {
+    const [first] = demo.relationships;
+    const doubled = { ...demo, relationships: [...demo.relationships, structuredClone(first)] };
+    const query = valid(demo, {
+      dimensions: [{ field: "dash_demo.orders.status" }],
+      measures: [units],
+    });
+    expect(describeJoins(doubled as DataContract, query)).toEqual({
+      base: "dash_demo.order_items",
+      joins: ["dash_demo.order_items(order_id) -> dash_demo.orders(id)"],
+    });
+  });
+
   it("joins a self-referencing table once, as itself", () => {
     const query = valid(graph, {
       dimensions: [{ field: "fx_graph.employees.name" }],
