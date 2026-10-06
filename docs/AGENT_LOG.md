@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · codex · codex/m4-dogfood · pending
+- Done: Added this documentation-only pull request to dogfood the shared `pr-meme` caller at its released `@v1` tag.
+- Tests: M4 acceptance check: the opened PR must receive one automated meme comment within one minute; no product behavior changes.
+- Scope/decisions: Configuration/documentation exception to test-first; the existing caller remains byte-for-byte canonical.
+- Next: Verify the live comment, review the PR, then merge the dogfood record.
+
 ## 2026-10-06 · claude · stack/m2/01..07 · #15–#21 (review fixes)
 - Done: Addressed the independent review (no blockers, no injection or leak). #18: boolean `in`/`not_in` bound as text cast to `boolean[]` (postgres.js sent a boolean list as one boolean); sort ties broken by dimensions. #20: policies checked against the allowlist at startup and the contract per request (fail closed), 60 queries/min/user rate limit (DESIGN §13, per instance) with 429 + Retry-After, generic client error for out-of-scope queries, comma-safe RLS scope values, per-query info log with a scope hash; DESIGN §7 response shape. #21: cross-tenant fixture rows and a join-aware reference, so base-only filtering would fail. Nits: request size caps (#15), calendar-valid dates (#16), duplicate FK edges (#17), read-only transactions and a single-connection scope carry-over test (#19).
 - Tests: new failing tests first for every fix; unit 163 passing, gateway coverage 92.15%; integration in CI.
