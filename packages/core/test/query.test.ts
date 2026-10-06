@@ -73,6 +73,25 @@ describe("querySpec", () => {
   });
 });
 
+describe("querySpec size caps", () => {
+  const many = <T>(n: number, item: T) => Array.from({ length: n }, () => item);
+
+  it("caps list sizes and field length at the trust boundary", () => {
+    expect(parse({ measures: many(21, revenue) }).success).toBe(false);
+    expect(parse({ measures: many(20, revenue) }).success).toBe(true);
+    const dim = { field: "dash_demo.products.category" };
+    expect(parse({ measures: [revenue], dimensions: many(11, dim) }).success).toBe(false);
+    const filter = { field: "dash_demo.orders.status", op: "in", values: many(1001, "x") };
+    expect(parse({ measures: [revenue], filters: [filter] }).success).toBe(false);
+    expect(
+      parse({ measures: [revenue], filters: many(21, { ...filter, values: ["x"] }) }).success,
+    ).toBe(false);
+    const sort = { by: "measure", index: 0, dir: "asc" };
+    expect(parse({ measures: [revenue], sort: many(11, sort) }).success).toBe(false);
+    expect(parse({ measures: [{ field: `a.b.${"c".repeat(200)}` }] }).success).toBe(false);
+  });
+});
+
 describe("queryRequest", () => {
   it(`takes 1 to ${MAX_QUERIES} queries`, () => {
     const queries = (n: number) => ({
