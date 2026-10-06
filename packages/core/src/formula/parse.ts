@@ -37,6 +37,9 @@ const NOT = 3;
 const NEGATE = 7;
 const ATOM = 8;
 
+/** Nesting the parser accepts, so deep formulas fail with a span instead of a stack overflow. */
+export const MAX_FORMULA_DEPTH = 100;
+
 class ParseError extends Error {
   constructor(
     message: string,
@@ -63,6 +66,7 @@ export function parse(source: string): Parsing {
   if (!lexed.ok) return lexed;
   const tokens = lexed.tokens;
   let at = 0;
+  let depth = 0;
   const peek = () => tokens[at] as Token;
   const next = () => tokens[at++] as Token;
   const unexpected = (t: Token) =>
@@ -79,20 +83,27 @@ export function parse(source: string): Parsing {
   };
 
   function expression(minPower: number): Expr {
+    if (++depth > MAX_FORMULA_DEPTH) {
+      throw new ParseError(`the formula nests more than ${MAX_FORMULA_DEPTH} levels deep`, peek());
+    }
     let left = prefix();
     for (let op = binaryOp(peek()); op && BINARY[op] > minPower; op = binaryOp(peek())) {
       next();
       const right = expression(BINARY[op]);
       left = { kind: "binary", op, left, right, start: left.start, end: right.end };
     }
+    depth--;
     return left;
   }
 
   function prefix(): Expr {
     const t = next();
     switch (t.kind) {
-      case "number":
-        return { kind: "number", value: Number(t.value), start: t.start, end: t.end };
+      case "number": {
+        const value = Number(t.value);
+        if (!Number.isFinite(value)) throw new ParseError("number out of range", t);
+        return { kind: "number", value, start: t.start, end: t.end };
+      }
       case "string":
         return { kind: "string", value: t.value, start: t.start, end: t.end };
       case "measure":
