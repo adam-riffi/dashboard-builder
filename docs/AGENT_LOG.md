@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/01..07 · #22–#29 (review fixes)
+- Done: Addressed the independent review (0 blockers, 1 major, 7 minor, 4 nits; no injection or policy bypass). Major: string-typed formula columns (enum, uuid, char) compare as text, so `plans.tier = "pro"` works (#26). #22/#23: exponents in number literals (round trip of 1e-7), numbers out of range rejected, nesting capped at 100 levels. #24: references capped at 16 levels (a chain overflowed the stack), `COUNT` of true/false values refused, `ROUND` digits 0–15. #27: one fact table per query again (per-measure facts rejected Revenue next to `COUNTDISTINCT(orders.customer_id)`; the fan-trap guard covers the risk), 5 errors per measure in responses, one measure memo per request. #28: dashboard measures shadow host measures of the same name instead of a 400; host measures are planned at contract time. #29: a second property arm with orders as the fact table (`/`, DIVIDE, MAX of a date, a customers join). ADR 0007 records each decision.
+- Tests: failing tests first for every fix; core 142 and gateway 193 unit tests; enum/uuid formulas and the orders arm ran on PGlite through the real pipeline; mutation check: the orders arm fails when the reference skips the customers policy. Stack rebased onto main (#25).
+- Scope/decisions: number literals stay doubles (documented in ADR 0007); the unit test that expected a 400 on a host/dashboard name clash became an integration test of shadowing.
+- Next: CI green on all seven, merge loop #22→#29, production screenshot for #28; then the audit follow-ups (nightly.yml) and M4.
+
 ## 2026-10-06 · claude · stack/m3/07-formula-properties · #29
 - Done: the M2 isolation and equivalence property now draws from five formula measures as well as the column measures: Revenue as a formula and by name (joins products), average units per order with `ROUND(DIVIDE(…, COUNTDISTINCT(orders.id)), 2)`, a conditional `SUM(IF(orders.status = "paid", …))`, and `COUNT(IF(products.category = "Books", …))`. The TypeScript reference joins the tables each formula reads, so their policies apply as in SQL; `fx_iso.products` gains `unit_price`; 80 runs.
 - Tests: ran against PGlite locally (no RLS in this fixture, so plain Postgres suffices); mutation checks: a wrong Revenue reference and a reference that skips the products policy (as a planner bug would) both fail with a counterexample. CI authoritative.

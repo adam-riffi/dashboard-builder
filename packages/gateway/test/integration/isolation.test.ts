@@ -279,3 +279,92 @@ describe("tenant isolation (M2 acceptance, with M3 formulas)", () => {
     expect(await run(spec, [])).toEqual([]);
   });
 });
+
+/** Queries whose fact table is orders, so base selection and policies start from another table. */
+const ORDER_DIMENSIONS = [
+  { field: "fx_iso.customers.segment" },
+  { field: "fx_iso.orders.status" },
+  { field: "fx_iso.orders.ordered_at", timeGrain: "month" },
+] as const;
+type OrderRow = { order: (typeof orders)[number]; customer: (typeof customers)[number] };
+const customersOf = (rows: OrderRow[]) => new Set(rows.map((r) => r.order.customer)).size;
+const ORDER_MEASURES: {
+  measure: Measure;
+  joinsCustomers?: boolean;
+  value: (rows: OrderRow[]) => unknown;
+}[] = [
+  { measure: { field: "fx_iso.orders.id", aggregation: "COUNT" }, value: (rows) => rows.length },
+  { measure: { formula: "COUNTDISTINCT(orders.customer_id)" }, value: customersOf },
+  { measure: { formula: "COUNT(orders.id) / 2" }, value: (rows) => rows.length / 2 },
+  {
+    measure: { formula: "ROUND(DIVIDE(COUNT(orders.id), COUNTDISTINCT(orders.customer_id)), 2)" },
+    value: (rows) =>
+      rows.length ? Math.round((rows.length * 100) / customersOf(rows)) / 100 : null,
+  },
+  {
+    measure: { formula: "MAX(orders.ordered_at)" },
+    value: (rows) =>
+      rows.length
+        ? new Date(Math.max(...rows.map((r) => r.order.orderedAt.getTime()))).toISOString()
+        : null,
+  },
+  {
+    measure: { formula: 'COUNT(IF(customers.segment = "smb", orders.id))' },
+    joinsCustomers: true,
+    value: (rows) => rows.filter((r) => r.customer.segment === "smb").length,
+  },
+];
+
+function orderReference(spec: QuerySpec, tenantIds: number[]) {
+  const inScope = (tenant: number) => tenantIds.includes(tenant);
+  const measures = spec.measures.map((m) => {
+    const found = ORDER_MEASURES.find((o) => JSON.stringify(o.measure) === JSON.stringify(m));
+    if (!found) throw new Error(`no reference for ${JSON.stringify(m)}`);
+    return found;
+  });
+  const joinsCustomers =
+    spec.dimensions.some((d) => d.field.startsWith("fx_iso.customers.")) ||
+    measures.some((m) => m.joinsCustomers);
+  const rows = orders.flatMap((order): OrderRow[] => {
+    const customer = customers.find((c) => c.id === order.customer);
+    if (!customer || !inScope(order.tenant)) return [];
+    if (joinsCustomers && !inScope(customer.tenant)) return [];
+    return [{ order, customer }];
+  });
+  const dimension = (row: OrderRow, field: string) => {
+    if (field === "fx_iso.customers.segment") return row.customer.segment;
+    if (field === "fx_iso.orders.status") return row.order.status;
+    const t = row.order.orderedAt;
+    return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1)).toISOString();
+  };
+  const groups = new Map<string, OrderRow[]>();
+  if (spec.dimensions.length === 0) groups.set("[]", []);
+  for (const row of rows) {
+    const key = JSON.stringify(spec.dimensions.map((d) => dimension(row, d.field)));
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  return [...groups.entries()].map(([key, group]) => [
+    ...(JSON.parse(key) as unknown[]),
+    ...measures.map((m) => m.value(group)),
+  ]);
+}
+
+describe("tenant isolation with orders as the fact table (M3)", () => {
+  it("returns exactly the aggregation of the scope's orders, for random queries and scopes", async () => {
+    const randomOrderQuery = fc.record({
+      dimensions: fc.subarray([...ORDER_DIMENSIONS], { maxLength: 2 }),
+      measures: fc.subarray(
+        ORDER_MEASURES.map((m) => m.measure),
+        { minLength: 1, maxLength: 3 },
+      ),
+      tenantIds: fc.subarray(TENANTS),
+    });
+    await fc.assert(
+      fc.asyncProperty(randomOrderQuery, async ({ dimensions, measures, tenantIds }) => {
+        const spec = querySpec.parse({ dimensions, measures });
+        expect(sorted(await run(spec, tenantIds))).toEqual(sorted(orderReference(spec, tenantIds)));
+      }),
+      { numRuns: 60 },
+    );
+  });
+});
