@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/01-lexer · #22
+- Done: M3 starts (plan: formulas, named measures from the host config and the dashboard, Georges chose "host + dashboard"). `lex(source)` in `packages/core/src/formula/lex.ts`: numbers, double-quoted strings with `""` escapes, names, `[Measure]` references and operators, each token with its character span; errors carry the span too.
+- Tests: `packages/core/test/formula/lex.test.ts` (spans, operators longest first, escapes, whitespace, unterminated string and reference, empty name, unknown character).
+- Scope/decisions: no `!=` (use `<>`), no date or boolean literals in v1 formulas.
+- Next: stack/m3/02-parser (Pratt parser, printer, round-trip property).
+
 ## 2026-10-07 · claude · docs/handoff-steps · pending
 - Done: AGENTS.md and the Copilot summary now start every session with `HANDOFF.md` (read it, check it against `main` and the open PRs) and end it by rewriting `HANDOFF.md`, matching ENGINEERING.md §5 from portfolio-infra.
 - Tests: Documentation only.
