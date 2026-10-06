@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
-import { dataContract, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
+import { check, dataContract, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { compileQuery, type Policy } from "../../src/query/compile.ts";
 import { planJoins } from "../../src/query/paths.ts";
-import { validateQuery } from "../../src/query/validate.ts";
+import { tablesOf, type ValidQuery, validateQuery } from "../../src/query/validate.ts";
 
 const demo = dataContract.parse(
   JSON.parse(
@@ -250,5 +250,92 @@ describe("compileQuery", () => {
     if (!plan.ok) throw new Error(plan.errors.join("; "));
     const result = compileQuery(valid.query, plan.plan, [], {});
     expect(result.ok && result.query.text).toContain('select "t0"."we""ird" as "d0"');
+  });
+});
+
+describe("compileQuery with formulas", () => {
+  /** Checks formulas against the demo contract and compiles them as one query's measures. */
+  function compileFormulas(...formulas: string[]) {
+    const measures = formulas.map((formula) => {
+      const checked = check(formula, { contract: demo });
+      if (!checked.ok) throw new Error(checked.errors.map((e) => e.message).join("; "));
+      return { formula, expr: checked.expr, tables: tablesOf(checked.expr) };
+    });
+    const query: ValidQuery = { dimensions: [], measures, filters: [], sort: [], limit: 100 };
+    const planned = planJoins(query, demo);
+    if (!planned.ok) throw new Error(planned.errors.join("; "));
+    const compiled = compileQuery(query, planned.plan, tenantPolicies, { tenantIds: [1] });
+    if (!compiled.ok) throw new Error(compiled.errors.join("; "));
+    return compiled.query;
+  }
+
+  it.each([
+    [
+      "SUM(order_items.quantity * order_items.unit_price)",
+      'sum(("t0"."quantity" * "t0"."unit_price"))',
+      [],
+    ],
+    ["SUM(order_items.quantity) / 2", '((sum("t0"."quantity"))::numeric / $2::numeric)', [2]],
+    [
+      "DIVIDE(SUM(order_items.quantity), COUNTDISTINCT(order_items.order_id))",
+      '((sum("t0"."quantity"))::numeric / nullif(count(distinct "t0"."order_id"), 0))',
+      [],
+    ],
+    [
+      'COUNT(IF(orders.status = "paid", orders.id))',
+      'count(case when ("t0"."status" = $2::text) then "t0"."id" end)',
+      ["paid"],
+    ],
+    [
+      'SUM(IF(NOT orders.status = "a" OR orders.status <> "b", 1, 0))',
+      'sum(case when ((not ("t0"."status" = $2::text)) or ("t0"."status" <> $3::text)) then $4::numeric else $5::numeric end)',
+      ["a", "b", 1, 0],
+    ],
+    [
+      "ROUND(AVG(order_items.unit_price), 2)",
+      'round((avg("t0"."unit_price"))::numeric, $2::int)',
+      [2],
+    ],
+    ["ROUND(SUM(order_items.quantity))", 'round((sum("t0"."quantity"))::numeric)', []],
+    [
+      'MAX(DATE_TRUNC("month", orders.ordered_at))',
+      'max(date_trunc($2::text, "t0"."ordered_at"))',
+      ["month"],
+    ],
+    [
+      "COALESCE(SUM(order_items.quantity), 0) * -1",
+      '(coalesce(sum("t0"."quantity"), $2::numeric) * (-$3::numeric))',
+      [0, 1],
+    ],
+    [
+      "MIN(orders.ordered_at) < MAX(orders.ordered_at) AND COUNT(orders.id) >= 1",
+      '((min("t0"."ordered_at") < max("t0"."ordered_at")) and (count("t0"."id") >= $2::numeric))',
+      [1],
+    ],
+  ])("compiles %s", (formula, sql, values) => {
+    const query = compileFormulas(formula);
+    expect(query.text.split("\n")[0]).toEqual(`select ${sql} as "m0"`);
+    expect(query.params).toEqual([[1], ...values, 101]);
+  });
+
+  it("echoes the formula and its type in the output columns", () => {
+    expect(compileFormulas("MAX(orders.ordered_at)", "COUNT(orders.id)").columns).toEqual([
+      { key: "m0", kind: "measure", formula: "MAX(orders.ordered_at)", type: "date" },
+      { key: "m1", kind: "measure", formula: "COUNT(orders.id)", type: "number" },
+    ]);
+  });
+
+  it("binds every literal, never writing it into the SQL", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.integer({ min: 10_000_000 }), (s, n) => {
+        const value = `zq${s}`;
+        const formula = `COUNT(IF(orders.status = "${value.replaceAll('"', '""')}", ${n}))`;
+        const query = compileFormulas(formula);
+        expect(query.text).not.toContain(value);
+        expect(query.text).not.toContain(String(n));
+        expect(query.params).toContain(value);
+        expect(query.params).toContain(n);
+      }),
+    );
   });
 });
