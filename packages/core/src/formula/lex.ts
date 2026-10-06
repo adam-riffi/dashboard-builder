@@ -17,8 +17,9 @@ export interface Token extends Span {
 
 export type Lexing = { ok: true; tokens: Token[] } | { ok: false; error: FormulaError };
 
+// Numbers may carry an exponent, the way JavaScript prints very small and very large values.
 // Two-character operators come first so that `<=` is never read as `<` then `=`.
-const TOKEN = /(\d+(?:\.\d+)?)|([A-Za-z_]\w*)|(<>|<=|>=|[-+*/=<>(),.])/y;
+const TOKEN = /(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)|([A-Za-z_]\w*)|(<>|<=|>=|[-+*/=<>(),.])/y;
 
 /**
  * Splits a formula into tokens (DESIGN.md §6, hand-written core). Strings use double quotes,
