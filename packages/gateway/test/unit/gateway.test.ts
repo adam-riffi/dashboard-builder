@@ -195,3 +195,66 @@ describe("settingsFor", () => {
     });
   });
 });
+
+describe("POST /query guards (no database)", () => {
+  const USER = "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
+  const body = (n: number) =>
+    JSON.stringify({
+      queries: Array.from({ length: n }, () => ({ measures: [{ field: "s.t.c" }] })),
+    });
+  const gateway = (extra: Partial<Parameters<typeof defineGateway>[0]> = {}) =>
+    createGateway(
+      defineGateway({
+        source,
+        auth: async () => ({ sub: USER }),
+        identity: { claim: "sub", format: "uuid" },
+        tables: ["s.t"],
+        ...extra,
+      }),
+    );
+  const post = (handler: ReturnType<typeof createGateway>, n: number) =>
+    handler(
+      new Request("http://demo.test/api/dash/query", {
+        method: "POST",
+        headers: { authorization: "Bearer t" },
+        body: body(n),
+      }),
+    );
+
+  it("refuses to start with a policy on a table outside the allowlist", () => {
+    expect(() =>
+      gateway({ policies: [{ table: "s.other", column: "tenant_id", in: "tenantIds" }] }),
+    ).toThrow("policy on s.other: the table is not in the allowlist");
+  });
+
+  it("limits each user to 60 queries a minute before touching the database", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const handler = gateway();
+    for (let i = 0; i < 3; i++) expect((await post(handler, 20)).status).toBe(500);
+    const limited = await post(handler, 1);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect(await limited.json()).toEqual({ error: "Too many queries; try again shortly" });
+    expect(source).toHaveBeenCalledTimes(3);
+  });
+
+  it("answers 500 without touching the database when the scope cannot be resolved", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await post(
+      gateway({
+        resolveScope: async () => {
+          throw new Error("memberships database is down");
+        },
+      }),
+      1,
+    );
+    expect(res.status).toBe(500);
+    expect(source).not.toHaveBeenCalled();
+    expect(String(error.mock.calls[0]?.[0])).toContain("memberships database is down");
+  });
+
+  it("refuses scope values that would widen a comma-separated RLS list", () => {
+    expect(() => settingsFor({ tenantIds: ["1,2"] })).toThrow("tenantIds");
+    expect(() => settingsFor({ tenantIds: [{ id: 1 }] })).toThrow("tenantIds");
+  });
+});
