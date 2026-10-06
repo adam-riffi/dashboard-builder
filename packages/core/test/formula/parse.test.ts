@@ -77,11 +77,23 @@ describe("parse", () => {
     ["orders.1", "expected a column name after .", 7, 8],
     ["a.b.c.d", "a field is table.column or schema.table.column", 0, 7],
     ['"open', "unterminated string", 0, 5],
+    ["1e999", "number out of range", 0, 5],
+    [
+      `${"(".repeat(200)}1${")".repeat(200)}`,
+      "the formula nests more than 100 levels deep",
+      100,
+      101,
+    ],
+    [`${"-".repeat(150)}1`, "the formula nests more than 100 levels deep", 100, 101],
   ])("reports %j at its span", (source, message, start, end) => {
     const result = parse(source);
     expect(result).toMatchObject({ ok: false, error: { start, end } });
     if (!result.ok) expect(result.error.message).toContain(message);
   });
+});
+
+it("parses formulas nested up to 100 levels deep", () => {
+  expect(parse(`${"(".repeat(99)}1${")".repeat(99)}`).ok).toBe(true);
 });
 
 describe("print", () => {
@@ -105,8 +117,12 @@ describe("print", () => {
       expr: fc.oneof(
         { depthSize: "small", withCrossShrink: true },
         fc
-          .tuple(fc.nat(1_000_000), fc.nat(999))
-          .map(([i, d]) => ({ kind: "number", value: i + d / 1000, ...span }) as Expr),
+          .oneof(
+            fc.tuple(fc.nat(1_000_000), fc.nat(999)).map(([i, d]) => i + d / 1000),
+            // Printed with exponents: 1e-7, 1.5e+300.
+            fc.double({ min: 0, noNaN: true, noDefaultInfinity: true }).map(Math.abs),
+          )
+          .map((value) => ({ kind: "number", value, ...span }) as Expr),
         fc.string().map((value) => ({ kind: "string", value, ...span }) as Expr),
         fc
           .array(name, { minLength: 2, maxLength: 3 })
