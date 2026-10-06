@@ -173,7 +173,7 @@ describe("compileQuery", () => {
     );
   });
 
-  it("binds true/false lists as text cast to boolean[]", () => {
+  it("binds true/false lists as a Postgres array literal cast to boolean[]", () => {
     const saas = dataContract.parse(
       JSON.parse(
         readFileSync(
@@ -195,7 +195,7 @@ describe("compileQuery", () => {
       if (!plan.ok) throw new Error(plan.errors.join("; "));
       const result = compileQuery(valid.query, plan.plan, [], {});
       expect(result.ok && result.query.text).toContain('"t0"."is_active" = any($1::boolean[])');
-      expect(result.ok && result.query.params[0]).toEqual(["true", "false"]);
+      expect(result.ok && result.query.params[0]).toBe("{t,f}");
     }
   });
 
