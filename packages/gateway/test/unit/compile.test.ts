@@ -172,4 +172,83 @@ describe("compileQuery", () => {
       ),
     );
   });
+
+  it("binds true/false lists as text cast to boolean[]", () => {
+    const saas = dataContract.parse(
+      JSON.parse(
+        readFileSync(
+          new URL("../integration/fixtures/saas.contract.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    for (const op of ["in", "not_in"] as const) {
+      const valid = validateQuery(
+        querySpec.parse({
+          measures: [{ field: "fx_saas.accounts.churn_score" }],
+          filters: [{ field: "fx_saas.accounts.is_active", op, values: [true, false] }],
+        }),
+        saas,
+      );
+      if (!valid.ok) throw new Error(valid.errors.join("; "));
+      const plan = planJoins(valid.query, saas);
+      if (!plan.ok) throw new Error(plan.errors.join("; "));
+      const result = compileQuery(valid.query, plan.plan, [], {});
+      expect(result.ok && result.query.text).toContain('"t0"."is_active" = any($1::boolean[])');
+      expect(result.ok && result.query.params[0]).toEqual(["true", "false"]);
+    }
+  });
+
+  it("breaks sort ties by the dimensions, so cuts at the limit are stable", () => {
+    const result = compile({
+      dimensions: [{ field: "dash_demo.products.category" }],
+      measures: [units],
+      sort: [{ by: "measure", index: 0, dir: "desc" }],
+    });
+    expect(result.ok && result.query.text.split("\n")).toContain('order by "m0" desc, 1');
+  });
+
+  it("escapes double quotes in identifiers", () => {
+    const odd = dataContract.parse({
+      contractVersion: "a".repeat(64),
+      relationships: [],
+      tables: [
+        {
+          name: "s.t",
+          rowCount: null,
+          primaryKey: [],
+          columns: [
+            {
+              name: 'we"ird',
+              pgType: "text",
+              type: "string",
+              nullable: false,
+              role: "dimension",
+              distinct: null,
+              highCardinality: false,
+            },
+            {
+              name: "n",
+              pgType: "int4",
+              type: "number",
+              nullable: false,
+              role: "measure",
+              aggregation: "SUM",
+              distinct: null,
+              highCardinality: false,
+            },
+          ],
+        },
+      ],
+    });
+    const valid = validateQuery(
+      querySpec.parse({ dimensions: [{ field: 's.t.we"ird' }], measures: [{ field: "s.t.n" }] }),
+      odd,
+    );
+    if (!valid.ok) throw new Error(valid.errors.join("; "));
+    const plan = planJoins(valid.query, odd);
+    if (!plan.ok) throw new Error(plan.errors.join("; "));
+    const result = compileQuery(valid.query, plan.plan, [], {});
+    expect(result.ok && result.query.text).toContain('select "t0"."we""ird" as "d0"');
+  });
 });
