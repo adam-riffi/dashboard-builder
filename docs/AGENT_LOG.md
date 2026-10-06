@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/03-type-check · #24
+- Done: `check(source, { contract, measures })` in `packages/core/src/formula/check.ts`: resolves `table.column` (unique across schemas) and `schema.table.column` fields, inlines `[Measure]` references (memoized, cycles named), types every node (number, string, boolean, date) with its level (constant, row, aggregate), checks the 11 functions' arity and argument types, and requires an aggregate top level. Output is the typed tree the gateway will render as SQL.
+- Tests: `packages/core/test/formula/check.test.ts`: typed tree, 12 accepted formulas, 36 rejected ones each asserting the exact message and span, multiple errors at once, and a 2^40 measure expansion rejected without being expanded.
+- Scope/decisions: formulas expanded through measure references are capped at 1,000 nodes (request-supplied measures must not blow up SQL size); one test expectation was wrong (`MIN` of a boolean is not valid Postgres) and now uses `MAX` of a string.
+- Next: stack/m3/04-query-measures (QuerySpec formula and named measures, ADR 0007).
+
 ## 2026-10-06 · claude · stack/m3/02-parser · #23
 - Done: `parse(source)` in `packages/core/src/formula/parse.ts`: Pratt parser over the lexer's tokens into an `Expr` tree with spans (numbers, strings, `table.column`/`schema.table.column` fields, `[Measure]` references, unary `-`/`NOT`, left-associative binary operators, calls with upper-cased names); the first syntax error is reported at its span (an unclosed `(` points at the parenthesis). `print(expr)` adds only the parentheses precedence needs.
 - Tests: `packages/core/test/formula/parse.test.ts`: precedence and associativity in prefix notation, node spans, 13 error spans, printer cases, and the DESIGN §10 round-trip property (fast-check, 500 random trees: `parse(print(tree))` gives the tree back).

@@ -100,7 +100,7 @@ describe("check", () => {
     ["ROUND(AVG(order_items.unit_price), 2)", "number"],
     ['MAX(DATE_TRUNC("month", orders.ordered_at))', "date"],
     ["COALESCE(SUM(order_items.quantity), 0) * -1", "number"],
-    ["SUM(order_items.quantity) > 10 AND NOT MIN(orders.refunded = orders.refunded)", "boolean"],
+    ['SUM(order_items.quantity) > 10 AND NOT MAX(orders.status) = "x"', "boolean"],
     ["COUNT(1)", "number"],
     ["[Revenue] / [Orders]", "number"],
   ])("accepts %s as an aggregate %s", (source, type) => {
