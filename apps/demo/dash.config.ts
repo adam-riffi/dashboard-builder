@@ -1,4 +1,14 @@
 import { defineGateway, jwtAuth, postgresSource } from "@adam-riffi/dash-gateway";
+import { tenantsOf } from "./lib/tenants";
+
+const tables = [
+  "dash_demo.orders",
+  "dash_demo.order_items",
+  "dash_demo.products",
+  "dash_demo.customers",
+];
+/** App data (memberships) as `dash_app`; demo data is read as `dash_reader` through `source`. */
+const appDb = postgresSource({ url: process.env.DASH_APP_DATABASE_URL ?? "" });
 
 /** The demo's gateway (DESIGN.md §7); every value comes from the environment (DESIGN.md §12). */
 export default defineGateway({
@@ -9,10 +19,10 @@ export default defineGateway({
     audience: "authenticated",
   }),
   identity: { claim: "sub", format: "uuid" },
-  tables: [
-    "dash_demo.orders",
-    "dash_demo.order_items",
-    "dash_demo.products",
-    "dash_demo.customers",
-  ],
+  tables,
+  policies: tables.map((table) => ({ table, column: "tenant_id", in: "tenantIds" })),
+  resolveScope: async (claims) => {
+    const userId = String(claims.sub);
+    return { userId, tenantIds: await tenantsOf(appDb(), userId) };
+  },
 });

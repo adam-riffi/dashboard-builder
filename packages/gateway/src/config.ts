@@ -1,5 +1,7 @@
+import type { JWTPayload } from "jose";
 import postgres from "postgres";
 import type { IdentityConfig, Verifier } from "./auth.ts";
+import type { Policy } from "./query/compile.ts";
 
 /** Host configuration (DESIGN.md §7); secrets come from environment variables. */
 export interface GatewayConfig {
@@ -9,6 +11,13 @@ export interface GatewayConfig {
   identity: IdentityConfig;
   /** Allowlisted tables, `schema.table`. */
   tables: string[];
+  /** Row policies injected into every query that touches their table (DESIGN.md §6). */
+  policies?: Policy[];
+  /**
+   * The caller's security context, e.g. `{ userId, tenantIds }`. Its entries feed the policies and
+   * become transaction-local `app.*` settings for row-level security.
+   */
+  resolveScope?: (claims: JWTPayload) => Promise<Record<string, unknown>>;
 }
 
 /** Typed identity function for `dash.config.ts`. */

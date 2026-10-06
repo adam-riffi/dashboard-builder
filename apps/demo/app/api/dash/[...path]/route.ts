@@ -4,5 +4,8 @@ import config from "../../../../dash.config";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const gateway = createGateway(config);
+
 /** Mounts the gateway at /api/dash (DESIGN.md §7). */
-export const GET = createGateway(config);
+export const GET = gateway;
+export const POST = gateway;

@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/06-query-endpoint · #20
+- Done: `POST /query` (JWT first, JSON and `queryRequest` checked before any database access, scope from `resolveScope`, per query validate → plan → compile → execute with per-query errors, `private, no-store`); routes declare their methods (405 with Allow); `settingsFor(scope)` maps scope entries to `app.*` RLS settings. Config gains `policies` and `resolveScope`. Demo: tenant policies on all four tables, `tenantsOf` assigns two demo tenants at first sign-in through `dash_app`, page lists units sold by category. CI e2e seeds demo data and has `DASH_APP_DATABASE_URL`.
+- Tests: unit (methods, auth before body, 400s without DB, `settingsFor`); integration on an `fx_api` RLS fixture (scoped results, per-query errors, fail-closed scope); Playwright `@smoke` units by category.
+- Scope/decisions: queries in one request run sequentially on the instance's single connection; execution errors are logged and returned as "Query failed".
+- Next: stack/m2/07-leakage (acceptance).
+
 ## 2026-10-06 · claude · stack/m2/05-execute · #19
 - Done: `executeQuery(sql, compiled, { limit, settings, timeoutMs })`: one transaction per query with transaction-local `statement_timeout` (2 s default), `TimeZone=UTC` and the RLS settings (`app.tenant_ids`); pure `shapeResult` returns column-major JSON-ready data (numbers from numeric/bigint strings, ISO dates, nulls kept) and drops the extra row to report `truncated`.
 - Tests: unit `test/unit/result.test.ts`; integration `test/integration/execute.test.ts` on an `fx_exec` RLS fixture (scoped numbers, RLS without planner policies, truncation, UTC day grains, statement timeout).

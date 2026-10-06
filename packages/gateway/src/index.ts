@@ -2,3 +2,4 @@ export { type AuthConfig, AuthError, type IdentityConfig, jwtAuth } from "./auth
 export { defineGateway, type GatewayConfig, postgresSource } from "./config.ts";
 export { createGateway } from "./gateway.ts";
 export { health } from "./health.ts";
+export type { Policy } from "./query/compile.ts";
