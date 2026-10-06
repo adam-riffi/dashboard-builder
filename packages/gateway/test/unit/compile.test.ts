@@ -78,7 +78,7 @@ describe("compileQuery", () => {
           'left join "dash_demo"."customers" as "t2" on "t2"."id" = "t1"."customer_id"',
           'where "t0"."tenant_id" = any($1) and "t1"."tenant_id" = any($2) and "t2"."tenant_id" = any($3) and "t1"."status" = any($4) and "t0"."quantity" >= $5',
           "group by 1, 2",
-          'order by "m0" desc',
+          'order by "m0" desc, 1, 2',
           "limit $6",
         ].join("\n"),
         params: [[1, 2], [1, 2], [1, 2], ["paid"], 2, 11],

@@ -108,11 +108,14 @@ export function compileQuery(
 
   const filterPredicates = query.filters.map((f) => {
     const column = ref(f.table, f.column.name);
+    // The driver would send a list of booleans as a single boolean; send text and cast instead.
+    const list = () =>
+      f.column.type === "boolean" ? `${bind(f.values.map(String))}::boolean[]` : bind(f.values);
     switch (f.op) {
       case "in":
-        return `${column} = any(${bind(f.values)})`;
+        return `${column} = any(${list()})`;
       case "not_in":
-        return `not (${column} = any(${bind(f.values)}))`;
+        return `not (${column} = any(${list()}))`;
       case "between":
         return `${column} between ${bind(f.values[0])} and ${bind(f.values[1])}`;
       default:
@@ -139,7 +142,9 @@ export function compileQuery(
     const keys = query.sort.map(
       (s) => `${quote(`${s.by === "dimension" ? "d" : "m"}${s.index}`)} ${s.dir}`,
     );
-    lines.push(`order by ${keys.join(", ")}`);
+    // Ties fall back to the dimensions, so the rows kept at the limit are always the same.
+    const tiebreak = query.dimensions.map((_, i) => String(i + 1));
+    lines.push(`order by ${[...keys, ...tiebreak].join(", ")}`);
   } else if (query.dimensions.length > 0) {
     lines.push(`order by ${query.dimensions.map((_, i) => i + 1).join(", ")}`);
   }
