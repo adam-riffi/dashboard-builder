@@ -7,7 +7,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      exclude: ["src/health.ts", "src/index.ts", "src/contract/introspect.ts"],
+      exclude: [
+        "src/health.ts",
+        "src/index.ts",
+        "src/contract/introspect.ts",
+        "src/query/execute.ts",
+      ],
       thresholds: { lines: 90 },
     },
   },

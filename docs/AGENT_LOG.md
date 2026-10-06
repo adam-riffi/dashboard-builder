@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/05-execute · #19
+- Done: `executeQuery(sql, compiled, { limit, settings, timeoutMs })`: one transaction per query with transaction-local `statement_timeout` (2 s default), `TimeZone=UTC` and the RLS settings (`app.tenant_ids`); pure `shapeResult` returns column-major JSON-ready data (numbers from numeric/bigint strings, ISO dates, nulls kept) and drops the extra row to report `truncated`.
+- Tests: unit `test/unit/result.test.ts`; integration `test/integration/execute.test.ts` on an `fx_exec` RLS fixture (scoped numbers, RLS without planner policies, truncation, UTC day grains, statement timeout).
+- Scope/decisions: settings are local to the transaction, so pooled connections never carry a previous caller's scope. Numbers lose precision past 2^53 (acceptable for dashboards).
+- Next: stack/m2/06-query-endpoint.
+
 ## 2026-10-06 · claude · stack/m2/04-compile · #18
 - Done: `compileQuery(query, plan, policies, scope)`: parameterized Postgres SQL with contract-only quoted identifiers (aliases t0…), `date_trunc` grains from the enum, aggregates (count distinct), left joins on composite keys, a mandatory `column = any($n)` predicate for every query table with a policy (fails closed without the scope list), typed filters, group/order by, `limit` one above the request for truncation; output column descriptors (d0…, m0…).
 - Tests: `packages/gateway/test/unit/compile.test.ts`: hand-written expected SQL and params, every operator, fail-closed scope, fast-check property that filter values never reach the SQL text; compile.ts 100% lines.
