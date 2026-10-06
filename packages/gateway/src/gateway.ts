@@ -178,10 +178,6 @@ export function createGateway(config: GatewayConfig): Handler {
             const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
             return json({ error: "Invalid request", issues }, 400);
           }
-          const clashes = (parsed.data.measures ?? [])
-            .filter((m) => host.has(m.name))
-            .map((m) => `measures: ${m.name} is already defined by the host`);
-          if (clashes.length > 0) return json({ error: "Invalid request", issues: clashes }, 400);
           const allowed = limiter.take(id, parsed.data.queries.length);
           if (!allowed.ok) {
             return json({ error: "Too many queries; try again shortly" }, 429, {
@@ -197,7 +193,8 @@ export function createGateway(config: GatewayConfig): Handler {
           const broken = policyContractErrors(policies, current);
           if (broken.length > 0) throw new Error(broken.join("; "));
           const results = [];
-          // The host's measures and the dashboard's own (ADR 0007).
+          // The host's measures and the dashboard's own, which shadow host ones of the same name
+          // so that saved dashboards keep working when a host adds a measure (ADR 0007).
           const named = new Map([
             ...host,
             ...(parsed.data.measures ?? []).map((m): [string, string] => [m.name, m.formula]),
