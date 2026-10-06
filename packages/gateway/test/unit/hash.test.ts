@@ -137,3 +137,52 @@ describe("inferContract", () => {
     );
   });
 });
+
+describe("host measures (ADR 0007)", () => {
+  const col = (name: string, pgType: string) => ({
+    name,
+    pgType,
+    isEnum: false,
+    nullable: false,
+    nDistinct: null,
+  });
+  const shop: Catalog = {
+    tables: [
+      {
+        name: "s.sales",
+        rowCount: null,
+        primaryKey: ["id"],
+        columns: [col("id", "int4"), col("amount", "numeric"), col("sold_at", "timestamptz")],
+        foreignKeys: [],
+      },
+    ],
+  };
+  const tables = ["s.sales"];
+
+  it("types host measures in the contract and versions them", () => {
+    const measures = [
+      { name: "Revenue", formula: "SUM(sales.amount)" },
+      { name: "Last sale", formula: "MAX(sales.sold_at)" },
+      { name: "Double", formula: "[Revenue] * 2" },
+    ];
+    const contract = inferContract(shop, { tables, measures });
+    expect(contract.measures).toEqual([
+      { name: "Revenue", formula: "SUM(sales.amount)", type: "number" },
+      { name: "Last sale", formula: "MAX(sales.sold_at)", type: "date" },
+      { name: "Double", formula: "[Revenue] * 2", type: "number" },
+    ]);
+    expect(contract.contractVersion).not.toBe(inferContract(shop, { tables }).contractVersion);
+  });
+
+  it("keeps the version of contracts without host measures", () => {
+    expect(inferContract(shop, { tables }).measures).toEqual([]);
+    expect(schemaHash(shop, { tables, measures: [] })).toBe(schemaHash(shop, { tables }));
+  });
+
+  it("refuses a host measure that does not check, naming it", () => {
+    const measures = [{ name: "Bad", formula: "SUM(sales.nope)" }];
+    expect(() => inferContract(shop, { tables, measures })).toThrow(
+      "measure Bad: unknown column sales.nope (characters 4–14)",
+    );
+  });
+});

@@ -37,6 +37,7 @@ const contract: DataContract = {
     table("archive.customers", [col("id", "number", "id")]),
   ],
   relationships: [],
+  measures: [],
 };
 
 const env: CheckEnv = {

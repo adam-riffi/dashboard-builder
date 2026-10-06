@@ -295,5 +295,6 @@
       },
       "kind": "many-to-one"
     }
-  ]
+  ],
+  "measures": []
 }

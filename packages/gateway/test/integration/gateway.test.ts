@@ -130,6 +130,7 @@ describe("POST /query", () => {
       tables: ["fx_api.sales"],
       policies: [{ table: "fx_api.sales", column: "tenant_id", in: "tenantIds" }],
       resolveScope: async () => scope,
+      measures: [{ name: "Revenue", formula: "SUM(sales.amount)" }],
     }),
   );
   const query = async (body: unknown) =>
@@ -219,6 +220,44 @@ describe("POST /query", () => {
     expect(results[1]).toEqual({
       errors: ["measures[0]: unknown column sales.nope (characters 4–14)"],
     });
+  });
+
+  it("serves host measures in the contract and answers them by name", async () => {
+    scope = { tenantIds: [1, 2] };
+    const contract = await api(
+      new Request("http://demo.test/api/dash/contract", { headers: await bearer() }),
+    );
+    expect((await contract.json()).measures).toEqual([
+      { name: "Revenue", formula: "SUM(sales.amount)", type: "number" },
+    ]);
+    const res = await query({
+      measures: [{ name: "Half", formula: "[Revenue] / 2" }],
+      queries: [{ measures: [{ name: "Revenue" }, { name: "Half" }] }],
+    });
+    expect((await res.json()).results[0].data).toEqual([[60], [30]]);
+  });
+
+  it("fails the request when a host measure does not check", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const broken = createGateway(
+      defineGateway({
+        source: postgresSource({
+          url:
+            process.env.DASH_SOURCE_URL ??
+            "postgres://dash_reader:password@localhost:54322/postgres",
+        }),
+        auth: jwtAuth({ jwksUrl: jwks.url, issuer: ISSUER, audience: AUDIENCE }),
+        identity: { claim: "sub", format: "uuid" },
+        tables: ["fx_api.sales"],
+        measures: [{ name: "Bad", formula: "SUM(sales.nope)" }],
+      }),
+    );
+    const res = await broken(
+      new Request("http://demo.test/api/dash/contract", { headers: await bearer() }),
+    );
+    expect(res.status).toBe(500);
+    expect(String(error.mock.calls[0]?.[0])).toContain("measure Bad: unknown column sales.nope");
+    error.mockRestore();
   });
 
   it("fails closed when the scope lacks a policy's list, without naming the policy", async () => {

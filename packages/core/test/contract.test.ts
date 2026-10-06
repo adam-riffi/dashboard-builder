@@ -98,4 +98,12 @@ describe("dataContract", () => {
     };
     expect(dataContract.safeParse({ ...valid, relationships: [rel] }).success).toBe(false);
   });
+
+  it("lists the host's measures, none by default", () => {
+    expect(dataContract.parse(valid).measures).toEqual([]);
+    const revenue = { name: "Revenue", formula: "SUM(order_items.amount)", type: "number" };
+    expect(dataContract.parse({ ...valid, measures: [revenue] }).measures).toEqual([revenue]);
+    const bad = { ...revenue, name: "[Revenue]" };
+    expect(dataContract.safeParse({ ...valid, measures: [bad] }).success).toBe(false);
+  });
 });
