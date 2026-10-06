@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/07-formula-properties · #29
+- Done: the M2 isolation and equivalence property now draws from five formula measures as well as the column measures: Revenue as a formula and by name (joins products), average units per order with `ROUND(DIVIDE(…, COUNTDISTINCT(orders.id)), 2)`, a conditional `SUM(IF(orders.status = "paid", …))`, and `COUNT(IF(products.category = "Books", …))`. The TypeScript reference joins the tables each formula reads, so their policies apply as in SQL; `fx_iso.products` gains `unit_price`; 80 runs.
+- Tests: ran against PGlite locally (no RLS in this fixture, so plain Postgres suffices); mutation checks: a wrong Revenue reference and a reference that skips the products policy (as a planner bug would) both fail with a counterexample. CI authoritative.
+- Scope/decisions: none.
+- Next: independent review of #22–#29, fixes, CI green, merge loop; production screenshot for #28.
+
 ## 2026-10-06 · claude · stack/m3/06-contract-measures · #28
 - Done: host measures. `defineGateway({ measures })` (names checked and unique at startup); `inferContract` checks them against the inferred tables, types them and lists them in the contract (`measures: [{ name, formula, type }]`, part of `contractVersion` only when present, so existing versions are unchanged); a host measure that does not check fails the request with a logged 500. `POST /query` resolves names against host and dashboard measures; a dashboard measure with a host name shadows it (review fix, ADR 0007). Demo: Revenue, Orders, Average order value; the page shows revenue by category through `{ name: "Revenue" }`. DESIGN §7 config example and contract row updated (and `resolveScope(claims)` drift fixed).
 - Tests: core contract schema; unit hash/inference (types, versioning, unchanged hash without measures, named failure), gateway (startup checks); host measures planned at contract time; integration on `fx_api` (contract serves measures, host and dashboard measures by name, 500 on a bad host measure); goldens gain `"measures": []`; Playwright `@smoke` now expects a dollar amount per category. Demo measures checked and planned against the demo golden contract locally.
