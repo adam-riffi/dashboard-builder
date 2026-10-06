@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/05-query-measures · #27
+- Done: QuerySpec measures are `{ field, aggregation? } | { formula } | { name }`; `POST /query` takes the dashboard's named measures (`measures`, ≤ 50, unique, names without brackets or surrounding spaces). `validateQuery(spec, contract, named)` checks formulas and names (errors `measures[i]: … (characters a–b)`); the planner gives each measure its own fact table (RELATED-style lookups), requires one per query, and rejects SUM/AVG/COUNT over looked-up tables (fan trap). ADR 0007 records the measure sources, fact-table rule and grammar details; DESIGN §7 updated.
+- Tests: core schema (union, names, request measures); validate (formula and named measures, spans, unknown/invalid names); paths (lookups, COUNTDISTINCT allowed, fan guard, one fact table per query, unrelated tables, field-less measures); integration on `fx_exec` (numeric division, DIVIDE by zero, conditional count, ROUND, DATE_TRUNC) and `fx_api` (request measures through `POST /query`, error format). The whole pipeline ran on PGlite with the same expectations.
+- Scope/decisions: the fact-table rule is per measure, a refinement of the approved plan that prevents `COUNT(orders.id)` over order items (ADR 0007). The isolation reference is narrowed to column measures until PR 7 adds formulas.
+- Next: stack/m3/06-contract-measures (host measures in config and contract, demo revenue by category).
+
 ## 2026-10-06 · claude · stack/m3/04-compile-formulas · #26
 - Done: `renderFormula` in `packages/gateway/src/query/compile.ts` renders checked formulas as Postgres: every binary operation parenthesized, literals bound with casts (`$n::numeric`, `$n::text`, `$n::int` for ROUND digits), numeric division, `DIVIDE` as `/ nullif(…, 0)`, `IF` as `case`, `COUNTDISTINCT` as `count(distinct …)`. Column measures are now the formula `AGG(field)` (ADR 0006), so every measure takes this path; `ValidMeasure` carries the checked expression, its tables and an echo of the spec for the output columns.
 - Tests: `test/unit/compile.test.ts`: golden SQL and parameters for 10 formulas, output columns, and a fast-check property that string and number literals never reach the SQL text; the M2 column-measure goldens are unchanged. The validate test now asserts the new measure shape. Rendered SQL ran on PGlite through postgres.js (7/2 = 3.5, DIVIDE by zero is null, casts resolve).

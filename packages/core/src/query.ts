@@ -7,6 +7,8 @@ export const MAX_QUERIES = 20;
 /** Caps on request size at the trust boundary. */
 const MAX_LIST = 20;
 const MAX_VALUES = 1_000;
+export const MAX_FORMULA_LENGTH = 2_000;
+export const MAX_NAMED_MEASURES = 50;
 
 const field = z
   .string()
@@ -43,9 +45,27 @@ const filter = z
     path: ["values"],
   });
 
+const formula = z.string().min(1).max(MAX_FORMULA_LENGTH);
+
+/** What `[Name]` refers to in formulas: no brackets, no surrounding spaces. */
+export const measureName = z
+  .string()
+  .min(1)
+  .max(100)
+  .regex(/^[^[\]\s](?:[^[\]]*[^[\]\s])?$/, "measure names have no [ ] and no surrounding spaces");
+
+/** A column with an aggregation, a formula, or a named measure (ADR 0006, ADR 0007). */
+export const measure = z.union([
+  z.object({ field, aggregation: measureAggregation.optional() }).strict(),
+  z.object({ formula }).strict(),
+  z.object({ name: measureName }).strict(),
+]);
+
+/** A measure defined by name, by the host's configuration or a dashboard (ADR 0007). */
+export const namedMeasure = z.object({ name: measureName, formula }).strict();
+
 /**
- * One visual's query (DESIGN.md §7). M2 measures are column measures with an optional
- * aggregation (the contract's default otherwise); M3 adds formulas and named measures (ADR 0006).
+ * One visual's query (DESIGN.md §7). A column measure's aggregation defaults to the contract's.
  */
 export const querySpec = z
   .object({
@@ -53,10 +73,7 @@ export const querySpec = z
       .array(z.object({ field, timeGrain: timeGrain.optional() }).strict())
       .max(10)
       .default([]),
-    measures: z
-      .array(z.object({ field, aggregation: measureAggregation.optional() }).strict())
-      .min(1)
-      .max(MAX_LIST),
+    measures: z.array(measure).min(1).max(MAX_LIST),
     filters: z.array(filter).max(MAX_LIST).default([]),
     /** Sorts by a dimension or measure, by its position in the spec. */
     sort: z
@@ -75,11 +92,22 @@ export const querySpec = z
   })
   .strict();
 
-/** The body of `POST /query`. */
-export const queryRequest = z.object({ queries: z.array(querySpec).min(1).max(MAX_QUERIES) });
+/** The body of `POST /query`: the queries, and the dashboard's own named measures. */
+export const queryRequest = z.object({
+  measures: z
+    .array(namedMeasure)
+    .max(MAX_NAMED_MEASURES)
+    .refine((list) => new Set(list.map((m) => m.name)).size === list.length, {
+      message: "measure names must be unique",
+    })
+    .optional(),
+  queries: z.array(querySpec).min(1).max(MAX_QUERIES),
+});
 
 export type TimeGrain = z.infer<typeof timeGrain>;
 export type MeasureAggregation = z.infer<typeof measureAggregation>;
 export type FilterOp = z.infer<typeof filterOp>;
+export type Measure = z.infer<typeof measure>;
+export type NamedMeasure = z.infer<typeof namedMeasure>;
 export type QuerySpec = z.infer<typeof querySpec>;
 export type QueryRequest = z.infer<typeof queryRequest>;

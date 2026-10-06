@@ -1,5 +1,7 @@
 import {
+  type Checking,
   type ContractColumn,
+  check,
   children,
   type DataContract,
   type FilterOp,
@@ -77,10 +79,17 @@ function isIsoDate(value: unknown): boolean {
 
 /**
  * Checks a QuerySpec against the contract (pure). Every problem is reported, each prefixed with
- * the field it is about; on success the fields are resolved and the defaults filled in.
+ * the field or measure it is about; on success the fields are resolved, formulas and named
+ * measures (`named`: formula text by name, ADR 0007) checked, and the defaults filled in.
  */
-export function validateQuery(spec: QuerySpec, contract: DataContract): Validation {
+export function validateQuery(
+  spec: QuerySpec,
+  contract: DataContract,
+  named: ReadonlyMap<string, string> = new Map(),
+): Validation {
   const errors: string[] = [];
+  const env = { contract, measures: named };
+  const memo = new Map<string, Checking>();
   const tables = new Map(contract.tables.map((t) => [t.name, t]));
 
   const resolve = (field: string): ResolvedField | undefined => {
@@ -108,7 +117,20 @@ export function validateQuery(spec: QuerySpec, contract: DataContract): Validati
     return [d.timeGrain ? { ...r, timeGrain: d.timeGrain } : r];
   });
 
-  const measures = spec.measures.flatMap((m) => {
+  const measures = spec.measures.flatMap((m, i): ValidMeasure[] => {
+    if (!("field" in m)) {
+      const formula = "formula" in m ? m.formula : `[${m.name}]`;
+      const checked = check(formula, env, memo);
+      if (!checked.ok) {
+        // A named measure's characters belong to a formula the caller did not send here.
+        const at = (e: { start: number; end: number }) =>
+          "formula" in m ? ` (characters ${e.start}–${e.end})` : "";
+        for (const e of checked.errors) errors.push(`measures[${i}]: ${e.message}${at(e)}`);
+        return [];
+      }
+      const done = { expr: checked.expr, tables: tablesOf(checked.expr) };
+      return ["formula" in m ? { formula: m.formula, ...done } : { name: m.name, ...done }];
+    }
     const r = resolve(m.field);
     if (!r) return [];
     const aggregation = m.aggregation ?? r.column.aggregation;

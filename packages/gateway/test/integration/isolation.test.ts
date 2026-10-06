@@ -173,6 +173,7 @@ function reference(spec: QuerySpec, tenantIds: number[]) {
   return [...groups.entries()].map(([key, group]) => [
     ...(JSON.parse(key) as unknown[]),
     ...spec.measures.map((m) => {
+      if (!("field" in m)) throw new Error("the reference aggregates column measures only");
       const values = group.map((g) =>
         m.field === "fx_iso.order_items.id"
           ? g.item.id
