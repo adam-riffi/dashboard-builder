@@ -33,8 +33,13 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
 
   // Breadth-first over many-to-one edges, counting shortest paths into each table.
   const outgoing = new Map<string, Relationship[]>();
+  const seen = new Set<string>();
   for (const r of contract.relationships) {
     if (r.from.table === r.to.table) continue; // a self reference never leads elsewhere
+    // Identical foreign key constraints are one relationship, not two paths.
+    const key = `${via(r)}->${r.to.table}(${r.to.columns})`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     outgoing.set(r.from.table, [...(outgoing.get(r.from.table) ?? []), r]);
   }
   const depth = new Map([[base, 0]]);
