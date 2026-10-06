@@ -102,6 +102,8 @@ describe("validateQuery", () => {
     ["dash_demo.order_items.quantity", "gt", ["3"], "values must be numbers"],
     ["dash_demo.orders.status", "in", [1], "values must be strings"],
     ["dash_demo.orders.ordered_at", "gte", ["yesterday"], "values must be ISO dates"],
+    ["dash_demo.orders.ordered_at", "lt", ["2026-02-30"], "values must be ISO dates"],
+    ["dash_demo.orders.ordered_at", "lt", ["2026-13-01T00:00:00Z"], "values must be ISO dates"],
   ] as const)("checks filter values on %s", (field, op, values, message) => {
     const filters = [{ field, op, values: [...values] }];
     expect(errorsOf(spec({ measures: [quantity], filters }))).toEqual([`${field}: ${message}`]);
