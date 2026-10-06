@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m3/02-parser · #23
+- Done: `parse(source)` in `packages/core/src/formula/parse.ts`: Pratt parser over the lexer's tokens into an `Expr` tree with spans (numbers, strings, `table.column`/`schema.table.column` fields, `[Measure]` references, unary `-`/`NOT`, left-associative binary operators, calls with upper-cased names); the first syntax error is reported at its span (an unclosed `(` points at the parenthesis). `print(expr)` adds only the parentheses precedence needs.
+- Tests: `packages/core/test/formula/parse.test.ts`: precedence and associativity in prefix notation, node spans, 13 error spans, printer cases, and the DESIGN §10 round-trip property (fast-check, 500 random trees: `parse(print(tree))` gives the tree back).
+- Scope/decisions: arity and function names are left to the type checker so the parser stays grammar-only; `fast-check` added to core's dev dependencies (already used by gateway).
+- Next: stack/m3/03-type-check.
+
 ## 2026-10-06 · claude · stack/m3/01-lexer · #22
 - Done: M3 starts (plan: formulas, named measures from the host config and the dashboard, Georges chose "host + dashboard"). `lex(source)` in `packages/core/src/formula/lex.ts`: numbers, double-quoted strings with `""` escapes, names, `[Measure]` references and operators, each token with its character span; errors carry the span too.
 - Tests: `packages/core/test/formula/lex.test.ts` (spans, operators longest first, escapes, whitespace, unterminated string and reference, empty name, unknown character).

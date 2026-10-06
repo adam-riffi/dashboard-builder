@@ -126,7 +126,10 @@ describe("print", () => {
           )
           .map(([op, left, right]) => ({ kind: "binary", op, left, right, ...span }) as Expr),
         fc
-          .tuple(fc.constantFrom("SUM", "IF", "DIVIDE", "ROUND"), fc.array(tie("expr"), { maxLength: 3 }))
+          .tuple(
+            fc.constantFrom("SUM", "IF", "DIVIDE", "ROUND"),
+            fc.array(tie("expr"), { maxLength: 3 }),
+          )
           .map(([n, args]) => ({ kind: "call", name: n, args, ...span }) as Expr),
       ),
     }));
