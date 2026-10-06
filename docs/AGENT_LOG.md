@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · stack/m2/01..07 · #15–#21 (review fixes)
+- Done: Addressed the independent review (no blockers, no injection or leak). #18: boolean `in`/`not_in` bound as text cast to `boolean[]` (postgres.js sent a boolean list as one boolean); sort ties broken by dimensions. #20: policies checked against the allowlist at startup and the contract per request (fail closed), 60 queries/min/user rate limit (DESIGN §13, per instance) with 429 + Retry-After, generic client error for out-of-scope queries, comma-safe RLS scope values, per-query info log with a scope hash; DESIGN §7 response shape. #21: cross-tenant fixture rows and a join-aware reference, so base-only filtering would fail. Nits: request size caps (#15), calendar-valid dates (#16), duplicate FK edges (#17), read-only transactions and a single-connection scope carry-over test (#19).
+- Tests: new failing tests first for every fix; unit 163 passing, gateway coverage 92.15%; integration in CI.
+- Scope/decisions: rate limit is per function instance (ponytail note; a shared store is v1.1). Skipped: Node TZ dependence of postgres.js date handling (Vercel runs UTC), `tenantsOf` unit tests (demo has no unit runner; covered by e2e), left-join null-FK semantics (fails safe).
+- Next: CI green, mark ready, merge #15→#21; then M3 (formulas). Vercel's 100 deployments/day free cap made today's preview deploys fail; the merge deploy may need a retry.
+
+## 2026-10-06 · claude · stack/m2/07-leakage · #21
+- Done: M2 acceptance test `test/integration/isolation.test.ts`: fast-check random queries (dimensions from every table incl. day/month grains, SUM/MIN/MAX/COUNT/COUNT DISTINCT, status filters) and random tenant scopes over an `fx_iso` four-tenant fixture without RLS, run as postgres through validate → plan → compile → execute, must equal a TypeScript aggregation of only the scope's rows; an empty scope returns nothing.
+- Tests: the property itself (60 runs) plus the empty-scope case; CI authoritative (no local Docker).
+- Scope/decisions: running as the table owner without RLS isolates the planner's injected policies as the only protection, which is what the property must prove.
+- Next: independent review of #15–#21, fixes, merge; then M3 (formulas).
+
 ## 2026-10-06 · claude · stack/m2/06-query-endpoint · #20
 - Done: `POST /query` (JWT first, JSON and `queryRequest` checked before any database access, scope from `resolveScope`, per query validate → plan → compile → execute with per-query errors, `private, no-store`); routes declare their methods (405 with Allow); `settingsFor(scope)` maps scope entries to `app.*` RLS settings. Config gains `policies` and `resolveScope`. Demo: tenant policies on all four tables, `tenantsOf` assigns two demo tenants at first sign-in through `dash_app`, page lists units sold by category. CI e2e seeds demo data and has `DASH_APP_DATABASE_URL`.
 - Tests: unit (methods, auth before body, 400s without DB, `settingsFor`); integration on an `fx_api` RLS fixture (scoped results, per-query errors, fail-closed scope); Playwright `@smoke` units by category.
