@@ -26,7 +26,8 @@ export async function executeQuery(
   { limit, settings, timeoutMs = 2_000 }: ExecuteOptions,
 ): Promise<QueryResult> {
   const started = performance.now();
-  const rows = await sql.begin(async (tx) => {
+  // Read-only: a statement that tries to write fails, whatever the compiler produced.
+  const rows = await sql.begin("read only", async (tx) => {
     await tx`select set_config('statement_timeout', ${String(timeoutMs)}, true)`;
     await tx`select set_config('TimeZone', 'UTC', true)`;
     for (const [name, value] of Object.entries(settings)) {
