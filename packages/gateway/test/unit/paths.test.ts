@@ -74,13 +74,13 @@ describe("planJoins", () => {
     });
   });
 
-  it("rejects measures from more than one table", () => {
+  it("rejects a looked-up table's measure that would repeat its rows (ADR 0007)", () => {
     const query = valid(demo, {
       measures: [units, { field: "dash_demo.products.unit_price" }],
     });
     expect(describeJoins(demo, query)).toEqual({
       errors: [
-        "measures come from dash_demo.order_items and dash_demo.products; a query has one fact table",
+        "measures[1]: AVG over dash_demo.products would repeat each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
       ],
     });
   });
@@ -166,25 +166,42 @@ describe("fact tables of formula measures", () => {
   it("rejects SUM, AVG and COUNT over the one side, which would repeat its rows", () => {
     expect(describeJoins(demo, formulas("SUM(order_items.quantity) / COUNT(orders.id)"))).toEqual({
       errors: [
-        "measures[0]: COUNT over dash_demo.orders would count each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
+        "measures[0]: COUNT over dash_demo.orders would repeat each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
       ],
     });
   });
 
-  it("needs one fact table per query, even when one measure could reach the other", () => {
+  it("picks the query's fact table across measures, then applies the guard to each", () => {
     expect(describeJoins(demo, formulas("SUM(order_items.quantity)", "COUNT(orders.id)"))).toEqual({
       errors: [
-        "measures come from dash_demo.order_items and dash_demo.orders; a query has one fact table",
+        "measures[1]: COUNT over dash_demo.orders would repeat each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
       ],
     });
   });
 
-  it("rejects a measure whose tables have no common fact table", () => {
+  it("lets measures over different tables share the fact table that reaches them", () => {
+    const query = valid(demo, {
+      dimensions: [{ field: "dash_demo.products.category" }],
+      measures: [
+        { formula: "SUM(order_items.quantity * products.unit_price)" },
+        { formula: "COUNTDISTINCT(orders.customer_id)" },
+      ],
+    });
+    expect(describeJoins(demo, query)).toEqual({
+      base: "dash_demo.order_items",
+      joins: [
+        "dash_demo.order_items(order_id) -> dash_demo.orders(id)",
+        "dash_demo.order_items(product_id) -> dash_demo.products(id)",
+      ],
+    });
+  });
+
+  it("rejects measures when none of their tables reaches the others", () => {
     expect(
       describeJoins(demo, formulas("SUM(products.unit_price) + COUNTDISTINCT(orders.id)")),
     ).toEqual({
       errors: [
-        "measures[0]: dash_demo.orders and dash_demo.products are not both reached from one table through many-to-one relationships",
+        "measures come from dash_demo.orders and dash_demo.products; a query has one fact table",
       ],
     });
   });

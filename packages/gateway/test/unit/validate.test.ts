@@ -215,6 +215,17 @@ describe("formula and named measures", () => {
     ]);
   });
 
+  it("keeps the first five errors of a measure, so error responses stay small", () => {
+    const formula = Array.from({ length: 7 }, (_, i) => `FOO(${i})`).join(" + ");
+    const result = validate({ measures: [{ formula }] });
+    expect(result.ok || result.errors).toEqual([
+      ...[0, 9, 18, 27, 36].map(
+        (at) => `measures[0]: unknown function FOO (characters ${at}–${at + 3})`,
+      ),
+      "measures[0]: and 2 more errors",
+    ]);
+  });
+
   it("reports unknown and invalid named measures", () => {
     const result = validate({ measures: [{ name: "Nope" }, { name: "Broken" }] });
     expect(result.ok || result.errors).toEqual([
