@@ -40,12 +40,11 @@ function reach(base: string, outgoing: Map<string, Relationship[]>) {
 const REPEAT_SENSITIVE = new Set(["SUM", "AVG", "COUNT"]);
 
 /**
- * Join-path resolution (DESIGN.md §6, hand-written core). Each measure's fact table is the one of
- * its tables that reaches the others through many-to-one relationships (lookups, like Power BI's
- * RELATED); all measures of a query share it, and it becomes the base (ADR 0007). Every other
- * table must be reached from the base on the single shortest many-to-one path. Ambiguous paths,
- * fan-out (one-to-many), and SUM/AVG/COUNT over a looked-up table are rejected with the tables
- * named.
+ * Join-path resolution (DESIGN.md §6, hand-written core). The base (fact) table is the one table
+ * read by the measures from which all the others they read are reached through many-to-one
+ * relationships; other tables are lookups, like Power BI's RELATED (ADR 0007). Every other table
+ * must be reached from the base on the single shortest many-to-one path. Ambiguous paths, fan-out
+ * (one-to-many), and SUM/AVG/COUNT over looked-up tables only are rejected with the tables named.
  */
 export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanning {
   const outgoing = new Map<string, Relationship[]>();
@@ -68,30 +67,16 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
     return r;
   };
 
-  const errors: string[] = [];
-  const facts = new Set<string>();
-  query.measures.forEach((m, i) => {
-    if (m.tables.length === 0) return; // only constants: it takes the query's fact table
-    const candidates = m.tables.filter((t) => m.tables.every((o) => from(t).depth.has(o)));
-    if (candidates.length === 1) facts.add(candidates[0] as string);
-    else if (candidates.length === 0) {
-      const all = m.tables.length === 2 ? "both" : "all";
-      errors.push(
-        `measures[${i}]: ${m.tables.join(" and ")} are not ${all} reached from one table through many-to-one relationships`,
-      );
-    } else {
-      errors.push(
-        `measures[${i}]: ${candidates.join(" and ")} reach each other; the fact table is ambiguous`,
-      );
-    }
-  });
-  if (errors.length > 0) return { ok: false, errors };
-  const factTables = [...facts].sort(compare);
-  const [base] = factTables;
-  if (factTables.length > 1) {
+  const measureTables = [...new Set(query.measures.flatMap((m) => m.tables))].sort(compare);
+  const bases = measureTables.filter((t) => measureTables.every((o) => from(t).depth.has(o)));
+  const [base] = bases;
+  if (measureTables.length > 0 && bases.length !== 1) {
+    const reason = bases.length === 0 ? "" : ", which reach each other";
     return {
       ok: false,
-      errors: [`measures come from ${factTables.join(" and ")}; a query has one fact table`],
+      errors: [
+        `measures come from ${(bases.length === 0 ? measureTables : bases).join(" and ")}${reason}; a query has one fact table`,
+      ],
     };
   }
   if (base === undefined) {
@@ -102,13 +87,14 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
   }
 
   // A looked-up row is repeated once per fact row, which SUM, AVG and COUNT would count again.
+  const errors: string[] = [];
   query.measures.forEach((m, i) => {
     const walk = (t: Typed): void => {
       if (t.kind === "call" && REPEAT_SENSITIVE.has(t.name)) {
         const tables = tablesOf(t);
         if (tables.length > 0 && !tables.includes(base)) {
           errors.push(
-            `measures[${i}]: ${t.name} over ${tables.join(" and ")} would count each of its rows once per ${base} row; use COUNTDISTINCT, MIN or MAX, or a column of ${base}`,
+            `measures[${i}]: ${t.name} over ${tables.join(" and ")} would repeat each of its rows once per ${base} row; use COUNTDISTINCT, MIN or MAX, or a column of ${base}`,
           );
         }
       } else children(t).forEach(walk);

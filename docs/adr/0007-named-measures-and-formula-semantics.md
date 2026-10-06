@@ -21,9 +21,10 @@ The gateway is stateless about dashboards, so it can only resolve a dashboard's 
 - **Size cap:** a formula expanded through its references is capped at 1,000 nodes. The cap is computed on shared nodes, so request-supplied measures cannot blow up SQL size.
 
 **Fact tables.**
-- **Per measure:** a measure's fact table is the one of its tables from which the others are reached through many-to-one relationships. Row expressions are evaluated per fact-table row, with other tables looked up (like Power BI's `RELATED`), e.g. `SUM(order_items.quantity * products.unit_price)`.
-- **Per query:** all measures of a query share one fact table, which becomes the base of the join plan. Measures that read no column (`COUNT(1)`) take the query's fact table; a query needs at least one measure that reads a column.
+- **Per query:** the fact table is the one table read by the query's measures from which all the other tables they read are reached through many-to-one relationships. It becomes the base of the join plan. Measures that read no column (`COUNT(1)`) take it too; a query needs at least one measure that reads a column.
+- **Lookups:** row expressions are evaluated per fact-table row, with other tables looked up (like Power BI's `RELATED`), e.g. `SUM(order_items.quantity * products.unit_price)`. Revenue next to `COUNTDISTINCT(orders.customer_id)` by product category runs on order items.
 - **Fan-trap guard:** `SUM`, `AVG` and `COUNT` whose argument reads only looked-up tables are rejected, because each looked-up row repeats once per fact row. `COUNTDISTINCT`, `MIN` and `MAX` are insensitive to repeats and stay allowed (`SUM(order_items.quantity) / COUNTDISTINCT(orders.id)` is average units per order).
+- **The guard is syntactic:** an aggregate whose argument reads the fact table at all is allowed. `SUM(IF(order_items.quantity > 1, orders.shipping, 0))` adds an order's shipping once per qualifying item, which is what a row expression over items means.
 
 **Grammar and SQL details.**
 - Strings use double quotes with `""` as the escape (DAX style).
@@ -31,12 +32,16 @@ The gateway is stateless about dashboards, so it can only resolve a dashboard's 
 - `<>` is the only not-equal operator; there are no date or boolean literals in v1, since filters cover date ranges.
 - The checker's output, a resolved and typed tree, is the SQL expression tree that the gateway renders for Postgres. A separate SQL AST would have one dialect and no second user; DuckDB in v1.1 renders the same tree.
 - Literals are bound parameters with casts. `/` divides as numeric (no integer truncation), and `DIVIDE(a, b)` is `a / nullif(b, 0)`.
+- String-typed columns (text, char, enum, uuid) are compared as text inside formulas, so `plans.tier = "pro"` works on an enum; `MIN` and `MAX` of an enum follow text order, not the enum's.
+- Number literals are JavaScript doubles: up to about 15 significant digits are exact, and exponents (`1e-7`) are accepted. Exact large ids belong in filters, which bind values as given.
+- Limits that keep a formula from exhausting the server: 100 levels of nesting, 16 levels of measure references, 1,000 nodes once expanded, and the first 5 errors per measure in API responses (the editor calls the checker directly for all of them).
+- `COUNT` of a true/false value is rejected because it would count false too; `COUNT(IF(condition, table.column))` or `SUM(IF(condition, 1, 0))` count matches.
 - API errors name the measure and, for a formula sent in the query, the characters: `measures[1]: unknown column orders.nope (characters 4–15)`.
 
 ## Alternatives considered
 - **Dashboard measures only, with a starter dashboard providing Revenue:** less code, but the contract would not describe the host's business measures, and every dashboard would copy them.
 - **Host measures only, with dashboard measures inlined as `{ formula }`:** dashboard measures could not refer to each other, and the client would need to expand references itself.
-- **One fact table per query, as in M2, where a query's measures could span looked-up tables:** this allows `COUNT(orders.id)` over order items, which counts items, not orders.
+- **A fact table per measure, all equal:** tried during review; it rejected correct queries such as Revenue next to `COUNTDISTINCT(orders.customer_id)`, and the fan-trap guard already rejects the case it was meant to catch (`COUNT(orders.id)` over order items).
 
 ## Consequences
 - The M6 result cache key must cover the request's named measures, for example by hashing the compiled SQL and parameters rather than the raw QuerySpec.

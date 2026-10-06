@@ -40,6 +40,7 @@ export interface ValidQuery {
 export type Validation = { ok: true; query: ValidQuery } | { ok: false; errors: string[] };
 
 const NUMERIC_ONLY = new Set<MeasureAggregation>(["SUM", "AVG"]);
+const MAX_MEASURE_ERRORS = 5;
 
 /** The tables a checked expression reads, sorted. */
 export function tablesOf(expr: Typed): string[] {
@@ -86,10 +87,11 @@ export function validateQuery(
   spec: QuerySpec,
   contract: DataContract,
   named: ReadonlyMap<string, string> = new Map(),
+  /** Shared by the queries of one request, so each named measure is checked once. */
+  memo: Map<string, Checking> = new Map(),
 ): Validation {
   const errors: string[] = [];
   const env = { contract, measures: named };
-  const memo = new Map<string, Checking>();
   const tables = new Map(contract.tables.map((t) => [t.name, t]));
 
   const resolve = (field: string): ResolvedField | undefined => {
@@ -125,7 +127,12 @@ export function validateQuery(
         // A named measure's characters belong to a formula the caller did not send here.
         const at = (e: { start: number; end: number }) =>
           "formula" in m ? ` (characters ${e.start}–${e.end})` : "";
-        for (const e of checked.errors) errors.push(`measures[${i}]: ${e.message}${at(e)}`);
+        // The first few errors are enough to act on and keep responses small.
+        for (const e of checked.errors.slice(0, MAX_MEASURE_ERRORS)) {
+          errors.push(`measures[${i}]: ${e.message}${at(e)}`);
+        }
+        const more = checked.errors.length - MAX_MEASURE_ERRORS;
+        if (more > 0) errors.push(`measures[${i}]: and ${more} more error${more === 1 ? "" : "s"}`);
         return [];
       }
       const done = { expr: checked.expr, tables: tablesOf(checked.expr) };
