@@ -22,6 +22,15 @@ describe("lex", () => {
     ]);
   });
 
+  it("reads numbers with exponents, as printed for very small and very large values", () => {
+    expect(tokens("1e-7 2.5E+21 3e5").map(([kind, value]) => [kind, value])).toEqual([
+      ["number", "1e-7"],
+      ["number", "2.5E+21"],
+      ["number", "3e5"],
+      ["end", ""],
+    ]);
+  });
+
   it("reads two-character operators before one-character ones", () => {
     expect(
       tokens("a<>b<=c>=d<e>f=g+h-i*j/k,(l)")
