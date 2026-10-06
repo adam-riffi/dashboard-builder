@@ -276,23 +276,4 @@ describe("host measures in the configuration (ADR 0007)", () => {
     expect(() => createGateway(config([m, m]))).toThrow("host measure names must be unique");
     expect(() => createGateway(config([{ ...m, name: "a]b" }]))).toThrow();
   });
-
-  it("refuses dashboard measures that reuse a host measure's name, before any query", async () => {
-    const res = await createGateway(config([{ name: "Revenue", formula: "SUM(t.n)" }]))(
-      new Request("http://demo.test/api/dash/query", {
-        method: "POST",
-        headers: { authorization: "Bearer t", "content-type": "application/json" },
-        body: JSON.stringify({
-          measures: [{ name: "Revenue", formula: "COUNT(t.n)" }],
-          queries: [{ measures: [{ name: "Revenue" }] }],
-        }),
-      }),
-    );
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: "Invalid request",
-      issues: ["measures: Revenue is already defined by the host"],
-    });
-    expect(source).not.toHaveBeenCalled();
-  });
 });

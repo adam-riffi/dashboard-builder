@@ -155,9 +155,16 @@ describe("host measures (ADR 0007)", () => {
         columns: [col("id", "int4"), col("amount", "numeric"), col("sold_at", "timestamptz")],
         foreignKeys: [],
       },
+      {
+        name: "s.stores",
+        rowCount: null,
+        primaryKey: ["id"],
+        columns: [col("id", "int4")],
+        foreignKeys: [],
+      },
     ],
   };
-  const tables = ["s.sales"];
+  const tables = ["s.sales", "s.stores"];
 
   it("types host measures in the contract and versions them", () => {
     const measures = [
@@ -177,6 +184,13 @@ describe("host measures (ADR 0007)", () => {
   it("keeps the version of contracts without host measures", () => {
     expect(inferContract(shop, { tables }).measures).toEqual([]);
     expect(schemaHash(shop, { tables, measures: [] })).toBe(schemaHash(shop, { tables }));
+  });
+
+  it("refuses a host measure that no query could plan, naming it", () => {
+    const measures = [{ name: "Bad", formula: "SUM(sales.amount) + COUNTDISTINCT(stores.id)" }];
+    expect(() => inferContract(shop, { tables, measures })).toThrow(
+      "measure Bad: measures come from s.sales and s.stores; a query has one fact table",
+    );
   });
 
   it("refuses a host measure that does not check, naming it", () => {

@@ -237,6 +237,15 @@ describe("POST /query", () => {
     expect((await res.json()).results[0].data).toEqual([[60], [30]]);
   });
 
+  it("lets a dashboard measure shadow a host measure of the same name", async () => {
+    scope = { tenantIds: [1, 2] };
+    const res = await query({
+      measures: [{ name: "Revenue", formula: "COUNT(sales.id)" }],
+      queries: [{ measures: [{ name: "Revenue" }] }],
+    });
+    expect((await res.json()).results[0].data).toEqual([[3]]);
+  });
+
   it("fails the request when a host measure does not check", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const broken = createGateway(
