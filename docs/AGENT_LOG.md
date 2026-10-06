@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-06 · claude · fix/tick-search-path · pending
+- Done: Migration 0003 pins an empty `search_path` on `dash_demo.tick()`, clearing the Supabase advisor warning `function_search_path_mutable` (lint 0011).
+- Tests: Red commit adds `db/test/functions.test.ts`: every `dash_demo` function must carry `search_path=""` (live `proconfig` was null), and the tick must still run under it (rolled back). Integration runs in CI; `pnpm check` passes locally.
+- Scope/decisions: Ops fix requested from portfolio-infra; no behavior change, since every name in `tick()` is already schema-qualified.
+- Next: Merge applies it to production through `deploy.yml`; re-run the Supabase security advisor afterwards.
+
 ## 2026-10-06 · codex · codex/m4-dogfood · pending
 - Done: Added this documentation-only pull request to dogfood the shared `pr-meme` caller at its released `@v1` tag.
 - Tests: M4 acceptance check: the opened PR must receive one automated meme comment within one minute; no product behavior changes.
