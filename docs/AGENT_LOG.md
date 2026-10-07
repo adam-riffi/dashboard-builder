@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-07 · claude · docs/handoff-steps · pending
+- Done: AGENTS.md and the Copilot summary now start every session with `HANDOFF.md` (read it, check it against `main` and the open PRs) and end it by rewriting `HANDOFF.md`, matching ENGINEERING.md §5 from portfolio-infra.
+- Tests: Documentation only.
+- Scope/decisions: Requested by Georges for every repository; no `HANDOFF.md` exists here yet, so the next session that works here writes the first one.
+- Next: Unchanged project work; the next session ends by writing `HANDOFF.md`.
+
 ## 2026-10-06 · claude · fix/tick-search-path · pending
 - Done: Migration 0003 pins an empty `search_path` on `dash_demo.tick()`, clearing the Supabase advisor warning `function_search_path_mutable` (lint 0011).
 - Tests: Red commit adds `db/test/functions.test.ts`: every `dash_demo` function must carry `search_path=""` (live `proconfig` was null), and the tick must still run under it (rolled back). Integration runs in CI; `pnpm check` passes locally.
