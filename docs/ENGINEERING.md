@@ -13,7 +13,8 @@
 | `AGENTS.md` | Operating manual for coding agents: commands, rules, definition of done | Agents keep commands current |
 | `CLAUDE.md` | Imports `AGENTS.md` for Claude Code, plus Claude-only notes | Rarely |
 | `.github/copilot-instructions.md` | Short rule summary for Copilot surfaces that do not read `AGENTS.md` | Rarely |
-| `docs/AGENT_LOG.md` | Shared memory between agents and sessions | Every agent, every PR |
+| `HANDOFF.md` | Current state for the next session: open work, next steps, blockers (§5) | Every agent, every session |
+| `docs/AGENT_LOG.md` | History shared between agents and sessions (§5) | Every agent, every PR |
 | `docs/adr/NNNN-title.md` | Architecture decision records | Whoever makes the decision |
 
 ## 2. Development cycle
@@ -22,7 +23,7 @@ The unit of planning is a **milestone** (DESIGN.md §9). The unit of delivery is
 
 For every PR:
 
-1. **Sync.** Read the latest `docs/AGENT_LOG.md` entries, fetch `main`, restack your branches (§3).
+1. **Sync.** Read `HANDOFF.md` and check it against the repository, read the latest `docs/AGENT_LOG.md` entries, fetch `main`, restack your branches (§3, §5).
 2. **Plan.** Open a draft PR early whose body states what will change and which tests will prove it.
 3. **Red.** Write the failing test(s), run them, confirm they fail for the expected reason. Commit `test(<area>): …`.
 4. **Green.** Write the minimum code that passes. Commit `feat|fix(<area>): …`.
@@ -30,6 +31,8 @@ For every PR:
 6. **Verify.** Run the full local check (the "Check all" command in `AGENTS.md`), update docs, append an `AGENT_LOG.md` entry.
 7. **Review.** Mark the PR ready only when CI is green. A different agent from the author reviews it (correctness, tests, scope, security) and posts findings as a PR review. The author addresses them. Georges approves and merges.
 8. **Deploy and verify.** Merging to `main` deploys production. Run the smoke checks in DESIGN.md §12.
+
+Every session, with or without a merge, ends by rewriting `HANDOFF.md` (§5).
 
 Test-first is mandatory except for scaffolding, configuration, documentation and spikes. Spikes live on `spike/<topic>` branches, are never merged, and end with an ADR recording what was learned.
 
@@ -57,12 +60,17 @@ No stacking tool is used; plain `git` and `gh` are enough.
 - PR bodies follow `.github/pull_request_template.md`: Summary, Stack, Tests, Scope and decisions, Checklist. UI changes include a screenshot or a short GIF.
 - Never push to `main`. Never force-push a branch you did not create. Use `--force-with-lease`, never `--force`.
 
-## 5. Agent log protocol
+## 5. Agent log and handoff
 
-`docs/AGENT_LOG.md` is the shared memory of the repository.
+Two files carry memory between sessions. `HANDOFF.md`, at the repository root, holds the present and is rewritten every session. `docs/AGENT_LOG.md` holds the history, one entry per PR, and is never rewritten.
 
-- **Start of session:** read the five newest entries and the open PR list.
-- **End of every PR (or session):** prepend one entry, newest first:
+**Start of every session**
+
+1. Read `HANDOFF.md` first.
+2. Check it against the repository: fetch, then compare its `main` commit with `git log -1 origin/main` and its open PRs with `gh pr list --state open`. Where they differ, trust the repository and say what changed in your first message.
+3. Read the five newest `docs/AGENT_LOG.md` entries.
+
+**End of every PR:** prepend one agent log entry, newest first:
 
 ```
 ## 2026-10-05 · codex · stack/contract/02-inference · #14
@@ -74,6 +82,34 @@ No stacking tool is used; plain `git` and `gh` are enough.
 
 - Keep at most 40 entries; move older ones to `docs/agent-log/YYYY-MM.md`.
 - A scope change is never recorded only in the log: it also gets an ADR and, once accepted, an update to DESIGN.md.
+
+**End of every session** (every round of work, even one without a merge): overwrite `HANDOFF.md` with the current state, in about 60 lines at most:
+
+```markdown
+# Handoff — 2026-10-07 · claude
+
+## State
+- `main` at `6457b62`: docs(supabase): record the GitHub provider turned off (#34). CI green.
+- Open PRs: none. Otherwise one line each: number, title, draft or ready, CI, what it waits on.
+
+## Done this session
+- One line per change, linking its PR.
+
+## Verified
+- Live checks and their results, linking the runs.
+
+## Next
+1. The next concrete step, in order.
+
+## Needs from Georges
+- Credentials, settings or decisions an agent cannot handle, or "Nothing".
+
+## Notes
+- Non-obvious facts the next session needs.
+```
+
+- Commit it in the session's last PR, or in a `docs(handoff): …` PR of its own. Never leave it describing a state that no longer exists.
+- It holds no secrets and no history: whatever shipped and does not affect the next steps belongs in the agent log.
 
 ## 6. Architecture decision records
 
