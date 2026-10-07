@@ -196,7 +196,7 @@ Rules for both modes:
 
 ## 14. PR meme pipeline
 
-Every pull request in every repository receives one meme comment, chosen from Georges's Google Drive folder `My Drive/PR`. The pipeline lives in `portfolio-infra` (its DESIGN.md has the full design). Each repository only adds this caller, which needs no secrets and does nothing in forks:
+Every pull request in every repository receives one meme comment, chosen from the image pool committed in `portfolio-infra` (its DESIGN.md has the full design). Each repository only adds this caller, which needs no secrets and does nothing in forks:
 
 ```yaml
 # .github/workflows/pr-meme.yml
