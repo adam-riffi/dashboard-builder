@@ -13,6 +13,7 @@
   "dependencies": {
     "@adam-riffi/dash-core": "workspace:*",
     "@adam-riffi/dash-visuals": "workspace:*",
+    "@dnd-kit/core": "6.3.1",
     "@tanstack/react-query": "5.104.1"
   },
   "peerDependencies": {

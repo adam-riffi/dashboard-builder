@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/03-field-wells · #46
+- Done: `<SlotWells spec visualId picked onChange>`: one well per slot of the visual's plugin (dnd-kit droppables), listing items with "×" to remove. While a field is dragged, a well is marked `accepts` or `refuses`. A picked field shows "Add … to …", disabled where the well refuses it. `dropFromEvent` turns a drag end into the spec change. Fields in the list are drag sources (pointer only), so Enter and Space stay a pick for keyboard users.
+- Tests: `packages/react/test/wells.test.tsx` (DESIGN §10): wells per slot; a picked field updates the spec; refused fields cannot be added; removal; drops from drag events, outside a well, and on a refusing well.
+- Scope/decisions: jsdom has no layout for dnd-kit's collision detection, so real dragging is tested by the M5 Playwright test (PR 9); both paths go through `dropItem`.
+- Next: stack/m5/04-builder-canvas.
+
 ## 2026-10-08 · claude · stack/m5/02-component-tests · #45
 - Done: component tests for the react package: jsdom and Testing Library (react, dom, user-event) as dev dependencies, opted into per file (`@vitest-environment jsdom`), so pure tests stay on Node. `<FieldList contract measures onPick>`: a "Measures" group (the host's, then the dashboard's own), then one group per table with its columns as buttons labelled by name and role ("Status, dimension"). Picking hands a `Draggable` to the builder; drag sources come with PR 3.
 - Tests: `packages/react/test/fields.test.tsx`: groups and order, labels, picks as a column or a measure.
