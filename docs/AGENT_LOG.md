@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/05-viewer · #39
+- Done: `DashboardViewer`: one request for the dashboard; a 12-column grid (72 px rows) that stacks on narrow screens; each visual in its layout cell as a card with a title and its state (loading, "No data for this selection.", errors as an alert, or the plugin's renderer with per-column formatters). Host measure formats come from the contract and are overridden by dashboard measures. Pure `visualState` and `titleOf` (the visual's title, or "Revenue by Category"). Visuals gain an optional `title` in the spec.
+- Tests: `packages/react/test/viewer.test.ts`: the five states, titles, and `title` in the spec. The component is covered by the M4 visual tests.
+- Scope/decisions: the grid CSS ships in a `<style>` element, since a media query cannot be an inline style (the demo's CSP allows inline styles).
+- Next: stack/m4/06-demo-dashboard.
+
 ## 2026-10-08 · claude · stack/m4/04-visual-renderers · #38
 - Done: renderers for the four built-ins, registered as full plugins. KPI (a monospace numeral; the card title names it) and table (labels, right-aligned numbers, truncation note) in plain React. Horizontal bar and line charts on ECharts (bar, line, grid, legend, tooltip, SVG renderer), imported on first render, with animations off, compact axis labels (`$20K`) and `data-ready` set once drawn. `formatValue` (en-US numbers, currency, percent, dates by grain in UTC, "–" for nulls), `labelOf` (measure name, formula, or words from the field) and `formattersFor` (named measures by their format). Colors come from `--dash-*` CSS variables, which ECharts reads at draw time.
 - Tests: `packages/visuals/test/format.test.ts` (21 cases); registry tests now expect renderers. Rendering is checked by the M4 visual tests (PR 7).
