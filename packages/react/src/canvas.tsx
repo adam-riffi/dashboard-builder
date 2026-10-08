@@ -14,6 +14,7 @@ import {
   setVisualTitle,
 } from "./builder.ts";
 import { FieldList } from "./fields.tsx";
+import { FiltersEditor } from "./filters.tsx";
 import { useContract } from "./provider.tsx";
 import { titleOf } from "./state.ts";
 import { useVisualStates, VisualContent } from "./viewer.tsx";
@@ -241,6 +242,9 @@ export function DashboardBuilder({
             </>
           ) : (
             <p className="dash-note">Add a visual, or select one on the canvas.</p>
+          )}
+          {contract.data && (
+            <FiltersEditor spec={spec} contract={contract.data} onChange={onChange} />
           )}
         </aside>
       </div>

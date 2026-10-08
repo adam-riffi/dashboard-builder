@@ -1,6 +1,7 @@
 export * from "./builder.ts";
 export * from "./canvas.tsx";
 export * from "./fields.tsx";
+export * from "./filters.tsx";
 export * from "./provider.tsx";
 export * from "./request.ts";
 export * from "./state.ts";
