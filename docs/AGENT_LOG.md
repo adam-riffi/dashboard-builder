@@ -14,6 +14,14 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/07-dashboard-store · #50
+- Done: the demo stores dashboards (Georges' choice: the host stores them).
+  - `apps/demo/lib/dashboards.ts`: `listDashboards`, `getDashboard`, `saveDashboard` (an upsert; another user's id is "forbidden", from the RLS error 42501), `deleteDashboard`, each as `dash_app` in a transaction with `app.user_id` (ADR 0001). `parseSave` returns 413 above 256 KB, 400 for bad JSON or an invalid spec.
+  - Route `/api/dashboards[/id]` (GET list or one, PUT, DELETE): the gateway's own `authenticate` (now exported) and the demo's auth config; ids must be UUIDs; `private, no-store`.
+- Tests: `db/test/dashboards.test.ts` in the CI integration suite: the owner saves, updates, lists, reads and deletes; another user sees nothing and changes nothing; request parsing. A Playwright `@smoke` test: the route answers 401 without a token.
+- Scope/decisions: the route lives in the demo, not the gateway (DESIGN §7). `@adam-riffi/dash-core` is now a dev dependency of `db` for its test.
+- Next: stack/m5/08-demo-builder.
+
 ## 2026-10-08 · claude · stack/m5/06-formula-editor · #49
 - Done:
   - **`<MeasureEditor>`** in the builder's field column: the dashboard's measures with Edit and Remove; a form with name, format and a CodeMirror 6 formula input.
