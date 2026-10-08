@@ -6,9 +6,15 @@ export interface ValueFormat {
   /** ISO 4217 code, for `currency`. */
   currency?: string;
   timeGrain?: TimeGrain;
+  /** Short numbers for chart axes: `$20K`, `1.2M`. */
+  compact?: boolean;
 }
 
-export type Formatter = (value: unknown) => string;
+/** A column's formatter, with a short form for chart axes. */
+export interface Formatter {
+  (value: unknown): string;
+  compact(value: unknown): string;
+}
 
 const MISSING = "–";
 // Dates are truncated in UTC by the gateway, so they are shown in UTC too.
@@ -23,10 +29,12 @@ export function formatValue(value: unknown, f: ValueFormat): string {
   switch (f.type) {
     case "number": {
       const n = Number(value);
+      const short = f.compact ? ({ notation: "compact", maximumFractionDigits: 1 } as const) : {};
       if (f.format === "currency") {
         return new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: f.currency ?? "USD",
+          ...short,
         }).format(n);
       }
       if (f.format === "percent") {
@@ -35,7 +43,7 @@ export function formatValue(value: unknown, f: ValueFormat): string {
           maximumFractionDigits: 1,
         }).format(n);
       }
-      return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n);
+      return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, ...short }).format(n);
     }
     case "date": {
       const d = new Date(String(value));
@@ -99,6 +107,8 @@ export function formattersFor(
     if (column.kind === "dimension" && column.timeGrain) f.timeGrain = column.timeGrain;
     const format = "name" in column ? formats.get(column.name) : undefined;
     if (format) f.format = format;
-    return (value) => formatValue(value, f);
+    return Object.assign((value: unknown) => formatValue(value, f), {
+      compact: (value: unknown) => formatValue(value, { ...f, compact: true }),
+    });
   });
 }

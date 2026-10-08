@@ -15,7 +15,7 @@ Entry format:
 ---
 
 ## 2026-10-08 · claude · stack/m4/04-visual-renderers · #38
-- Done: renderers for the four built-ins, registered as full plugins. KPI (monospace numeral and label) and table (labels, right-aligned numbers, truncation note) in plain React. Horizontal bar and line charts on ECharts (bar, line, grid, legend, tooltip, SVG renderer), imported on first render, with animations off and `data-ready` set once drawn. `formatValue` (en-US numbers, currency, percent, dates by grain in UTC, "–" for nulls), `labelOf` (measure name, formula, or words from the field) and `formattersFor` (named measures by their format). Colors come from `--dash-*` CSS variables, which ECharts reads at draw time.
+- Done: renderers for the four built-ins, registered as full plugins. KPI (a monospace numeral; the card title names it) and table (labels, right-aligned numbers, truncation note) in plain React. Horizontal bar and line charts on ECharts (bar, line, grid, legend, tooltip, SVG renderer), imported on first render, with animations off, compact axis labels (`$20K`) and `data-ready` set once drawn. `formatValue` (en-US numbers, currency, percent, dates by grain in UTC, "–" for nulls), `labelOf` (measure name, formula, or words from the field) and `formattersFor` (named measures by their format). Colors come from `--dash-*` CSS variables, which ECharts reads at draw time.
 - Tests: `packages/visuals/test/format.test.ts` (21 cases); registry tests now expect renderers. Rendering is checked by the M4 visual tests (PR 7).
 - Scope/decisions: renderers get the raw options and one formatter per result column; sorting and limits were already applied by the query.
 - Next: stack/m4/05-viewer.

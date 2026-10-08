@@ -14,25 +14,21 @@ const muted = "var(--dash-muted, #6b6f76)";
 const grid = "var(--dash-grid, rgba(107, 111, 118, 0.25))";
 const numerals: CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
-/** One big number, the first measure of the first row. */
+/** One big number, the first measure of the first row; the card's title names it. */
 export function Kpi({ result, formatters }: VisualProps) {
-  const column = result.columns[0];
   const format = formatters[0] ?? String;
   return (
-    <figure style={{ margin: 0 }}>
-      <div
-        style={{
-          ...numerals,
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          fontSize: "2.25rem",
-          lineHeight: 1.1,
-          color: ink,
-        }}
-      >
-        {format(result.data[0]?.[0])}
-      </div>
-      {column && <figcaption style={{ color: muted }}>{labelOf(column)}</figcaption>}
-    </figure>
+    <div
+      style={{
+        ...numerals,
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: "2.25rem",
+        lineHeight: 1.1,
+        color: ink,
+      }}
+    >
+      {format(result.data[0]?.[0])}
+    </div>
   );
 }
 
@@ -143,7 +139,7 @@ function useSeries({ result, formatters }: VisualProps, type: "bar" | "line") {
       tooltip: { valueFormatter: formatters[i + 1] ?? String },
       ...(type === "line" ? { showSymbol: labels.length <= 40 } : {}),
     }));
-    return { axis, labels, series, valueFormat: formatters[1] ?? String };
+    return { axis, labels, series, valueFormat: formatters[1]?.compact ?? String };
   }, [result, formatters, type]);
 }
 
