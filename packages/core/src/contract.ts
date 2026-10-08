@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { measureName } from "./query.ts";
+import { measureFormat, measureName } from "./query.ts";
 
 /** Value types shared by the contract, the formula type checker and visuals (DESIGN.md §6). */
 export const fieldType = z.enum(["number", "string", "boolean", "date"]);
@@ -40,7 +40,14 @@ export const dataContract = z.object({
   ),
   /** The host's named measures, checked against the tables and typed (ADR 0007). */
   measures: z
-    .array(z.object({ name: measureName, formula: z.string(), type: fieldType }))
+    .array(
+      z.object({
+        name: measureName,
+        formula: z.string(),
+        type: fieldType,
+        format: measureFormat.optional(),
+      }),
+    )
     .default([]),
 });
 

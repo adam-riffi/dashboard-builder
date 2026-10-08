@@ -10,7 +10,7 @@ const MAX_VALUES = 1_000;
 export const MAX_FORMULA_LENGTH = 2_000;
 export const MAX_NAMED_MEASURES = 50;
 
-const field = z
+export const fieldName = z
   .string()
   .max(200)
   .regex(/^[^.\s]+\.[^.\s]+\.[^.\s]+$/, "fields are named schema.table.column");
@@ -30,9 +30,9 @@ const ARITY: Record<z.infer<typeof filterOp>, number | null> = {
   lte: 1,
 };
 
-const filter = z
+export const filter = z
   .object({
-    field,
+    field: fieldName,
     op: filterOp,
     values: z
       .array(z.union([z.string().max(200), z.number(), z.boolean()]))
@@ -56,13 +56,18 @@ export const measureName = z
 
 /** A column with an aggregation, a formula, or a named measure (ADR 0006, ADR 0007). */
 export const measure = z.union([
-  z.object({ field, aggregation: measureAggregation.optional() }).strict(),
+  z.object({ field: fieldName, aggregation: measureAggregation.optional() }).strict(),
   z.object({ formula }).strict(),
   z.object({ name: measureName }).strict(),
 ]);
 
 /** A measure defined by name, by the host's configuration or a dashboard (ADR 0007). */
-export const namedMeasure = z.object({ name: measureName, formula }).strict();
+/** How a measure's numbers are displayed (DESIGN.md §7). */
+export const measureFormat = z.enum(["number", "currency", "percent"]);
+
+export const namedMeasure = z
+  .object({ name: measureName, formula, format: measureFormat.optional() })
+  .strict();
 
 /**
  * One visual's query (DESIGN.md §7). A column measure's aggregation defaults to the contract's.
@@ -70,7 +75,7 @@ export const namedMeasure = z.object({ name: measureName, formula }).strict();
 export const querySpec = z
   .object({
     dimensions: z
-      .array(z.object({ field, timeGrain: timeGrain.optional() }).strict())
+      .array(z.object({ field: fieldName, timeGrain: timeGrain.optional() }).strict())
       .max(10)
       .default([]),
     measures: z.array(measure).min(1).max(MAX_LIST),
@@ -108,6 +113,7 @@ export type TimeGrain = z.infer<typeof timeGrain>;
 export type MeasureAggregation = z.infer<typeof measureAggregation>;
 export type FilterOp = z.infer<typeof filterOp>;
 export type Measure = z.infer<typeof measure>;
+export type MeasureFormat = z.infer<typeof measureFormat>;
 export type NamedMeasure = z.infer<typeof namedMeasure>;
 export type QuerySpec = z.infer<typeof querySpec>;
 export type QueryRequest = z.infer<typeof queryRequest>;
