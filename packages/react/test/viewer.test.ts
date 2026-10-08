@@ -72,6 +72,19 @@ describe("titleOf", () => {
   });
 });
 
+describe("titles of time axes", () => {
+  it("names a time axis by its grain", () => {
+    const day = {
+      key: "d0",
+      kind: "dimension",
+      field: "dash_demo.orders.ordered_at",
+      timeGrain: "day",
+      type: "date",
+    } as const;
+    expect(titleOf({}, result([day, revenue], [[], []]))).toBe("Revenue by day");
+  });
+});
+
 describe("visual titles in the spec", () => {
   it("accepts an optional title on each visual", () => {
     const spec = dashboardSpec.parse({
