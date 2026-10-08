@@ -88,7 +88,13 @@ export function FieldList({
         <legend>Measures</legend>
         <ul style={{ padding: 0, margin: 0 }}>
           {named.map((name) => (
-            <FieldItem key={name} item={{ kind: "measure", name }} label={name} onPick={onPick} />
+            <FieldItem
+              key={name}
+              item={{ kind: "measure", name }}
+              label={name}
+              onPick={onPick}
+              pressed={isPicked({ kind: "measure", name })}
+            />
           ))}
         </ul>
       </fieldset>

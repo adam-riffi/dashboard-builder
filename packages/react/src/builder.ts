@@ -4,6 +4,7 @@ import {
   type DashboardVisual,
   GRID_COLUMNS,
   type LayoutCell,
+  lex,
   MAX_QUERIES,
   type NamedMeasure,
   type SlotItem,
@@ -101,9 +102,10 @@ export function setLayout(spec: DashboardSpec, cells: LayoutCell[]): DashboardSp
         return {
           i: c.i,
           x: Math.min(Math.max(0, c.x), GRID_COLUMNS - w),
-          y: Math.max(0, c.y),
+          // The spec's bounds (DashboardSpec): rows up to 1,000, cells up to 100 rows tall.
+          y: Math.min(Math.max(0, c.y), 1_000),
           w,
-          h: Math.max(1, c.h),
+          h: Math.min(Math.max(1, c.h), 100),
         };
       }),
   };
@@ -169,9 +171,23 @@ function mapMeasureRefs(spec: DashboardSpec, name: string, to: string | undefine
   }));
 }
 
+/** A formula with its `[from]` references renamed; strings and the rest stay as written. */
+function renameRefs(formula: string, from: string, to: string): string {
+  const lexed = lex(formula);
+  if (!lexed.ok) return formula;
+  let out = "";
+  let at = 0;
+  for (const t of lexed.tokens) {
+    if (t.kind !== "measure" || t.value !== from) continue;
+    out += `${formula.slice(at, t.start)}[${to}]`;
+    at = t.end;
+  }
+  return out + formula.slice(at);
+}
+
 /**
  * Adds or changes a dashboard measure. Renaming (`previous`) rewrites the slots and the other
- * measures' formulas that refer to it; names never hold brackets, so `[Name]` is a whole token.
+ * measures' formulas that refer to it.
  */
 export function upsertMeasure(
   spec: DashboardSpec,
@@ -187,7 +203,7 @@ export function upsertMeasure(
     ...spec,
     measures: measures.map((m) => ({
       ...m,
-      formula: m.formula.replaceAll(`[${previous}]`, `[${measure.name}]`),
+      formula: renameRefs(m.formula, previous, measure.name),
     })),
     visuals: mapMeasureRefs(spec, previous, measure.name),
   };
