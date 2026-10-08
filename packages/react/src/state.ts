@@ -29,7 +29,10 @@ export function titleOf(
   if (visual.title) return visual.title;
   if (!result) return "";
   const measures = result.columns.filter((c) => c.kind === "measure").map(labelOf);
-  const fields = result.columns.filter((c) => c.kind === "dimension").map(labelOf);
+  // A time axis reads by its grain: "Orders by day", not "by Ordered at (day)".
+  const fields = result.columns.flatMap((c) =>
+    c.kind !== "dimension" ? [] : [c.timeGrain ?? labelOf(c)],
+  );
   return fields.length > 0
     ? `${measures.join(" and ")} by ${fields.join(" and ")}`
     : measures.join(" and ");
