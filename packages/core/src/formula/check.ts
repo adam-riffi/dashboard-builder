@@ -47,6 +47,8 @@ const ARITY: Record<string, [number, number]> = {
   ROUND: [1, 2],
   DATE_TRUNC: [2, 2],
 };
+/** The formula language's functions (DESIGN.md §6), for editors' completions. */
+export const FUNCTIONS = Object.keys(ARITY);
 const COMPARISONS = new Set<BinaryOp>(["=", "<>", "<", "<=", ">", ">="]);
 const A: Record<FieldType, string> = {
   number: "a number",
