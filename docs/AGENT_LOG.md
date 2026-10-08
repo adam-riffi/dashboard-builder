@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/05-filters · #48
+- Done: `<FiltersEditor spec contract onChange>` in the builder's side panel: the dashboard's filters listed in words ("Status is one of paid, shipped") with "×" to remove; a new filter is drafted (field, operator, typed inputs: number, date, or a comma-separated list) and enters the spec only once complete. `filterFrom` builds a filter from the inputs (calendar-valid dates, finite numbers, true/false, lists only for true/false columns); `inputsOf` turns one back into inputs.
+- Tests: `packages/react/test/filters.test.tsx`: 5 built and 5 refused inputs, inputs from a filter, the draft-then-add flow and removal.
+- Scope/decisions: filters are added and removed, not edited in place (ponytail); values are typed, not picked from distinct values (planned skip).
+- Next: stack/m5/06-formula-editor.
+
 ## 2026-10-08 · claude · stack/m5/04-builder-canvas · #47
 - Done: `<DashboardBuilder spec onChange onSave>`:
   - a toolbar with the dashboard title (a draft, never blank), "Add" per registered visual, and Save;
