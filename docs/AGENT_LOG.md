@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · docs/handoff-m5 · #57
+- Done: HANDOFF.md rewritten after M5 (#44–#56 merged; production runs each merge's deploy).
+- Tests: none (docs).
+- Scope/decisions: the M5 merges waited on CI after each restack; the user chose that over the app's no-polling default.
+- Next: check the builder on production; fix the cold-start hang; M6 in plan mode.
+
 ## 2026-10-08 · claude · stack/m5/13-dashboard-cap · #56
 - Done: the demo's store findings of the M5 review (finding 3 and nits 13, 14, 17).
   - At most 20 dashboards per user; a new one past the cap gets 409, while existing ones still save.
