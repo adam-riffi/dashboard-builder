@@ -68,10 +68,14 @@ describe("answersByVisual", () => {
   it("gives each visual its own answer, or its reasons for having none", () => {
     const broken = { id: "pie", type: "pie", slots: {}, options: {} };
     const plan = dashboardRequest(spec([broken, kpi, bar]));
-    const result = { columns: [], data: [], meta: { cache: "miss", ms: 3, truncated: false } };
-    const answers: QueryAnswer[] = [result as QueryAnswer, { errors: ["Query failed"] }];
+    const result: QueryAnswer = {
+      columns: [],
+      data: [],
+      meta: { cache: "miss", ms: 3, truncated: false },
+    };
+    const answers: QueryAnswer[] = [result, { errors: ["Query failed"] }];
     expect(answersByVisual(plan, answers)).toEqual(
-      new Map([
+      new Map<string, QueryAnswer>([
         ["pie", { errors: ["unknown visual type pie"] }],
         ["kpi", result],
         ["bar", { errors: ["Query failed"] }],
