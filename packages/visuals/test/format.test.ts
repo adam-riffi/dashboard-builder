@@ -1,6 +1,6 @@
 import type { ResultColumn } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
-import { formatValue, formattersFor, labelOf } from "../src/index.ts";
+import { formattersFor, formatValue, labelOf } from "../src/index.ts";
 
 const dim = (
   field: string,

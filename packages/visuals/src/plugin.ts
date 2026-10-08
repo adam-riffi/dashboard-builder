@@ -6,6 +6,7 @@ import {
   type SlotItem,
 } from "@adam-riffi/dash-core";
 import type { ComponentType } from "react";
+import type { Formatter } from "./format.ts";
 
 /** What a slot accepts (DESIGN.md §7): a field to group by, a time axis, or measures. */
 export type SlotKind = "dimension" | "time" | "measure";
@@ -42,15 +43,16 @@ export interface VisualDefinition<Options = Record<string, unknown>> {
   toQuery(slots: Slots, options: Options): QuerySpec;
 }
 
-/** What a visual's renderer receives. */
-export interface VisualProps<Options = Record<string, unknown>> {
+/** What a visual's renderer receives: its result, its raw options, one formatter per column. */
+export interface VisualProps {
   result: QueryResult;
-  options: Options;
+  options: Record<string, unknown>;
+  formatters: Formatter[];
 }
 
 /** A visual plugin (DESIGN.md §7, ADR 0008): the query half plus a React renderer. */
 export interface VisualPlugin<Options = Record<string, unknown>> extends VisualDefinition<Options> {
-  render: ComponentType<VisualProps<Options>>;
+  render: ComponentType<VisualProps>;
 }
 
 /** A field to group by: a `{ field }` with no aggregation. Anything else is a measure. */

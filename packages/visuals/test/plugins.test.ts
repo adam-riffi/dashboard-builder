@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   bar,
   getVisual,
+  Kpi,
   kpi,
+  Line,
   line,
   queryOf,
   registerVisual,
@@ -168,12 +170,12 @@ describe("plugins that misbehave", () => {
 describe("registry", () => {
   it("knows the four built-ins by type", () => {
     expect(visuals().map((v) => v.type)).toEqual(["kpi", "bar", "line", "table"]);
-    expect(getVisual("line")).toBe(line);
+    expect(getVisual("line")).toMatchObject({ ...line, render: Line });
     expect(getVisual("pie")).toBeUndefined();
   });
 
   it("registers a new visual; registering a type again replaces it (as Fast Refresh does)", () => {
-    const gauge = { ...kpi, type: "gauge", label: "Gauge" };
+    const gauge = { ...kpi, type: "gauge", label: "Gauge", render: Kpi };
     registerVisual(gauge);
     expect(getVisual("gauge")).toBe(gauge);
     const again = { ...gauge, label: "Gauge v2" };

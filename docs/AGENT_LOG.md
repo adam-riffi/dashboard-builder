@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/04-visual-renderers · #38
+- Done: renderers for the four built-ins, registered as full plugins. KPI (monospace numeral and label) and table (labels, right-aligned numbers, truncation note) in plain React. Horizontal bar and line charts on ECharts (bar, line, grid, legend, tooltip, SVG renderer), imported on first render, with animations off and `data-ready` set once drawn. `formatValue` (en-US numbers, currency, percent, dates by grain in UTC, "–" for nulls), `labelOf` (measure name, formula, or words from the field) and `formattersFor` (named measures by their format). Colors come from `--dash-*` CSS variables, which ECharts reads at draw time.
+- Tests: `packages/visuals/test/format.test.ts` (21 cases); registry tests now expect renderers. Rendering is checked by the M4 visual tests (PR 7).
+- Scope/decisions: renderers get the raw options and one formatter per result column; sorting and limits were already applied by the query.
+- Next: stack/m4/05-viewer.
+
 ## 2026-10-08 · claude · stack/m4/03-react-provider · #37
 - Done: new package `@adam-riffi/dash-react`. `dashboardRequest(spec)` turns a dashboard into one `POST /query` (each visual's `queryOf`, dashboard filters prepended, dashboard measures as request measures), keeping visuals that cannot query out of the request with their reasons. `answersByVisual` maps the answers back by visual id. `DashProvider` (gateway URL and token, or a `transport`; currency; a TanStack Query client), `useContract` and `useDashboardAnswers`.
 - Tests: `packages/react/test/request.test.ts`: batched request with measures and filters, unknown types and empty slots kept out, no request without visuals, answers per visual, a missing answer reported. 100% lines on `request.ts`; components are covered by the visual tests (PR 7).
