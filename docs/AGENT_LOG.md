@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/02-component-tests · #45
+- Done: component tests for the react package: jsdom and Testing Library (react, dom, user-event) as dev dependencies, opted into per file (`@vitest-environment jsdom`), so pure tests stay on Node. `<FieldList contract measures onPick>`: a "Measures" group (the host's, then the dashboard's own), then one group per table with its columns as buttons labelled by name and role ("Status, dimension"). Picking hands a `Draggable` to the builder; drag sources come with PR 3.
+- Tests: `packages/react/test/fields.test.tsx`: groups and order, labels, picks as a column or a measure.
+- Scope/decisions: none.
+- Next: stack/m5/03-field-wells.
+
 ## 2026-10-08 · claude · stack/m5/01-builder-model · #44
 - Done: M5 starts (plan approved; Georges chose host-side storage: `<DashboardBuilder onSave>`, with the demo storing dashboards). Pure builder operations in `packages/react/src/builder.ts`:
   - `accepts`: measure slots take named measures and measure columns, time slots take dates, other slots take non-measure columns under the high-cardinality mark;
