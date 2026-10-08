@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/12-builder-entry · #55
+- Done: the builder has its own entry, `@adam-riffi/dash-react/builder` (M5 review finding 9).
+  - The main entry keeps the provider and the viewer; the package declares `"sideEffects": false`.
+  - The demo loads the builder with `next/dynamic` when someone edits, so the home page's chunks hold no CodeMirror, react-grid-layout or dnd-kit (checked in the build's client manifest).
+  - DESIGN.md §7 names the entry.
+- Tests: `test/entry.test.ts` (written first) follows the main entry's imports and finds none of the builder's libraries; the builder entry exports `DashboardBuilder`. The builder fixture e2e passes locally.
+- Scope/decisions: `@types/node` is now a dev dependency of the react package, for the test that reads its sources.
+- Next: #56, a cap on saved dashboards per user (review finding 3), with the demo store's nits and ADR 0009.
+
 ## 2026-10-08 · claude · stack/m5/11-builder-previews · #54
 - Done: builder previews no longer refetch the whole dashboard on every edit (M5 review finding 2).
   - Each visual's answer is cached under its own query and the dashboard measures that query reaches (`measuresFor`, through the lexer).

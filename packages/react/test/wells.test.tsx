@@ -4,7 +4,13 @@ import { DndContext } from "@dnd-kit/core";
 import { cleanup, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { addVisual, type Draggable, dropFromEvent, dropItem, SlotWells } from "../src/index.ts";
+import {
+  addVisual,
+  type Draggable,
+  dropFromEvent,
+  dropItem,
+  SlotWells,
+} from "../src/builder-entry.ts";
 
 afterEach(cleanup);
 

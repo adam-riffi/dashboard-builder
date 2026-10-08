@@ -20,7 +20,7 @@ import {
   setVisualOptions,
   setVisualTitle,
   upsertMeasure,
-} from "../src/index.ts";
+} from "../src/builder-entry.ts";
 
 const column = (
   name: string,

@@ -1,12 +1,19 @@
 "use client";
 
 import type { DashboardSpec } from "@adam-riffi/dash-core";
-import { DashboardBuilder, DashboardViewer } from "@adam-riffi/dash-react";
+import { DashboardViewer } from "@adam-riffi/dash-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import type { DashboardSummary } from "../lib/dashboards";
 import { sampleDashboard } from "../lib/sample-dashboard";
 
 type Open = { id: string; spec: DashboardSpec; mode: "view" | "edit" };
+
+// Loaded when someone edits: visitors who only view never download the builder's editors.
+const DashboardBuilder = dynamic(
+  () => import("@adam-riffi/dash-react/builder").then((m) => m.DashboardBuilder),
+  { ssr: false, loading: () => <p>Loading the builder…</p> },
+);
 
 /**
  * The visitor's dashboards (M5): a list from `/api/dashboards`, a new one started from the sample,
