@@ -49,3 +49,11 @@ test("the overview stacks to one column on a phone", async ({ page }) => {
   await settled(page, 2);
   await expect(page).toHaveScreenshot("overview-phone.png", { fullPage: true });
 });
+
+test("the builder renders identically", async ({ page }) => {
+  await page.goto("/fixtures/builder");
+  await settled(page, 2);
+  await page.locator('[data-visual="bar-category"] header').click();
+  await expect(page.getByRole("group", { name: "Category", exact: true })).toBeVisible();
+  await expect(page).toHaveScreenshot("builder.png", { fullPage: true });
+});
