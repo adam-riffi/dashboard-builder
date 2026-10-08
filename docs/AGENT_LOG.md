@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/13-dashboard-cap · #56
+- Done: the demo's store findings of the M5 review (finding 3 and nits 13, 14, 17).
+  - At most 20 dashboards per user; a new one past the cap gets 409, while existing ones still save.
+  - PUT refuses an oversized body from its `content-length` (413) before signing in or reading it.
+  - The dashboards page opens the viewer only after a save the store accepted. A 409 says to delete one; anything else says the save failed. Opening a vanished dashboard says so and refreshes the list.
+  - ADR 0009 (the host stores dashboards) records M5's §7 changes; DESIGN.md §8 now says the host's store sets `app.user_id`.
+- Tests: integration (CI): the cap and updates at the cap. e2e: refused saves (404, 409) reported, with the builder still open (CI, signed in); 413 from the declared size (also passes locally).
+- Scope/decisions: the cap is per user (`ponytail:` a global quota if anonymous sign-ups are abused).
+- Next: CI green on #52–#56, then the M5 merge loop and a production check.
+
 ## 2026-10-08 · claude · stack/m5/12-builder-entry · #55
 - Done: the builder has its own entry, `@adam-riffi/dash-react/builder` (M5 review finding 9).
   - The main entry keeps the provider and the viewer; the package declares `"sideEffects": false`.

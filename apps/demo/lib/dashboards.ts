@@ -4,6 +4,14 @@ import type postgres from "postgres";
 /** The largest dashboard the demo stores. */
 export const MAX_SPEC_BYTES = 256 * 1024;
 
+/**
+ * The most dashboards one visitor keeps: with the size cap, a bound on what each anonymous
+ * sign-in can store in the shared database (DESIGN.md §8).
+ */
+// ponytail: per user, and concurrent saves may pass it by a few; add a global quota if
+// anonymous sign-ups are ever used to fill the database.
+export const MAX_DASHBOARDS_PER_USER = 20;
+
 export interface DashboardSummary {
   id: string;
   title: string;
@@ -56,27 +64,30 @@ export async function getDashboard(sql: postgres.Sql, userId: string, id: string
 }
 
 /**
- * Creates or updates a dashboard. Another user's id is refused by the policy (an insert that
- * conflicts with a row the user may not update), and reported as forbidden.
+ * Creates or updates a dashboard. A new one past the user's cap is refused ("full"). Another
+ * user's id is refused by the policy (an insert that conflicts with a row the user may not
+ * update), and reported as forbidden.
  */
 export async function saveDashboard(
   sql: postgres.Sql,
   userId: string,
   id: string,
   spec: DashboardSpec,
-): Promise<"saved" | "forbidden"> {
+): Promise<"saved" | "forbidden" | "full"> {
   try {
-    await asUser(
-      sql,
-      userId,
-      (tx) => tx`
+    return await asUser(sql, userId, async (tx) => {
+      // Under RLS the count covers the user's own rows, and `mine` says this one is among them.
+      const [own] = await tx<{ count: number; mine: boolean | null }[]>`
+        select count(*)::int as count, bool_or(id = ${id}) as mine from dash.dashboards`;
+      if (!own?.mine && (own?.count ?? 0) >= MAX_DASHBOARDS_PER_USER) return "full" as const;
+      await tx`
         insert into dash.dashboards (id, owner_id, title, spec, contract_version)
         values (${id}, ${userId}, ${spec.title}, ${tx.json(spec as never)}, ${spec.contractVersion})
         on conflict (id) do update set
           title = excluded.title, spec = excluded.spec,
-          contract_version = excluded.contract_version, updated_at = now()`,
-    );
-    return "saved";
+          contract_version = excluded.contract_version, updated_at = now()`;
+      return "saved" as const;
+    });
   } catch (error) {
     // 42501: insufficient_privilege, raised by a row-level security policy.
     if ((error as { code?: string }).code === "42501") return "forbidden";

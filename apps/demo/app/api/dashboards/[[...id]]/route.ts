@@ -4,6 +4,8 @@ import {
   deleteDashboard,
   getDashboard,
   listDashboards,
+  MAX_DASHBOARDS_PER_USER,
+  MAX_SPEC_BYTES,
   parseSave,
   saveDashboard,
 } from "../../../../lib/dashboards";
@@ -55,14 +57,22 @@ export const GET = (request: Request, context: Context) =>
     return dashboard ? json(dashboard) : json({ error: "Not found" }, 404);
   });
 
-export const PUT = (request: Request, context: Context) =>
-  handle(request, context, async (user, id) => {
+export const PUT = async (request: Request, context: Context) => {
+  // An oversized body is refused from its declared size, before anyone reads it.
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_SPEC_BYTES) {
+    return json({ error: "Dashboard too large" }, 413);
+  }
+  return handle(request, context, async (user, id) => {
     if (id === undefined) return json({ error: "Not found" }, 404);
     const parsed = parseSave(await request.text());
     if (!parsed.ok) return json({ error: parsed.error, issues: parsed.issues }, parsed.status);
     const saved = await saveDashboard(appDb(), user, id, parsed.spec);
+    if (saved === "full") {
+      return json({ error: `You keep ${MAX_DASHBOARDS_PER_USER} dashboards already` }, 409);
+    }
     return saved === "saved" ? json({ id }) : json({ error: "Not found" }, 404);
   });
+};
 
 export const DELETE = (request: Request, context: Context) =>
   handle(request, context, async (user, id) => {
