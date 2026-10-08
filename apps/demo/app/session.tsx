@@ -1,9 +1,9 @@
 "use client";
 
-import { DashboardViewer, DashProvider } from "@adam-riffi/dash-react";
+import { DashProvider } from "@adam-riffi/dash-react";
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
-import { sampleDashboard } from "../lib/sample-dashboard";
+import { Dashboards } from "./dashboards";
 
 type State =
   | { kind: "loading" }
@@ -41,7 +41,7 @@ export function Session() {
       </p>
       <ContractSummary token={state.token} />
       <DashProvider getToken={state.getToken}>
-        <DashboardViewer spec={sampleDashboard} />
+        <Dashboards getToken={state.getToken} />
       </DashProvider>
     </>
   );
