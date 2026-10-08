@@ -138,6 +138,33 @@ describe("built-in visuals", () => {
   });
 });
 
+describe("plugins that misbehave", () => {
+  it("reports a toQuery that throws as the visual's error", () => {
+    const broken = {
+      ...kpi,
+      type: "broken",
+      toQuery: () => {
+        throw new Error("no measure today");
+      },
+    };
+    expect(queryOf(broken, visual({ value: [revenue] }))).toEqual({
+      ok: false,
+      errors: ["the visual could not build its query: no measure today"],
+    });
+  });
+
+  it("reports a query the gateway would refuse as the visual's error", () => {
+    const greedy = {
+      ...kpi,
+      type: "greedy",
+      toQuery: () => ({ dimensions: [], measures: [revenue], filters: [], limit: 50_000 }),
+    };
+    const result = queryOf(greedy, visual({ value: [revenue] }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors[0]).toContain("query.limit");
+  });
+});
+
 describe("registry", () => {
   it("knows the four built-ins by type", () => {
     expect(visuals().map((v) => v.type)).toEqual(["kpi", "bar", "line", "table"]);
@@ -145,10 +172,12 @@ describe("registry", () => {
     expect(getVisual("pie")).toBeUndefined();
   });
 
-  it("registers a new visual, and refuses a type that is taken", () => {
+  it("registers a new visual; registering a type again replaces it (as Fast Refresh does)", () => {
     const gauge = { ...kpi, type: "gauge", label: "Gauge" };
     registerVisual(gauge);
     expect(getVisual("gauge")).toBe(gauge);
-    expect(() => registerVisual({ ...kpi })).toThrow("a visual of type kpi is already registered");
+    const again = { ...gauge, label: "Gauge v2" };
+    registerVisual(again);
+    expect(getVisual("gauge")).toBe(again);
   });
 });
