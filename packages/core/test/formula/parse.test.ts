@@ -153,7 +153,6 @@ describe("print", () => {
       fc.property(expr, (e) => {
         expect(withoutSpans(ok(print(e)))).toEqual(withoutSpans(e));
       }),
-      { numRuns: 500 },
     );
   });
 });

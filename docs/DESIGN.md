@@ -188,7 +188,7 @@ Coverage: `core` and `gateway` at least 90% of lines.
 | `ci.yml` | `lint`, `typecheck`, `test` (unit + property), `integration` (Postgres service), `build`, `e2e` |
 | `deploy.yml` (mode B) | `migrate` (main only) → `deploy` (preview on PRs, production on main) → `smoke` |
 | `release.yml` | Changesets version PR and npm publish with provenance for `@adam-riffi/dash-*` |
-| `nightly.yml` | property tests with 10× runs, `pnpm audit`, CodeQL |
+| `nightly.yml` | property tests with 10× runs (`PROPERTY_RUNS_FACTOR=10`), `pnpm audit` of production dependencies; CodeQL runs through GitHub's default setup |
 | `pr-meme.yml` | standard caller |
 
 Required checks: `lint`, `typecheck`, `test`, `integration`, `build`, `e2e`.

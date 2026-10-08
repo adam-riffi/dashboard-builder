@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · ci/nightly · #34
+- Done: `nightly.yml` (daily and by hand): unit and integration suites with `PROPERTY_RUNS_FACTOR=10`, and `pnpm audit --prod --audit-level high`. A vitest setup file in core and gateway sets fast-check's default to 100 cases times the factor; the three tests that pinned their own counts (500, 80, 60) now use it. First `HANDOFF.md`, per the new session protocol (#33). DESIGN §11 nightly row updated.
+- Tests: configuration exception to test-first. A throwaway test confirmed 100 runs by default and 1,000 with the factor at 10; unit suites pass at 10×; actionlint is clean.
+- Scope/decisions: the audit covers production dependencies only. All 39 advisories over all dependencies sit inside the dev-only `vercel` CLI, with no fixed release. CodeQL already runs through GitHub's default setup.
+- Next: run the nightly once by hand, then M4 (viewer) in plan mode.
+
 ## 2026-10-06 · claude · stack/m3/01..07 · #22–#29 (review fixes)
 - Done: Addressed the independent review (0 blockers, 1 major, 7 minor, 4 nits; no injection or policy bypass). Major: string-typed formula columns (enum, uuid, char) compare as text, so `plans.tier = "pro"` works (#26). #22/#23: exponents in number literals (round trip of 1e-7), numbers out of range rejected, nesting capped at 100 levels. #24: references capped at 16 levels (a chain overflowed the stack), `COUNT` of true/false values refused, `ROUND` digits 0–15. #27: one fact table per query again (per-measure facts rejected Revenue next to `COUNTDISTINCT(orders.customer_id)`; the fan-trap guard covers the risk), 5 errors per measure in responses, one measure memo per request. #28: dashboard measures shadow host measures of the same name instead of a 400; host measures are planned at contract time. #29: a second property arm with orders as the fact table (`/`, DIVIDE, MAX of a date, a customers join). ADR 0007 records each decision.
 - Tests: failing tests first for every fix; core 142 and gateway 193 unit tests; enum/uuid formulas and the orders arm ran on PGlite through the real pipeline; mutation check: the orders arm fails when the reference skips the customers policy. Stack rebased onto main (#25).

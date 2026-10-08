@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 // covered by the integration suite instead and are excluded here.
 export default defineConfig({
   test: {
+    setupFiles: ["./vitest.setup.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**"],
