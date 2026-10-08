@@ -80,6 +80,8 @@ describe("DashboardBuilder", () => {
     render(<Harness onSave={onSave} />);
     await userEvent.click(screen.getByRole("button", { name: "Add Bar" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Visual title" }), "Top categories");
+    // An unset limit is empty, not 0 (which the input would refuse anyway: min is 1).
+    expect((screen.getByRole("spinbutton", { name: "Rows" }) as HTMLInputElement).value).toBe("");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "category");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSave.mock.calls[0]?.[0].visuals[0]).toMatchObject({

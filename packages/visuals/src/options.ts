@@ -46,7 +46,11 @@ export function barOption(result: QueryResult, formatters: Formatter[]) {
   const compact = formatters[1]?.compact ?? String;
   return (t: Theme): EChartsCoreOption => ({
     ...frame(t, series),
-    xAxis: { type: "value", ...axisStyle(t), axisLabel: { color: t.muted, formatter: compact } },
+    xAxis: {
+      type: "value",
+      ...axisStyle(t),
+      axisLabel: { color: t.muted, formatter: compact, hideOverlap: true },
+    },
     yAxis: { type: "category", inverse: true, data: labels, ...axisStyle(t) },
     series,
   });

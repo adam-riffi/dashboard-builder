@@ -20,10 +20,63 @@ export interface Fixture {
 }
 
 /** The host measures and their formats, as the demo's contract serves them. */
+const column = (
+  name: string,
+  type: "number" | "string" | "date",
+  role: "id" | "time" | "measure" | "dimension",
+) => ({
+  name,
+  pgType: type,
+  type,
+  nullable: false,
+  role,
+  ...(role === "measure" ? { aggregation: "SUM" as const } : {}),
+  distinct: null,
+  highCardinality: false,
+});
+const table = (name: string, columns: ReturnType<typeof column>[]) => ({
+  name: `dash_demo.${name}`,
+  rowCount: null,
+  primaryKey: ["id"],
+  columns,
+});
+
+/** The demo's tables and host measures, as its contract serves them (statistics left out). */
 export const fixtureContract: DataContract = {
   contractVersion: "0".repeat(64),
-  tables: [],
-  relationships: [],
+  tables: [
+    table("order_items", [
+      column("id", "number", "id"),
+      column("order_id", "number", "id"),
+      column("product_id", "number", "id"),
+      column("quantity", "number", "measure"),
+      column("unit_price", "number", "measure"),
+    ]),
+    table("orders", [
+      column("id", "number", "id"),
+      column("customer_id", "number", "id"),
+      column("ordered_at", "date", "time"),
+      column("status", "string", "dimension"),
+      column("channel", "string", "dimension"),
+    ]),
+    table("products", [
+      column("id", "number", "id"),
+      column("name", "string", "dimension"),
+      column("category", "string", "dimension"),
+    ]),
+  ],
+  relationships: [
+    {
+      from: { table: "dash_demo.order_items", columns: ["order_id"] },
+      to: { table: "dash_demo.orders", columns: ["id"] },
+      kind: "many-to-one",
+    },
+    {
+      from: { table: "dash_demo.order_items", columns: ["product_id"] },
+      to: { table: "dash_demo.products", columns: ["id"] },
+      kind: "many-to-one",
+    },
+  ],
   measures: [
     {
       name: "Revenue",
