@@ -36,6 +36,8 @@ const visual = z
     id,
     /** A registered visual plugin, e.g. `kpi`, `bar`, `line`, `table`. */
     type: id,
+    /** Shown above the visual; by default its measures by its fields. */
+    title: z.string().min(1).max(120).optional(),
     slots: z.record(id, z.array(slotItem).max(20)),
     options: z.record(z.string(), z.unknown()).default({}),
   })
