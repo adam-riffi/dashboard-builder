@@ -2,19 +2,22 @@
 
 import type { DashboardSpec, DashboardVisual, MeasureFormat } from "@adam-riffi/dash-core";
 import { formattersFor, getVisual } from "@adam-riffi/dash-visuals";
-import { useMemo } from "react";
+import { type CSSProperties, useMemo } from "react";
 import { useContract, useDash, useDashboardAnswers } from "./provider.tsx";
 import { titleOf, type VisualState, visualState } from "./state.ts";
 
-// The grid stacks to one column on narrow screens; inline styles cannot hold media queries.
+// Each card's cell comes in as CSS variables, so that on narrow screens the cards stack to one
+// column, in layout order, each keeping its height. Inline styles cannot hold media queries.
 const css = `
 .dash-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: 72px; gap: 16px; }
 .dash-card { display: flex; flex-direction: column; min-width: 0; padding: 12px 16px;
+  grid-column: calc(var(--dash-x) + 1) / span var(--dash-w); grid-row: calc(var(--dash-y) + 1) / span var(--dash-h);
   border: 1px solid var(--dash-grid, rgba(107, 111, 118, 0.25)); border-radius: 8px; }
 .dash-card h3 { margin: 0 0 8px; font-size: 0.95rem; font-weight: 600; color: var(--dash-ink, #1c1f24); }
 .dash-body { flex: 1; min-height: 0; }
 .dash-note { margin: 0; color: var(--dash-muted, #6b6f76); }
-@media (max-width: 640px) { .dash-grid { grid-template-columns: 1fr; } .dash-card { grid-column: 1 / -1 !important; } }
+@media (max-width: 640px) { .dash-grid { grid-template-columns: 1fr; }
+  .dash-card { grid-column: 1 / -1; grid-row: auto / span var(--dash-h); } }
 `;
 
 /**
@@ -41,29 +44,36 @@ export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
       <style>{css}</style>
       <h2>{spec.title}</h2>
       <div className="dash-grid">
-        {spec.layout.map((cell) => {
-          const visual = visuals.get(cell.i);
-          if (!visual) return null;
-          const state = visualState(answers?.get(visual.id), pending, error !== null);
-          return (
-            <article
-              key={cell.i}
-              className="dash-card"
-              data-visual={visual.id}
-              data-state={state.kind}
-              aria-busy={state.kind === "loading"}
-              style={{
-                gridColumn: `${cell.x + 1} / span ${cell.w}`,
-                gridRow: `${cell.y + 1} / span ${cell.h}`,
-              }}
-            >
-              <h3>{titleOf(visual, state.kind === "ready" ? state.result : undefined)}</h3>
-              <div className="dash-body">
-                <VisualBody visual={visual} state={state} formats={formats} currency={currency} />
-              </div>
-            </article>
-          );
-        })}
+        {/* Reading order (and the phone's stacking order) follows the layout: by row, then column. */}
+        {[...spec.layout]
+          .sort((a, b) => a.y - b.y || a.x - b.x)
+          .map((cell) => {
+            const visual = visuals.get(cell.i);
+            if (!visual) return null;
+            const state = visualState(answers?.get(visual.id), pending, error !== null);
+            return (
+              <article
+                key={cell.i}
+                className="dash-card"
+                data-visual={visual.id}
+                data-state={state.kind}
+                aria-busy={state.kind === "loading"}
+                style={
+                  {
+                    "--dash-x": cell.x,
+                    "--dash-y": cell.y,
+                    "--dash-w": cell.w,
+                    "--dash-h": cell.h,
+                  } as CSSProperties
+                }
+              >
+                <h3>{titleOf(visual, state.kind === "ready" ? state.result : undefined)}</h3>
+                <div className="dash-body">
+                  <VisualBody visual={visual} state={state} formats={formats} currency={currency} />
+                </div>
+              </article>
+            );
+          })}
       </div>
     </section>
   );
