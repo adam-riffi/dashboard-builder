@@ -27,7 +27,14 @@ test("the overview fixture renders identically in dark mode", async ({ page }) =
 test("the states fixture renders identically", async ({ page }) => {
   await page.goto("/fixtures/states");
   await expect(page.locator('[data-state="empty"]')).toBeVisible();
+  await expect(page.locator('[data-visual="throws"]')).toContainText("could not be shown");
   await expect(page).toHaveScreenshot("states.png", { fullPage: true });
+});
+
+test("the failed fixture renders identically", async ({ page }) => {
+  await page.goto("/fixtures/failed");
+  await expect(page.locator('[data-state="error"]')).toHaveCount(2);
+  await expect(page).toHaveScreenshot("failed.png", { fullPage: true });
 });
 
 test("the loading fixture renders identically", async ({ page }) => {

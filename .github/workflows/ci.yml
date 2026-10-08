@@ -74,7 +74,8 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm test:integration
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: the screenshot baselines depend on this image's fonts (ADR 0008).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       DATABASE_URL_MIGRATIONS: postgres://postgres:postgres@localhost:54322/postgres

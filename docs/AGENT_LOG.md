@@ -14,6 +14,29 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/01..07 · #35–#41 (review fixes)
+- Done: addressed the independent review (1 blocker, 2 major, 12 minor, 8 nits; no XSS, nothing sensitive in the fixture route, ECharts loads lazily). Blocker: cards overlapped on phones; cells now come in as CSS variables and cards follow reading order (#39), caught first by the phone screenshot. Majors:
+  - `DashProvider` follows the latest `getToken` and rebuilds on transport, gateway or currency changes (#37);
+  - charts are drawn once per mount and redrawn only on new options or a color-scheme flip, with memoized formatters (#38, #39).
+
+  Minors:
+  - a plugin's throws or invalid queries, and filters past the cap, stay with their visual (#36, #37);
+  - an error boundary per visual (#39);
+  - answers stay on screen through refreshes (#39);
+  - dashboard measures override host formats by name (#39);
+  - titles come from the spec (#39);
+  - charts carry role=img and a spoken summary (#38);
+  - line charts use a time axis (#38);
+  - number formatters are built once per column (#38);
+  - a failed chart chunk shows a message (#38);
+  - the e2e runner is pinned to `ubuntu-24.04` (#41);
+  - no retries on 4xx (#37);
+  - re-registering a type replaces it (#36);
+  - gallery fixtures for a failed request and a throwing renderer (#40).
+- Tests: failing tests first for every fix: pure chart options, transport, titles, refreshes, formats, misbehaving plugins, gallery e2e. Unit tests: visuals 47, react 20. Fixture e2e 5/5 locally; screenshot baselines regenerated in CI after the fixes.
+- Scope/decisions: renderers keep the raw options (documented in ADR 0008, with the CSP need for the viewer's `<style>`). PR sizes over ~400 lines are noted in their PRs.
+- Next: CI green, merge loop #35→#41, `HANDOFF.md`.
+
 ## 2026-10-08 · claude · stack/m4/07-visual-tests · #41
 - Done: M4 acceptance. `apps/demo/e2e/visual.spec.ts` compares the fixture gallery with screenshot baselines: overview in light and dark, states, loading, and the overview on a 390 px phone. Baselines live in `e2e/__screenshots__` (one set, no platform suffix) and are made on CI's Linux runner. The tests skip elsewhere, since fonts differ. The e2e job uploads new baselines as the `screenshot-baselines` artifact, and they are committed from it.
 - Tests: the screenshot tests themselves; tolerance 0.2% of pixels, animations disabled; they skip on Windows locally.
