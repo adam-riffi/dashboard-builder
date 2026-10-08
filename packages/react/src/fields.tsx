@@ -26,12 +26,14 @@ function FieldItem({
   badge,
   ariaLabel,
   onPick,
+  pressed,
 }: {
   item: Draggable;
   label: string;
   badge?: string;
   ariaLabel?: string;
   onPick?: ((item: Draggable) => void) | undefined;
+  pressed?: boolean;
 }) {
   const key =
     item.kind === "measure" ? `measure:${item.name}` : `column:${item.table}.${item.column.name}`;
@@ -42,6 +44,7 @@ function FieldItem({
         ref={setNodeRef}
         {...listeners}
         data-dragging={isDragging || undefined}
+        aria-pressed={onPick ? Boolean(pressed) : undefined}
         type="button"
         className="dash-field"
         aria-label={ariaLabel}
@@ -66,11 +69,15 @@ export function FieldList({
   contract,
   measures,
   onPick,
+  picked,
 }: {
   contract: DataContract;
   measures: NamedMeasure[];
   onPick?: (item: Draggable) => void;
+  /** The field the keyboard path is about to place; it shows as pressed. */
+  picked?: Draggable | undefined;
 }) {
+  const isPicked = (d: Draggable) => JSON.stringify(d) === JSON.stringify(picked);
   const named = [
     ...contract.measures.map((m) => m.name),
     ...measures.map((m) => m.name).filter((n) => !contract.measures.some((m) => m.name === n)),
@@ -97,6 +104,7 @@ export function FieldList({
                   <FieldItem
                     key={column.name}
                     item={{ kind: "column", table: table.name, column }}
+                    pressed={isPicked({ kind: "column", table: table.name, column })}
                     label={label}
                     badge={BADGE[column.role]}
                     ariaLabel={`${label}, ${column.role}`}
