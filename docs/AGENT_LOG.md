@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/02-visual-plugins · #36
+- Done: new package `@adam-riffi/dash-visuals`. The plugin contract (slots, an options schema, `toQuery`, and a React `render` in `VisualPlugin`); `checkSlots` (unknown slots, counts, fields vs measures, no grain on measures); `queryOf` (slot and option errors, or the QuerySpec); a module registry (`registerVisual`, `getVisual`, `visuals`); the KPI, bar (top 25 by the first measure), line (time axis at a grain, in time order) and table (top 100) definitions. `ResultColumn`, `QueryResult` and `QueryAnswer` move to core; the gateway's `OutputColumn` is an alias.
+- Tests: `packages/visuals/test/plugins.test.ts`: each built-in's query, nine rejected slot and option cases, the registry. 100% lines.
+- Scope/decisions: options are typed by `safeParse` only, so visuals with different options share one registry (a zod schema fits).
+- Next: stack/m4/03-react-provider.
+
 ## 2026-10-08 · claude · stack/m4/01-dashboard-spec · #35
 - Done: M4 starts (plan approved). `dashboardSpec` in `packages/core/src/dashboard.ts`: version 1, contract version, title, refresh interval (default 60 s), unique dashboard measures, filters, a 12-column layout with one cell per visual, at most 20 visuals, slots holding fields or measures. `format` (`number`, `currency`, `percent`) on dashboard measures and on host measures (config, contract and version). ADR 0008; DESIGN §7 updated.
 - Tests: `packages/core/test/dashboard.test.ts`: defaults, every slot item form, version, hash, title, refresh, formats, duplicate measures and visual ids, layout cells per visual and inside the grid, the visual cap; contract and inference carry formats.

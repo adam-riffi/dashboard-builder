@@ -133,7 +133,7 @@ describe("built-in visuals", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors).toHaveLength(errors.length);
-      result.errors.forEach((e, i) => expect(e).toContain(errors[i]));
+      for (const [i, e] of result.errors.entries()) expect(e).toContain(errors[i]);
     }
   });
 });
