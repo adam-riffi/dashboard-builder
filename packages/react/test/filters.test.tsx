@@ -4,7 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FiltersEditor, filterFrom, inputsOf } from "../src/index.ts";
+import { FiltersEditor, filterFrom, inputsOf } from "../src/builder-entry.ts";
 
 afterEach(cleanup);
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { DashboardBuilder, DashProvider } from "@adam-riffi/dash-react";
+import { DashProvider } from "@adam-riffi/dash-react";
+import { DashboardBuilder } from "@adam-riffi/dash-react/builder";
 import { useState } from "react";
 import { type Fixture, fixtures } from "../../../fixtures";
 import { fixtureTransport } from "../fixture-transport";

@@ -1,6 +1,6 @@
 import { dataContract } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
-import { completionsAt, diagnosticsOf } from "../src/index.ts";
+import { completionsAt, diagnosticsOf } from "../src/builder-entry.ts";
 
 const col = (name: string, type: "number" | "string", role: "measure" | "dimension") => ({
   name,

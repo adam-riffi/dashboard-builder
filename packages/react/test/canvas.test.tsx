@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DashboardBuilder, DashProvider, type Transport } from "../src/index.ts";
+import { DashboardBuilder } from "../src/builder-entry.ts";
+import { DashProvider, type Transport } from "../src/index.ts";
 
 afterEach(cleanup);
 

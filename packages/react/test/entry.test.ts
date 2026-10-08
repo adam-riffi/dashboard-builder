@@ -1,3 +1,5 @@
+/// <reference types="node" />
+// The test reads the package's sources to follow its imports.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 

@@ -3,7 +3,7 @@ import { dataContract } from "@adam-riffi/dash-core";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FieldList } from "../src/index.ts";
+import { FieldList } from "../src/builder-entry.ts";
 
 afterEach(cleanup);
 
