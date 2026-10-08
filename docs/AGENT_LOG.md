@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/03-react-provider · #37
+- Done: new package `@adam-riffi/dash-react`. `dashboardRequest(spec)` turns a dashboard into one `POST /query` (each visual's `queryOf`, dashboard filters prepended, dashboard measures as request measures), keeping visuals that cannot query out of the request with their reasons. `answersByVisual` maps the answers back by visual id. `DashProvider` (gateway URL and token, or a `transport`; currency; a TanStack Query client), `useContract` and `useDashboardAnswers`.
+- Tests: `packages/react/test/request.test.ts`: batched request with measures and filters, unknown types and empty slots kept out, no request without visuals, answers per visual, a missing answer reported. 100% lines on `request.ts`; components are covered by the visual tests (PR 7).
+- Scope/decisions: a failed request (401, 429, network) fails the whole dashboard, while per-query errors stay per visual.
+- Next: stack/m4/04-visual-renderers.
+
 ## 2026-10-08 · claude · stack/m4/02-visual-plugins · #36
 - Done: new package `@adam-riffi/dash-visuals`. The plugin contract (slots, an options schema, `toQuery`, and a React `render` in `VisualPlugin`); `checkSlots` (unknown slots, counts, fields vs measures, no grain on measures); `queryOf` (slot and option errors, or the QuerySpec); a module registry (`registerVisual`, `getVisual`, `visuals`); the KPI, bar (top 25 by the first measure), line (time axis at a grain, in time order) and table (top 100) definitions. `ResultColumn`, `QueryResult` and `QueryAnswer` move to core; the gateway's `OutputColumn` is an alias.
 - Tests: `packages/visuals/test/plugins.test.ts`: each built-in's query, nine rejected slot and option cases, the registry. 100% lines.
