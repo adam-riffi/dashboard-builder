@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/06-demo-dashboard · #40
+- Done: the home page renders the sample dashboard (`apps/demo/lib/sample-dashboard.ts`): Revenue, Orders and Average order value KPIs, revenue by category, orders by day, and top products, through `DashProvider` with the Supabase session's token. Host measures carry formats (Revenue and Average order value as currency). Public fixture gallery `/fixtures/[name]` (`overview`, `states`, `loading`): recorded answers through the provider's `transport`, no database or sign-in, `noindex`; unknown names are 404. The `--dash-*` CSS variables map to the demo's palette.
+- Tests: Playwright: the `@smoke` test expects a ready Revenue KPI with a non-zero dollar amount and a drawn bar chart; `e2e/fixtures.spec.ts` covers six ready visuals and their values, the empty, error and unknown-type states, the loading state, and 404. The fixture tests pass locally against the production build; screenshots in light and dark are on the PR.
+- Scope/decisions: the sample spec's contract version is a stand-in until dashboards are saved (M5). Polish found in the gallery went to #38 (compact axis labels, no repeated KPI caption) and #39 (time axes named by grain).
+- Next: stack/m4/07-visual-tests (screenshot baselines from CI).
+
 ## 2026-10-08 · claude · stack/m4/05-viewer · #39
 - Done: `DashboardViewer`: one request for the dashboard; a 12-column grid (72 px rows) that stacks on narrow screens; each visual in its layout cell as a card with a title and its state (loading, "No data for this selection.", errors as an alert, or the plugin's renderer with per-column formatters). Host measure formats come from the contract and are overridden by dashboard measures. Pure `visualState` and `titleOf` (the visual's title, or "Revenue by Category"). Visuals gain an optional `title` in the spec.
 - Tests: `packages/react/test/viewer.test.ts`: the five states, titles, and `title` in the spec. The component is covered by the M4 visual tests.

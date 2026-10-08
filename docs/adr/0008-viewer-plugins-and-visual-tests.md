@@ -38,6 +38,8 @@ M4 (DESIGN.md §9) renders saved dashboards. DESIGN.md §7 gives the DashboardSp
 - **Screenshot baselines from this machine:** would never match CI's fonts.
 - **Storybook for the fixtures:** a new dependency for what one route does.
 
+**Hosts' CSP.** The viewer ships its grid rules in a `<style>` element (a media query cannot be inline), so the host's Content-Security-Policy needs `style-src 'unsafe-inline'`, as Next.js apps already do.
+
 ## Consequences
 - A plugin is a React component plus a pure `toQuery`. A new chart type needs no change to the viewer or the gateway.
 - `transport` makes the viewer testable without a gateway. The builder (M5) can reuse it for previews.

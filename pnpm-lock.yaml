@@ -187,9 +187,18 @@ importers:
 
   apps/demo:
     dependencies:
+      '@adam-riffi/dash-core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@adam-riffi/dash-gateway':
         specifier: workspace:*
         version: link:../../packages/gateway
+      '@adam-riffi/dash-react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@adam-riffi/dash-visuals':
+        specifier: workspace:*
+        version: link:../../packages/visuals
       '@supabase/supabase-js':
         specifier: 2.117.2
         version: 2.117.2

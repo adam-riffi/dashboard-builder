@@ -1,11 +1,13 @@
 "use client";
 
+import { DashboardViewer, DashProvider } from "@adam-riffi/dash-react";
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
+import { sampleDashboard } from "../lib/sample-dashboard";
 
 type State =
   | { kind: "loading" }
-  | { kind: "signed-in"; userId: string; token: string }
+  | { kind: "signed-in"; userId: string; token: string; getToken: () => Promise<string> }
   | { kind: "error" };
 
 /** Signs the visitor in anonymously (DESIGN.md §3); the session persists in the browser. */
@@ -17,12 +19,14 @@ export function Session() {
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) return setState({ kind: "error" });
     const auth = createClient(url, key).auth;
+    // The client refreshes tokens, so each request asks for the current one.
+    const getToken = async () => (await auth.getSession()).data.session?.access_token ?? "";
     (async () => {
       const { data } = await auth.getSession();
       const session = data.session ?? (await auth.signInAnonymously()).data.session;
       setState(
         session
-          ? { kind: "signed-in", userId: session.user.id, token: session.access_token }
+          ? { kind: "signed-in", userId: session.user.id, token: session.access_token, getToken }
           : { kind: "error" },
       );
     })().catch(() => setState({ kind: "error" }));
@@ -36,7 +40,9 @@ export function Session() {
         Signed in as guest <code>{state.userId.slice(0, 8)}</code>
       </p>
       <ContractSummary token={state.token} />
-      <RevenueByCategory token={state.token} />
+      <DashProvider getToken={state.getToken}>
+        <DashboardViewer spec={sampleDashboard} />
+      </DashProvider>
     </>
   );
 }
@@ -56,48 +62,4 @@ function ContractSummary({ token }: { token: string }) {
   }, [token]);
 
   return <p className="muted">{text}</p>;
-}
-
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-
-/** A host measure by name through `POST /api/dash/query`, scoped to the visitor's tenants. */
-function RevenueByCategory({ token }: { token: string }) {
-  const [rows, setRows] = useState<[string, number][] | "error" | undefined>();
-
-  useEffect(() => {
-    const queries = [
-      {
-        dimensions: [{ field: "dash_demo.products.category" }],
-        measures: [{ name: "Revenue" }],
-      },
-    ];
-    fetch("/api/dash/query", {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ queries }),
-    })
-      .then(async (res) => {
-        const { results } = await res.json();
-        const [first] = results ?? [];
-        if (!res.ok || !first?.data) throw new Error(`query: ${res.status}`);
-        const [categories, revenue] = first.data as [string[], number[]];
-        setRows(categories.map((c, i) => [c, revenue[i] ?? 0]));
-      })
-      .catch(() => setRows("error"));
-  }, [token]);
-
-  if (rows === undefined) return <p className="muted">Counting your orders…</p>;
-  if (rows === "error") return <p className="muted">Your orders are unavailable right now.</p>;
-  return (
-    <section>
-      <h2>Revenue by category</h2>
-      <ul>
-        {rows.map(([category, revenue]) => (
-          <li key={category}>
-            {category}: {usd.format(revenue)}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
 }

@@ -28,11 +28,11 @@ test("the contract is refused without a token @smoke", async ({ request }) => {
   expect(res.status()).toBe(401);
 });
 
-test("a signed-in visitor sees revenue by category, a host measure, for their tenants @smoke", async ({
-  page,
-}) => {
+test("a signed-in visitor sees the sample dashboard with live revenue @smoke", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText(/revenue by category/i)).toBeVisible();
-  // Revenue is SUM(quantity * unit_price), so it is a non-zero amount with cents.
-  await expect(page.getByRole("listitem").first()).toHaveText(/\S+: \$[1-9][\d,]*\.\d{2}/);
+  const revenue = page.locator('[data-visual="kpi-revenue"]');
+  await expect(revenue).toHaveAttribute("data-state", "ready");
+  // Revenue is a host measure formatted as currency: a non-zero amount with cents.
+  await expect(revenue).toContainText(/\$[1-9][\d,]*\.\d{2}/);
+  await expect(page.locator('[data-visual="bar-category"] [data-ready="true"]')).toBeVisible();
 });
