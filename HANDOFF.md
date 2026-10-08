@@ -1,28 +1,31 @@
 # Handoff — 2026-10-08 · claude
 
 ## State
-- `main`: #34 (ci: nightly property runs and dependency audit) on top of `a12723e`, test(gateway): formulas in the isolation and equivalence properties (#29). M3 (formulas) is complete; production deploy and smoke green.
-- Open PRs: none once #34 merges.
+- `main` at the merge of this PR, on top of `41168b3`: ci(deploy): one archive per deploy, previews for ready pull requests (#42). M4 (viewer) is merged; CI green.
+- **Production is still on #35** (healthy). The deploys for #36–#42 hit Vercel's free-plan daily caps (5,000 uploads, then 100 deployments). A background retry re-runs the latest `deploy` run on `main` every 30 minutes until Vercel's 24-hour window resets.
+- Open PRs: none once this one merges.
 
 ## Done this session
-- M3 formulas, stack #22–#29: lexer, Pratt parser and printer, type checker, SQL rendering, formula and named measures in `POST /query`, host measures in the contract, formulas in the isolation property ([ADR 0007](docs/adr/0007-named-measures-and-formula-semantics.md)).
-- Independent review of M3: no blockers; the major and all 7 minors addressed before merge (large number literals stay doubles, documented in ADR 0007).
-- Nightly workflow (#34): property tests ×10 with the integration suite, and the production dependency audit.
+- M3 formulas, #22–#29 ([ADR 0007](docs/adr/0007-named-measures-and-formula-semantics.md)); nightly workflow, #34.
+- M4 viewer, #35–#41 ([ADR 0008](docs/adr/0008-viewer-plugins-and-visual-tests.md)): DashboardSpec and measure formats; `packages/visuals` (plugins, registry, KPI, bar, line, table on lazily loaded ECharts); `packages/react` (`DashProvider`, one request per dashboard, `DashboardViewer` with loading, empty and error states); sample dashboard on the home page; public fixture gallery `/fixtures/[name]`; six screenshot tests.
+- An independent review of M4 (1 blocker, 2 majors, 12 minors) was fixed before merging.
+- #42: deploys upload one archive; drafts get no preview.
 
 ## Verified
-- https://dashboard-builder-rose.vercel.app shows revenue by category from the host measure `Revenue` (screenshot on #28); the deploy runs for #28 and #29 passed migrate, deploy and smoke.
-- Formula SQL and both isolation property arms ran on PGlite locally; CI ran them on supabase/postgres.
+- CI green on every merge, including the six screenshot comparisons against baselines made on the pinned `ubuntu-24.04` runner.
+- #42's preview deployed with the archive upload and passed smoke.
+- The first nightly run (10× property runs, production audit) passed.
 
 ## Next
-1. Run the nightly once by hand (Actions → nightly → Run workflow) and fix anything 10× runs find.
-2. M4 viewer (DESIGN.md §9): start in plan mode and propose the PR stack: visual registry; KPI, bar, line, table; viewer from a DashboardSpec; loading, empty and error states; visual tests.
+1. When the retry deploys `main`, open https://dashboard-builder-rose.vercel.app: the sample dashboard should show live revenue, and `/fixtures/overview` should render. If the retry stopped, re-run the latest failed `deploy` run on `main`.
+2. M5 builder (DESIGN.md §9): start in plan mode. Visual picker, field wells with drag and drop (dnd-kit), filters, grid layout (react-grid-layout), formula editor with autocomplete (CodeMirror 6, `check` from core), save and load in `dash.dashboards` (RLS via `app.user_id`).
 
 ## Needs from Georges
-- Approval of the M4 plan when it is proposed.
+- Approval of the M5 plan when it is proposed.
 
 ## Notes
-- No local Docker on this machine: integration and e2e run in CI; PGlite from a scratch folder (not in the repo) serves quick SQL checks.
-- `pnpm audit` over all dependencies reports 39 advisories, all inside the dev-only `vercel` CLI, with no fixed release (63.1.0 too). The nightly gates on production dependencies only.
-- Property tests run 100 cases each; `PROPERTY_RUNS_FACTOR` multiplies them.
-- M6 must key the result cache on the compiled SQL and parameters, since request measures change results (ADR 0007).
-- The `meme` caller now resolves `portfolio-infra@v1`, so new PRs get their automatic meme comment.
+- No local Docker: integration and e2e run in CI. The fixture e2e and screenshots can run locally against `pnpm --filter @dash/demo build` (no database needed); screenshot tests skip off Linux.
+- Screenshot baselines come from CI: delete a baseline, push, download the `screenshot-baselines` artifact, check it by eye, commit it.
+- On Windows, stop a local `next start` by port (`netstat -ano`, `taskkill //PID … //F`) before rebuilding, or it serves stale chunks.
+- `pnpm audit` over all dependencies flags only the dev-only `vercel` CLI; the nightly gates on production dependencies.
+- M6 must key the result cache on the compiled SQL and parameters (ADR 0007).
