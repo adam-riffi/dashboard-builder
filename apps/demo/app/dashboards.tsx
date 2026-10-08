@@ -26,19 +26,17 @@ export function Dashboards({ getToken }: { getToken: () => Promise<string> }) {
   const [problem, setProblem] = useState<string>();
 
   const api = useCallback(
-    async (path: string, init: RequestInit = {}) => {
-      const res = await fetch(`/api/dashboards${path}`, {
+    async (path: string, init: RequestInit = {}) =>
+      fetch(`/api/dashboards${path}`, {
         ...init,
         headers: { ...init.headers, authorization: `Bearer ${await getToken()}` },
-      });
-      if (!res.ok && res.status !== 404) throw new Error(`dashboards answered ${res.status}`);
-      return res;
-    },
+      }),
     [getToken],
   );
 
   const refresh = useCallback(async () => {
     const res = await api("");
+    if (!res.ok) throw new Error(`dashboards answered ${res.status}`);
     setList(((await res.json()) as { dashboards: DashboardSummary[] }).dashboards);
   }, [api]);
 
@@ -46,13 +44,19 @@ export function Dashboards({ getToken }: { getToken: () => Promise<string> }) {
     refresh().catch(() => setProblem("Your dashboards are unavailable right now."));
   }, [refresh]);
 
+  // Only a save the store accepted opens the dashboard in the viewer; anything else says why.
   const save = async (id: string, spec: DashboardSpec) => {
     try {
-      await api(`/${id}`, {
+      const res = await api(`/${id}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(spec),
       });
+      if (res.status === 409) {
+        setProblem("You have reached the dashboard limit; delete one to save another.");
+        return;
+      }
+      if (!res.ok) throw new Error(`dashboards answered ${res.status}`);
       setOpen({ id, spec, mode: "view" });
       setProblem(undefined);
       await refresh();
@@ -63,8 +67,12 @@ export function Dashboards({ getToken }: { getToken: () => Promise<string> }) {
 
   const openOne = async (id: string) => {
     const res = await api(`/${id}`);
-    if (res.ok)
+    if (res.ok) {
       setOpen({ id, spec: ((await res.json()) as { spec: DashboardSpec }).spec, mode: "view" });
+      return;
+    }
+    setProblem("That dashboard is no longer there.");
+    await refresh();
   };
 
   const remove = async (id: string) => {

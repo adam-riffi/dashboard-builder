@@ -143,7 +143,7 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 
 | Table | Columns (main) | Notes |
 | --- | --- | --- |
-| `dash.dashboards` | `id uuid`, `owner_id uuid`, `title`, `spec jsonb`, `contract_version`, `created_at`, `updated_at` | RLS: owner only, through `app.user_id` set by the gateway ([ADR 0001](adr/0001-dashboard-owner-via-app-user-id.md)) |
+| `dash.dashboards` | `id uuid`, `owner_id uuid`, `title`, `spec jsonb`, `contract_version`, `created_at`, `updated_at` | RLS: owner only, through `app.user_id` set by the host's store, in the demo `apps/demo/lib/dashboards.ts` ([ADR 0001](adr/0001-dashboard-owner-via-app-user-id.md), [ADR 0009](adr/0009-the-host-stores-dashboards.md)); at most 20 per user and 256 KB each |
 | `dash.memberships` | `user_id uuid`, `tenant_id int` | Two demo tenants assigned at first sign-in |
 | `dash_demo.tenants` | `id`, `name`, `region` | 5 tenants |
 | `dash_demo.customers` | `id`, `tenant_id`, `name`, `country`, `segment`, `created_at` | |
