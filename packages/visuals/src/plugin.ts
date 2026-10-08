@@ -1,4 +1,10 @@
-import type { Measure, QueryResult, QuerySpec, SlotItem } from "@adam-riffi/dash-core";
+import {
+  type Measure,
+  type QueryResult,
+  type QuerySpec,
+  querySpec,
+  type SlotItem,
+} from "@adam-riffi/dash-core";
 import type { ComponentType } from "react";
 
 /** What a slot accepts (DESIGN.md §7): a field to group by, a time axis, or measures. */
@@ -91,7 +97,24 @@ export function queryOf(
     }
   }
   if (errors.length > 0 || !options.success) return { ok: false, errors };
-  return { ok: true, query: definition.toQuery(visual.slots, options.data) };
+  // A plugin is host code: a throw or a query the gateway would refuse stays with this visual.
+  let built: unknown;
+  try {
+    built = definition.toQuery(visual.slots, options.data);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return { ok: false, errors: [`the visual could not build its query: ${reason}`] };
+  }
+  const query = querySpec.safeParse(built);
+  if (!query.success) {
+    return {
+      ok: false,
+      errors: query.error.issues.map(
+        (i) => `${["query", ...i.path.map(String)].join(".")}: ${i.message}`,
+      ),
+    };
+  }
+  return { ok: true, query: query.data };
 }
 
 /** Measures of a slot that passed `checkSlots`. */

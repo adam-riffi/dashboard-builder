@@ -4,11 +4,11 @@ import type { VisualDefinition } from "./plugin.ts";
 // ponytail: one registry per page; a host that needs two would pass registries explicitly.
 const registry = new Map<string, VisualDefinition<unknown>>();
 
-/** Adds a visual (DESIGN.md §7); a type can be registered once. */
+/**
+ * Adds a visual (DESIGN.md §7). Registering a type again replaces it, so a host module that
+ * Fast Refresh re-runs, or a host overriding a built-in, does not throw.
+ */
 export function registerVisual(visual: VisualDefinition<unknown>): void {
-  if (registry.has(visual.type)) {
-    throw new Error(`a visual of type ${visual.type} is already registered`);
-  }
   registry.set(visual.type, visual);
 }
 
