@@ -28,10 +28,11 @@ test("the contract is refused without a token @smoke", async ({ request }) => {
   expect(res.status()).toBe(401);
 });
 
-test("a signed-in visitor sees units sold by category for their tenants @smoke", async ({
+test("a signed-in visitor sees revenue by category, a host measure, for their tenants @smoke", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByText(/units sold by category/i)).toBeVisible();
-  await expect(page.getByRole("listitem").first()).toHaveText(/\S+: [\d,]+/);
+  await expect(page.getByText(/revenue by category/i)).toBeVisible();
+  // Revenue is SUM(quantity * unit_price), so it is a non-zero amount with cents.
+  await expect(page.getByRole("listitem").first()).toHaveText(/\S+: \$[1-9][\d,]*\.\d{2}/);
 });

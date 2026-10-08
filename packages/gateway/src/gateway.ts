@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   type Checking,
   type DataContract,
+  namedMeasure,
   type QuerySpec,
   queryRequest,
 } from "@adam-riffi/dash-core";
@@ -77,11 +78,17 @@ export function createGateway(config: GatewayConfig): Handler {
   const policies = config.policies ?? [];
   const misconfigured = policyConfigErrors(policies, config.tables);
   if (misconfigured.length > 0) throw new Error(misconfigured.join("; "));
+  const hostMeasures = (config.measures ?? []).map((m) => namedMeasure.parse(m));
+  const host = new Map(hostMeasures.map((m) => [m.name, m.formula]));
+  if (host.size !== hostMeasures.length) throw new Error("host measure names must be unique");
   const limiter = createRateLimiter({ limit: QUERIES_PER_MINUTE, windowMs: 60_000 });
 
   // The contract cache arrives in M6; until then every request introspects.
   const contract = async () =>
-    inferContract(await introspect(config.source(), config.tables), { tables: config.tables });
+    inferContract(await introspect(config.source(), config.tables), {
+      tables: config.tables,
+      measures: hostMeasures,
+    });
 
   async function runQuery(
     spec: QuerySpec,
@@ -186,8 +193,12 @@ export function createGateway(config: GatewayConfig): Handler {
           const broken = policyContractErrors(policies, current);
           if (broken.length > 0) throw new Error(broken.join("; "));
           const results = [];
-          // The dashboard's own measures (ADR 0007).
-          const named = new Map((parsed.data.measures ?? []).map((m) => [m.name, m.formula]));
+          // The host's measures and the dashboard's own, which shadow host ones of the same name
+          // so that saved dashboards keep working when a host adds a measure (ADR 0007).
+          const named = new Map([
+            ...host,
+            ...(parsed.data.measures ?? []).map((m): [string, string] => [m.name, m.formula]),
+          ]);
           // One connection per instance (max 1), so queries run one after another.
           const memo = new Map<string, Checking>();
           for (const spec of parsed.data.queries) {

@@ -93,6 +93,7 @@ describe("served contracts", () => {
     const contract = withoutStatistics({
       contractVersion: "a".repeat(64),
       relationships: [],
+      measures: [],
       tables: [
         {
           name: "s.t",
@@ -136,6 +137,7 @@ describe("POST /query (no database)", () => {
       auth: async () => ({ sub: USER }),
       identity: { claim: "sub", format: "uuid" },
       tables: ["s.t"],
+      measures: [{ name: "Revenue", formula: "SUM(t.n)" }],
     }),
   );
   const post = (body: string, path = "query") =>
@@ -256,5 +258,22 @@ describe("POST /query guards (no database)", () => {
   it("refuses scope values that would widen a comma-separated RLS list", () => {
     expect(() => settingsFor({ tenantIds: ["1,2"] })).toThrow("tenantIds");
     expect(() => settingsFor({ tenantIds: [{ id: 1 }] })).toThrow("tenantIds");
+  });
+});
+
+describe("host measures in the configuration (ADR 0007)", () => {
+  const config = (measures: { name: string; formula: string }[]) =>
+    defineGateway({
+      source,
+      auth: async () => ({ sub: "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f" }),
+      identity: { claim: "sub", format: "uuid" },
+      tables: ["s.t"],
+      measures,
+    });
+
+  it("refuses duplicate or unusable names at startup", () => {
+    const m = { name: "Revenue", formula: "SUM(t.n)" };
+    expect(() => createGateway(config([m, m]))).toThrow("host measure names must be unique");
+    expect(() => createGateway(config([{ ...m, name: "a]b" }]))).toThrow();
   });
 });

@@ -36,7 +36,7 @@ export function Session() {
         Signed in as guest <code>{state.userId.slice(0, 8)}</code>
       </p>
       <ContractSummary token={state.token} />
-      <UnitsByCategory token={state.token} />
+      <RevenueByCategory token={state.token} />
     </>
   );
 }
@@ -58,15 +58,17 @@ function ContractSummary({ token }: { token: string }) {
   return <p className="muted">{text}</p>;
 }
 
-/** A first live query through `POST /api/dash/query`, scoped to the visitor's tenants. */
-function UnitsByCategory({ token }: { token: string }) {
+const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
+/** A host measure by name through `POST /api/dash/query`, scoped to the visitor's tenants. */
+function RevenueByCategory({ token }: { token: string }) {
   const [rows, setRows] = useState<[string, number][] | "error" | undefined>();
 
   useEffect(() => {
     const queries = [
       {
         dimensions: [{ field: "dash_demo.products.category" }],
-        measures: [{ field: "dash_demo.order_items.quantity" }],
+        measures: [{ name: "Revenue" }],
       },
     ];
     fetch("/api/dash/query", {
@@ -78,8 +80,8 @@ function UnitsByCategory({ token }: { token: string }) {
         const { results } = await res.json();
         const [first] = results ?? [];
         if (!res.ok || !first?.data) throw new Error(`query: ${res.status}`);
-        const [categories, units] = first.data as [string[], number[]];
-        setRows(categories.map((c, i) => [c, units[i] ?? 0]));
+        const [categories, revenue] = first.data as [string[], number[]];
+        setRows(categories.map((c, i) => [c, revenue[i] ?? 0]));
       })
       .catch(() => setRows("error"));
   }, [token]);
@@ -88,11 +90,11 @@ function UnitsByCategory({ token }: { token: string }) {
   if (rows === "error") return <p className="muted">Your orders are unavailable right now.</p>;
   return (
     <section>
-      <h2>Units sold by category</h2>
+      <h2>Revenue by category</h2>
       <ul>
-        {rows.map(([category, units]) => (
+        {rows.map(([category, revenue]) => (
           <li key={category}>
-            {category}: {units.toLocaleString("en-US")}
+            {category}: {usd.format(revenue)}
           </li>
         ))}
       </ul>

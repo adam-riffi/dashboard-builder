@@ -15,7 +15,7 @@ The gateway is stateless about dashboards, so it can only resolve a dashboard's 
 ## Decision
 **Named measures come from two places.**
 - **The host:** `dash.config.ts` `measures: [{ name, formula }]`, served in the contract as `measures: [{ name, formula, type }]` and part of `contractVersion`. The demo defines Revenue, Orders and Average order value, so a new user can use them at once.
-- **The dashboard:** `POST /query` takes `{ measures?: [{ name, formula }], queries }`, up to 50 measures with unique names. A dashboard measure may refer to host measures; a name used by both is an error.
+- **The dashboard:** `POST /query` takes `{ measures?: [{ name, formula }], queries }`, up to 50 measures with unique names. A dashboard measure may refer to host measures. A dashboard measure with a host measure's name shadows it within that dashboard's requests, including inside host measures that refer to the name, so a host adding a measure never breaks a saved dashboard; the M5 builder will not offer a host name for a new measure.
 - **Names:** a name has no `[` or `]` and no surrounding spaces, so `[Name]` always parses.
 - **References:** they are resolved by name, cycles are reported (`circular reference [A] → [B] → [A]`), and an error inside a referenced measure surfaces at the reference as `in [Name]: …`.
 - **Size cap:** a formula expanded through its references is capped at 1,000 nodes. The cap is computed on shared nodes, so request-supplied measures cannot blow up SQL size.
@@ -45,5 +45,6 @@ The gateway is stateless about dashboards, so it can only resolve a dashboard's 
 
 ## Consequences
 - The M6 result cache key must cover the request's named measures, for example by hashing the compiled SQL and parameters rather than the raw QuerySpec.
+- Host measures are checked and planned whenever the contract is built, so one that would fail every query is a configuration error (500 with the reason logged), not a measure served to clients.
 - The M5 measure editor runs the same `check` in the browser (it lives in `core`) for live error spans.
 - Chasm traps across two fact tables stay v1.1 (DESIGN.md §6).

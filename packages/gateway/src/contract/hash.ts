@@ -6,6 +6,8 @@ import { inferTables } from "./infer.ts";
 export interface ContractConfig {
   /** Allowlisted tables, `schema.table`. */
   tables: string[];
+  /** Host measures (ADR 0007), in configuration order. */
+  measures?: { name: string; formula: string }[];
 }
 
 /** JSON with object keys sorted at every level, so equal values always serialize equally. */
@@ -21,7 +23,8 @@ function canonical(value: unknown): string {
 }
 
 /**
- * The contract version (DESIGN.md §6): SHA-256 of the inferred structure plus the allowlist.
+ * The contract version (DESIGN.md §6): SHA-256 of the inferred structure plus the allowlist
+ * and the host measures.
  * Statistics are left out so that live inserts and ANALYZE runs do not change the version.
  */
 export function schemaHash(catalog: Catalog, config: ContractConfig): string {
@@ -33,7 +36,11 @@ export function schemaHash(catalog: Catalog, config: ContractConfig): string {
       columns: t.columns.map(({ distinct, highCardinality, ...c }) => c),
     })),
     relationships,
-    config: { tables: [...config.tables].sort() },
+    // Without host measures the key is left out, so earlier versions stay the same.
+    config: {
+      tables: [...config.tables].sort(),
+      measures: config.measures?.length ? config.measures : undefined,
+    },
   };
   return createHash("sha256").update(canonical(structure)).digest("hex");
 }
