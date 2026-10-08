@@ -5,6 +5,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 /** A pointer drag dnd-kit recognizes: press, move past its 6 px threshold, glide, release. */
 async function drag(page: Page, source: Locator, target: Locator) {
+  await source.scrollIntoViewIfNeeded();
   const from = await source.boundingBox();
   const to = await target.boundingBox();
   if (!from || !to) throw new Error("drag source or target is not on screen");
@@ -13,6 +14,8 @@ async function drag(page: Page, source: Locator, target: Locator) {
   await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2, { steps: 3 });
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
   await page.mouse.up();
+  // dnd-kit swallows clicks until 50 ms after a drop; people never click that fast, tests do.
+  await page.waitForTimeout(100);
 }
 
 /** Adds a bar chart and fills it by dragging, then writes a measure and drags it in too. */
@@ -29,8 +32,8 @@ async function buildBar(page: Page) {
   await page.getByRole("textbox", { name: "Measure name" }).fill("Units");
   await page.getByRole("textbox", { name: "Formula" }).click();
   await page.keyboard.type("SUM(order_items.qua");
-  await expect(page.getByRole("option", { name: /quantity/ })).toBeVisible();
-  await page.keyboard.press("Enter");
+  // CodeMirror ignores Enter for 75 ms after the list opens; picking the option is what people do.
+  await page.getByRole("option", { name: /quantity/ }).click();
   await page.keyboard.type(")");
   await page.getByRole("button", { name: "Apply" }).click();
   await drag(page, page.getByRole("button", { name: "Units", exact: true }), value);

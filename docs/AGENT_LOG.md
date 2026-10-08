@@ -14,6 +14,19 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/09-builder-e2e · #52
+- Done: the M5 acceptance test and the builder fixture.
+  - `/fixtures/builder`: the builder on the overview fixture with recorded answers (no database, no sign-in). Answers are matched by query (`fixture-transport.ts`), so visuals the builder keeps still find theirs.
+  - `fixtureContract` now lists the demo's tables and relationships, so the field list has columns to drag.
+  - The "Throws" test plugin is registered only by the gallery page, so the builder's picker doesn't offer it.
+- Tests: Playwright `e2e/builder.spec.ts`:
+  - fixture: drag Category and Revenue into a new bar's wells; write `SUM(order_items.quantity)` with a completion and drag it in; a measure is refused by the Category well;
+  - acceptance (CI, with Supabase): new dashboard, build the bar, save, reload, reopen, delete.
+
+  The visual test adds `builder.png` (CI baseline).
+- Scope/decisions: the drag helper scrolls the source into view and waits 100 ms after a drop (dnd-kit ignores clicks for 50 ms after one). The test clicks the completion because CodeMirror ignores Enter for 75 ms after the list opens.
+- Next: an independent review of M5 (#44–#52), then the merge loop and a production check.
+
 ## 2026-10-08 · claude · stack/m5/08-demo-builder · #51
 - Done: the demo's dashboards page (`apps/demo/app/dashboards.tsx`, inside the signed-in session):
   - "Your dashboards" from `/api/dashboards`;
