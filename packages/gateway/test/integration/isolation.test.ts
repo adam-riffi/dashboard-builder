@@ -267,7 +267,6 @@ describe("tenant isolation (M2 acceptance, with M3 formulas)", () => {
         });
         expect(sorted(await run(spec, tenantIds))).toEqual(sorted(reference(spec, tenantIds)));
       }),
-      { numRuns: 80 },
     );
   });
 
@@ -364,7 +363,6 @@ describe("tenant isolation with orders as the fact table (M3)", () => {
         const spec = querySpec.parse({ dimensions, measures });
         expect(sorted(await run(spec, tenantIds))).toEqual(sorted(orderReference(spec, tenantIds)));
       }),
-      { numRuns: 60 },
     );
   });
 });
