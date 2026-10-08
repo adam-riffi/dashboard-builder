@@ -106,5 +106,9 @@ describe("dataContract", () => {
     expect(dataContract.parse({ ...valid, measures: [revenue] }).measures).toEqual([revenue]);
     const bad = { ...revenue, name: "[Revenue]" };
     expect(dataContract.safeParse({ ...valid, measures: [bad] }).success).toBe(false);
+    const formatted = { ...revenue, format: "currency" };
+    expect(dataContract.parse({ ...valid, measures: [formatted] }).measures).toEqual([formatted]);
+    const unknown = { ...revenue, format: "euro" };
+    expect(dataContract.safeParse({ ...valid, measures: [unknown] }).success).toBe(false);
   });
 });

@@ -181,6 +181,15 @@ describe("host measures (ADR 0007)", () => {
     expect(contract.contractVersion).not.toBe(inferContract(shop, { tables }).contractVersion);
   });
 
+  it("serves a host measure's display format", () => {
+    const measures = [
+      { name: "Revenue", formula: "SUM(sales.amount)", format: "currency" as const },
+    ];
+    expect(inferContract(shop, { tables, measures }).measures).toEqual([
+      { name: "Revenue", formula: "SUM(sales.amount)", type: "number", format: "currency" },
+    ]);
+  });
+
   it("keeps the version of contracts without host measures", () => {
     expect(inferContract(shop, { tables }).measures).toEqual([]);
     expect(schemaHash(shop, { tables, measures: [] })).toBe(schemaHash(shop, { tables }));

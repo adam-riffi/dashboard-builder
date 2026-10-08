@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { NamedMeasure } from "@adam-riffi/dash-core";
 import type { Catalog } from "./catalog.ts";
 import { inferTables } from "./infer.ts";
 
@@ -7,7 +8,7 @@ export interface ContractConfig {
   /** Allowlisted tables, `schema.table`. */
   tables: string[];
   /** Host measures (ADR 0007), in configuration order. */
-  measures?: { name: string; formula: string }[];
+  measures?: NamedMeasure[];
 }
 
 /** JSON with object keys sorted at every level, so equal values always serialize equally. */

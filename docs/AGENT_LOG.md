@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/01-dashboard-spec · #35
+- Done: M4 starts (plan approved). `dashboardSpec` in `packages/core/src/dashboard.ts`: version 1, contract version, title, refresh interval (default 60 s), unique dashboard measures, filters, a 12-column layout with one cell per visual, at most 20 visuals, slots holding fields or measures. `format` (`number`, `currency`, `percent`) on dashboard measures and on host measures (config, contract and version). ADR 0008; DESIGN §7 updated.
+- Tests: `packages/core/test/dashboard.test.ts`: defaults, every slot item form, version, hash, title, refresh, formats, duplicate measures and visual ids, layout cells per visual and inside the grid, the visual cap; contract and inference carry formats.
+- Scope/decisions: ADR 0008 (React plugins, one request per dashboard, host formats, CI-generated screenshot baselines).
+- Next: stack/m4/02-visual-plugins.
+
 ## 2026-10-08 · claude · ci/nightly · #34
 - Done: `nightly.yml` (daily and by hand): unit and integration suites with `PROPERTY_RUNS_FACTOR=10`, and `pnpm audit --prod --audit-level high`. A vitest setup file in core and gateway sets fast-check's default to 100 cases times the factor; the three tests that pinned their own counts (500, 80, 60) now use it. First `HANDOFF.md`, per the new session protocol (#33). DESIGN §11 nightly row updated.
 - Tests: configuration exception to test-first. A throwaway test confirmed 100 runs by default and 1,000 with the factor at 10; unit suites pass at 10×; actionlint is clean.

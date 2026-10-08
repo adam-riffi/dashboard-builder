@@ -129,11 +129,11 @@ export default defineGateway({
 
 **QuerySpec:** `{ dimensions: [{ field, timeGrain? }], measures: [{ field, aggregation? } | { name } | { formula }], filters: [{ field, op, values }], sort?: [{ by: "dimension" | "measure", index, dir }], limit? }`. Column measures (`{ field, aggregation? }`) arrive in M2; names and formulas in M3 ([ADR 0006](adr/0006-column-measures-in-m2.md)). A name refers to a host measure from the contract or a dashboard measure sent with the request; a query's measures share one fact table, from which the other tables they read are looked up ([ADR 0007](adr/0007-named-measures-and-formula-semantics.md)).
 
-**DashboardSpec (stored JSON, versioned):** `{ specVersion: 1, contractVersion, title, refreshIntervalSec, measures: [{ name, formula, format }], filters: [...], layout: [{ i, x, y, w, h }], visuals: [{ id, type, slots: { category: [...], value: [...] }, options }] }`.
+**DashboardSpec (stored JSON, versioned):** `{ specVersion: 1, contractVersion, title, refreshIntervalSec, measures: [{ name, formula, format? }], filters: [...], layout: [{ i, x, y, w, h }], visuals: [{ id, type, slots: { category: [...], value: [...] }, options }] }`. Slots hold fields (`{ field, timeGrain? }`) or measures; the layout is a 12-column grid with one cell per visual; at most 20 visuals, one query each. `format` is `number`, `currency` or `percent`, also on host measures ([ADR 0008](adr/0008-viewer-plugins-and-visual-tests.md)).
 
 **React API:** `<DashProvider gateway="/api/dash" getToken={…}>`, `<DashboardBuilder spec onChange onSave />`, `<DashboardViewer spec />`, `useContract()`, `registerVisual(plugin)`.
 
-**Visual plugin contract:** `{ type, label, icon, slots: [{ name, accepts: "dimension" | "measure" | "time", min, max }], toQuery(slots, options) => QuerySpec, render(result, options, events) }`. The builder only offers fields a slot accepts.
+**Visual plugin contract:** `{ type, label, icon, slots: [{ name, accepts: "dimension" | "measure" | "time", min, max }], toQuery(slots, options) => QuerySpec, render(result, options, events) }`, where `render` is a React component. The builder only offers fields a slot accepts. The viewer sends one `POST /query` per dashboard ([ADR 0008](adr/0008-viewer-plugins-and-visual-tests.md)).
 
 **Visual identity:** a calm analytical look: warm off-white canvas, ink-dark text, one saturated accent for selections, monospace numerals in KPI cards, dense but generous spacing. Dark mode supported.
 

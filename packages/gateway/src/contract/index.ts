@@ -31,7 +31,8 @@ export function inferContract(catalog: Catalog, config: ContractConfig): DataCon
     const measures = [{ name: m.name, expr: checked.expr, tables: tablesOf(checked.expr) }];
     const plan = planJoins({ dimensions: [], measures, filters: [], sort: [], limit: 1 }, contract);
     if (!plan.ok) throw new Error(`measure ${m.name}: ${plan.errors[0]}`);
-    contract.measures.push({ name: m.name, formula: m.formula, type: checked.expr.type });
+    const { name, formula, format } = m;
+    contract.measures.push({ name, formula, type: checked.expr.type, ...(format && { format }) });
   }
   return contract;
 }
