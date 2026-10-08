@@ -1,4 +1,10 @@
-import type { FieldType, MeasureFormat, ResultColumn, TimeGrain } from "@adam-riffi/dash-core";
+import type {
+  FieldType,
+  MeasureFormat,
+  ResultColumn,
+  SlotItem,
+  TimeGrain,
+} from "@adam-riffi/dash-core";
 
 export interface ValueFormat {
   type: FieldType;
@@ -103,6 +109,17 @@ export function labelOf(column: ResultColumn): string {
   if ("name" in column) return column.name;
   if ("formula" in column) return column.formula;
   return `${AGGREGATION[column.aggregation]} ${words(column.field)}`;
+}
+
+/** A slot item's name before any answer: the measure's name or formula, or the field's words. */
+export function itemLabel(item: SlotItem): string {
+  if ("name" in item) return item.name;
+  if ("formula" in item) return item.formula;
+  if ("aggregation" in item && item.aggregation) {
+    return `${AGGREGATION[item.aggregation]} ${words(item.field)}`;
+  }
+  const name = words(item.field);
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 }
 
 /** One formatter per result column: named measures by their format, the rest by type. */

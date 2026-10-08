@@ -12,7 +12,7 @@ M4 (DESIGN.md §9) renders saved dashboards. DESIGN.md §7 gives the DashboardSp
 - how "saved fixture specs render identically" is checked on a machine without Docker.
 
 ## Decision
-**Plugins render React.** A plugin's `render` is a React component taking `{ result, options, events }`. The four built-ins live in `packages/visuals`:
+**Plugins render React.** A plugin's `render` is a React component taking `{ result, options, formatters }`: one formatter per result column, honoring measure formats. Selection `events` arrive with cross-filtering (M6). A plugin's `toQuery` is host code, so a throw or a query the gateway would refuse becomes that visual's error, and an error boundary keeps a failing renderer inside its card. Registering a type again replaces it (Fast Refresh re-runs modules). The four built-ins live in `packages/visuals`:
 - KPI and table are plain React.
 - Bar and line draw with Apache ECharts, imported dynamically when a chart first renders (DESIGN.md §13). Animations are off.
 
@@ -30,6 +30,8 @@ M4 (DESIGN.md §9) renders saved dashboards. DESIGN.md §7 gives the DashboardSp
 - Playwright `toHaveScreenshot` compares them with baselines.
 - Font rendering differs between machines, so baselines come from CI's Linux runner: the first run uploads them as an artifact and they are committed in the same PR.
 
+**Hosts' CSP.** The viewer ships its grid rules in a `<style>` element (a media query cannot be inline), so the host's Content-Security-Policy needs `style-src 'unsafe-inline'`, as Next.js apps already do.
+
 ## Alternatives considered
 - **Framework-agnostic `render(element, result)`:** every plugin would manage its own DOM lifecycle, and the builder (M5) is React anyway.
 - **One request per visual:** simpler caching per visual, but up to 20 round trips per dashboard; the M6 cache keys per query either way.
@@ -39,4 +41,4 @@ M4 (DESIGN.md §9) renders saved dashboards. DESIGN.md §7 gives the DashboardSp
 ## Consequences
 - A plugin is a React component plus a pure `toQuery`. A new chart type needs no change to the viewer or the gateway.
 - `transport` makes the viewer testable without a gateway. The builder (M5) can reuse it for previews.
-- Screenshot baselines must be regenerated, from CI, whenever a visual's look changes on purpose.
+- Screenshot baselines must be regenerated, from CI, whenever a visual's look changes on purpose, and after a Playwright or runner image upgrade. The e2e job runs on a pinned image (`ubuntu-24.04`) so fonts do not drift underneath the baselines.

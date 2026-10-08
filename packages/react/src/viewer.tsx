@@ -2,9 +2,9 @@
 
 import type { DashboardSpec, DashboardVisual, MeasureFormat } from "@adam-riffi/dash-core";
 import { formattersFor, getVisual } from "@adam-riffi/dash-visuals";
-import { type CSSProperties, useMemo } from "react";
+import { Component, type CSSProperties, type ReactNode, useMemo } from "react";
 import { useContract, useDash, useDashboardAnswers } from "./provider.tsx";
-import { titleOf, type VisualState, visualState } from "./state.ts";
+import { formatsOf, titleOf, type VisualState, visualState } from "./state.ts";
 
 // Each card's cell comes in as CSS variables, so that on narrow screens the cards stack to one
 // column, in layout order, each keeping its height. Inline styles cannot hold media queries.
@@ -29,13 +29,10 @@ export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
   const contract = useContract();
   const { answers, isPending, error } = useDashboardAnswers(spec);
 
-  // Host measure formats from the contract, overridden by the dashboard's own measures.
-  const formats = useMemo(() => {
-    const all = [...(contract.data?.measures ?? []), ...spec.measures];
-    return new Map(
-      all.flatMap((m): [string, MeasureFormat][] => (m.format ? [[m.name, m.format]] : [])),
-    );
-  }, [contract.data, spec.measures]);
+  const formats = useMemo(
+    () => formatsOf(contract.data?.measures ?? [], spec.measures),
+    [contract.data, spec.measures],
+  );
 
   const visuals = new Map(spec.visuals.map((v) => [v.id, v]));
   const pending = isPending || contract.isPending;
@@ -67,9 +64,16 @@ export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
                   } as CSSProperties
                 }
               >
-                <h3>{titleOf(visual, state.kind === "ready" ? state.result : undefined)}</h3>
+                <h3>{titleOf(visual)}</h3>
                 <div className="dash-body">
-                  <VisualBody visual={visual} state={state} formats={formats} currency={currency} />
+                  <VisualBoundary>
+                    <VisualBody
+                      visual={visual}
+                      state={state}
+                      formats={formats}
+                      currency={currency}
+                    />
+                  </VisualBoundary>
                 </div>
               </article>
             );
@@ -77,6 +81,28 @@ export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
       </div>
     </section>
   );
+}
+
+/** One visual's failure (a host plugin that throws, an invalid currency) stays in its card. */
+class VisualBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  override componentDidCatch(error: unknown) {
+    console.error("dashboard visual failed", error);
+  }
+
+  override render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <p role="alert" className="dash-note">
+        This visual could not be shown.
+      </p>
+    );
+  }
 }
 
 function VisualBody({
@@ -90,6 +116,12 @@ function VisualBody({
   formats: ReadonlyMap<string, MeasureFormat>;
   currency: string;
 }) {
+  // Stable formatters, so a re-render with the same answer does not redraw charts.
+  const result = state.kind === "ready" ? state.result : undefined;
+  const formatters = useMemo(
+    () => (result ? formattersFor(result.columns, formats, currency) : []),
+    [result, formats, currency],
+  );
   switch (state.kind) {
     case "loading":
       return <p className="dash-note">Loading…</p>;
@@ -109,13 +141,7 @@ function VisualBody({
       const plugin = getVisual(visual.type);
       if (!plugin) return null; // the request plan already reported it as an error
       const Render = plugin.render;
-      return (
-        <Render
-          result={state.result}
-          options={visual.options}
-          formatters={formattersFor(state.result.columns, formats, currency)}
-        />
-      );
+      return <Render result={state.result} options={visual.options} formatters={formatters} />;
     }
   }
 }

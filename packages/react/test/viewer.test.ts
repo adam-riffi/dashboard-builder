@@ -90,7 +90,7 @@ describe("titleOf", () => {
 
   it("names a time axis by its grain, from the field or the visual's options", () => {
     const axis = { field: "dash_demo.orders.ordered_at" };
-    const line = (grain: object, options: object) => ({
+    const line = (grain: { timeGrain?: "week" }, options: Record<string, unknown>) => ({
       type: "line",
       slots: { axis: [{ ...axis, ...grain }], value: [{ name: "Orders" }] },
       options,
