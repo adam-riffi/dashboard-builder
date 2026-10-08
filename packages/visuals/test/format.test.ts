@@ -40,6 +40,15 @@ describe("formatValue", () => {
     );
   });
 
+  it.each([
+    [20000, { format: "currency", currency: "USD" }, "$20K"],
+    [1234567, { format: "number" }, "1.2M"],
+    [950, { format: "number" }, "950"],
+    [0.256, { format: "percent" }, "25.6%"],
+  ] as const)("shows %s compactly, for chart axes (%j → %s)", (value, options, expected) => {
+    expect(formatValue(value, { type: "number", compact: true, ...options })).toBe(expected);
+  });
+
   it("shows text as is and true/false as Yes/No", () => {
     expect(formatValue("Books", { type: "string" })).toBe("Books");
     expect(formatValue(true, { type: "boolean" })).toBe("Yes");
@@ -96,6 +105,7 @@ describe("formattersFor", () => {
     const [date, revenue, margin, count] = formattersFor(columns, formats, "USD");
     expect(date?.("2026-02-01T00:00:00.000Z")).toBe("Feb 2026");
     expect(revenue?.(12.5)).toBe("$12.50");
+    expect(revenue?.compact(20000)).toBe("$20K");
     expect(margin?.(0.5)).toBe("50%");
     expect(count?.(1200)).toBe("1,200");
   });
