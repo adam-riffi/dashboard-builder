@@ -23,6 +23,12 @@ test("a signed-in visitor sees the tables of the data contract @smoke", async ({
   await expect(page.getByText(/4 tables available/i)).toBeVisible();
 });
 
+test("saved dashboards are refused without a token @smoke", async ({ request }) => {
+  expect((await request.get("/api/dashboards")).status()).toBe(401);
+  const id = "d3333333-3333-4333-8333-333333333333";
+  expect((await request.put(`/api/dashboards/${id}`, { data: {} })).status()).toBe(401);
+});
+
 test("the contract is refused without a token @smoke", async ({ request }) => {
   const res = await request.get("/api/dash/contract");
   expect(res.status()).toBe(401);
