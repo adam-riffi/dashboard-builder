@@ -1,8 +1,9 @@
 "use client";
 
 import type { EChartsCoreOption } from "echarts/core";
-import { type CSSProperties, useEffect, useMemo, useRef } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { labelOf } from "./format.ts";
+import { barOption, chartLabel, lineOption, type Theme } from "./options.ts";
 import type { VisualProps } from "./plugin.ts";
 
 /**
@@ -73,13 +74,6 @@ export function Table({ result, formatters }: VisualProps) {
   );
 }
 
-interface Theme {
-  ink: string;
-  muted: string;
-  grid: string;
-  palette: string[];
-}
-
 /** ECharts draws SVG attributes, which cannot hold CSS variables, so they are read here. */
 function themeOf(el: HTMLElement): Theme {
   const style = getComputedStyle(el);
@@ -98,99 +92,92 @@ function themeOf(el: HTMLElement): Theme {
   };
 }
 
+interface EChart {
+  setOption(option: EChartsCoreOption, opts: { notMerge: boolean }): void;
+  resize(): void;
+  dispose(): void;
+}
+
 /**
- * An ECharts chart, loaded on first use (DESIGN.md §13). Animations are off so screenshots are
- * stable; `data-ready` is set once drawn.
+ * An ECharts chart, loaded on first use (DESIGN.md §13). It is created once per mount and only
+ * redrawn when its option changes or the color scheme flips. Animations are off so screenshots
+ * are stable; `data-ready` is set while a drawing is on screen.
  */
-function Chart({ option }: { option: (theme: Theme) => EChartsCoreOption }) {
+function Chart({ option, label }: { option: (theme: Theme) => EChartsCoreOption; label: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  const chart = useRef<EChart | null>(null);
+  const latest = useRef(option);
+  const [failed, setFailed] = useState(false);
+
+  const draw = useCallback(() => {
+    const el = ref.current;
+    if (!el || !chart.current) return;
+    chart.current.setOption(
+      { animation: false, ...latest.current(themeOf(el)) },
+      { notMerge: true },
+    );
+    el.dataset.ready = "true";
+  }, []);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let chart: { resize(): void; dispose(): void } | undefined;
     let gone = false;
-    const resize = new ResizeObserver(() => chart?.resize());
-    void import("./echarts.ts").then(({ init }) => {
-      if (gone) return;
-      const instance = init(el, undefined, { renderer: "svg" });
-      instance.setOption({ animation: false, ...option(themeOf(el)) });
-      chart = instance;
-      resize.observe(el);
-      el.dataset.ready = "true";
-    });
+    const resize = new ResizeObserver(() => chart.current?.resize());
+    // CSS variables change with the scheme; ECharts holds resolved colors, so draw again.
+    const scheme = matchMedia("(prefers-color-scheme: dark)");
+    import("./echarts.ts")
+      .then(({ init }) => {
+        if (gone) return;
+        chart.current = init(el, undefined, { renderer: "svg" });
+        draw();
+        resize.observe(el);
+        scheme.addEventListener("change", draw);
+      })
+      .catch(() => {
+        // A chunk that fails to load (a tab left open across a deploy) gets a message.
+        if (!gone) setFailed(true);
+      });
     return () => {
       gone = true;
       resize.disconnect();
-      chart?.dispose();
+      scheme.removeEventListener("change", draw);
+      chart.current?.dispose();
+      chart.current = null;
+      delete el.dataset.ready;
     };
-  }, [option]);
-  return <div ref={ref} style={{ width: "100%", height: "100%", minHeight: 180 }} />;
-}
+  }, [draw]);
 
-/** Shared chart pieces: the category labels, one series per measure, axis colors. */
-function useSeries({ result, formatters }: VisualProps, type: "bar" | "line") {
-  return useMemo(() => {
-    const [axis, ...values] = result.columns;
-    const labels = (result.data[0] ?? []).map((v) => (formatters[0] ?? String)(v));
-    const series = values.map((c, i) => ({
-      type,
-      name: labelOf(c),
-      data: result.data[i + 1] ?? [],
-      tooltip: { valueFormatter: formatters[i + 1] ?? String },
-      ...(type === "line" ? { showSymbol: labels.length <= 40 } : {}),
-    }));
-    return { axis, labels, series, valueFormat: formatters[1]?.compact ?? String };
-  }, [result, formatters, type]);
-}
+  useEffect(() => {
+    latest.current = option;
+    draw();
+  }, [option, draw]);
 
-const axisStyle = (t: Theme) => ({
-  axisLabel: { color: t.muted },
-  axisLine: { lineStyle: { color: t.grid } },
-  splitLine: { lineStyle: { color: t.grid } },
-});
+  if (failed) {
+    return (
+      <p style={{ color: muted, margin: 0 }}>This chart could not load. Reload to try again.</p>
+    );
+  }
+  return (
+    <div
+      ref={ref}
+      role="img"
+      aria-label={label}
+      style={{ width: "100%", height: "100%", minHeight: 100 }}
+    />
+  );
+}
 
 /** Categories as horizontal bars, the first category on top. */
-export function Bar(props: VisualProps) {
-  const { labels, series, valueFormat } = useSeries(props, "bar");
-  const option = useMemo(
-    () => (t: Theme) => ({
-      color: t.palette,
-      textStyle: { color: t.ink },
-      grid: { left: 8, right: 24, top: series.length > 1 ? 32 : 8, bottom: 8, containLabel: true },
-      legend: { show: series.length > 1, top: 0, textStyle: { color: t.muted } },
-      tooltip: { trigger: "axis" },
-      xAxis: {
-        type: "value",
-        ...axisStyle(t),
-        axisLabel: { color: t.muted, formatter: valueFormat },
-      },
-      yAxis: { type: "category", inverse: true, data: labels, ...axisStyle(t) },
-      series,
-    }),
-    [labels, series, valueFormat],
-  );
-  return <Chart option={option} />;
+export function Bar({ result, formatters }: VisualProps) {
+  const option = useMemo(() => barOption(result, formatters), [result, formatters]);
+  const label = useMemo(() => chartLabel(result, formatters), [result, formatters]);
+  return <Chart option={option} label={label} />;
 }
 
-/** Measures over time, oldest on the left. */
-export function Line(props: VisualProps) {
-  const { labels, series, valueFormat } = useSeries(props, "line");
-  const option = useMemo(
-    () => (t: Theme) => ({
-      color: t.palette,
-      textStyle: { color: t.ink },
-      grid: { left: 8, right: 24, top: series.length > 1 ? 32 : 8, bottom: 8, containLabel: true },
-      legend: { show: series.length > 1, top: 0, textStyle: { color: t.muted } },
-      tooltip: { trigger: "axis" },
-      xAxis: { type: "category", data: labels, boundaryGap: false, ...axisStyle(t) },
-      yAxis: {
-        type: "value",
-        ...axisStyle(t),
-        axisLabel: { color: t.muted, formatter: valueFormat },
-      },
-      series,
-    }),
-    [labels, series, valueFormat],
-  );
-  return <Chart option={option} />;
+/** Measures over time, oldest on the left, on a time axis. */
+export function Line({ result, formatters }: VisualProps) {
+  const option = useMemo(() => lineOption(result, formatters), [result, formatters]);
+  const label = useMemo(() => chartLabel(result, formatters), [result, formatters]);
+  return <Chart option={option} label={label} />;
 }

@@ -23,49 +23,58 @@ const dates = (options: Intl.DateTimeFormatOptions) =>
 const DAY = dates({ month: "short", day: "numeric", year: "numeric" });
 const MONTH = dates({ month: "short", year: "numeric" });
 
-/** A value as people read it (en-US): grouped numbers, money, percentages, dates by grain. */
-export function formatValue(value: unknown, f: ValueFormat): string {
-  if (value === null || value === undefined) return MISSING;
-  switch (f.type) {
-    case "number": {
-      const n = Number(value);
-      const short = f.compact ? ({ notation: "compact", maximumFractionDigits: 1 } as const) : {};
-      if (f.format === "currency") {
-        return new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: f.currency ?? "USD",
-          ...short,
-        }).format(n);
-      }
-      if (f.format === "percent") {
-        return new Intl.NumberFormat("en-US", {
-          style: "percent",
-          maximumFractionDigits: 1,
-        }).format(n);
-      }
-      return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, ...short }).format(n);
-    }
-    case "date": {
-      const d = new Date(String(value));
-      switch (f.timeGrain) {
-        case "week":
-          return `Week of ${DAY.format(d)}`;
-        case "month":
-          return MONTH.format(d);
-        case "quarter":
-          return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
-        case "year":
-          return String(d.getUTCFullYear());
-        default:
-          return DAY.format(d);
-      }
-    }
-    case "boolean":
-      return value ? "Yes" : "No";
+/** The number formatter for a format, built once per column rather than per value. */
+function numberFormat(f: ValueFormat): Intl.NumberFormat {
+  const short = f.compact ? ({ notation: "compact", maximumFractionDigits: 1 } as const) : {};
+  if (f.format === "currency") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: f.currency ?? "USD",
+      ...short,
+    });
+  }
+  if (f.format === "percent") {
+    return new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 });
+  }
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, ...short });
+}
+
+function formatDate(value: unknown, grain: TimeGrain | undefined): string {
+  const d = new Date(String(value));
+  switch (grain) {
+    case "week":
+      return `Week of ${DAY.format(d)}`;
+    case "month":
+      return MONTH.format(d);
+    case "quarter":
+      return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
+    case "year":
+      return String(d.getUTCFullYear());
     default:
-      return String(value);
+      return DAY.format(d);
   }
 }
+
+/** A formatter for one kind of value (en-US): grouped numbers, money, percentages, dates. */
+function formatterFor(f: ValueFormat): (value: unknown) => string {
+  const shown = (show: (value: unknown) => string) => (value: unknown) =>
+    value === null || value === undefined ? MISSING : show(value);
+  switch (f.type) {
+    case "number": {
+      const numbers = numberFormat(f);
+      return shown((value) => numbers.format(Number(value)));
+    }
+    case "date":
+      return shown((value) => formatDate(value, f.timeGrain));
+    case "boolean":
+      return shown((value) => (value ? "Yes" : "No"));
+    default:
+      return shown(String);
+  }
+}
+
+/** A value as people read it; for many values of one column, use `formattersFor`. */
+export const formatValue = (value: unknown, f: ValueFormat) => formatterFor(f)(value);
 
 const AGGREGATION = {
   SUM: "Total",
@@ -107,8 +116,6 @@ export function formattersFor(
     if (column.kind === "dimension" && column.timeGrain) f.timeGrain = column.timeGrain;
     const format = "name" in column ? formats.get(column.name) : undefined;
     if (format) f.format = format;
-    return Object.assign((value: unknown) => formatValue(value, f), {
-      compact: (value: unknown) => formatValue(value, { ...f, compact: true }),
-    });
+    return Object.assign(formatterFor(f), { compact: formatterFor({ ...f, compact: true }) });
   });
 }
