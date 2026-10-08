@@ -3,6 +3,8 @@
 import {
   type DashboardSpec,
   type DataContract,
+  MAX_FORMULA_LENGTH,
+  MAX_NAMED_MEASURES,
   type MeasureFormat,
   measureName,
   type NamedMeasure,
@@ -104,16 +106,26 @@ function MeasureForm({
     () => (formula.trim() ? diagnosticsOf(formula, contract, others) : []),
     [formula, contract, others],
   );
+  // A host measure's name would shadow it everywhere (ADR 0007); a saved measure that already
+  // does may keep its name.
   const nameProblem = !measureName.safeParse(name).success
     ? "Names have no [ ] and no spaces around them."
-    : others.some((m) => m.name === name)
-      ? "Another measure has this name."
-      : undefined;
-  const ready = !nameProblem && formula.trim() !== "" && errors.length === 0;
+    : name !== draft.previous && contract.measures.some((m) => m.name === name)
+      ? "The host has a measure with this name."
+      : others.some((m) => m.name === name)
+        ? "Another measure has this name."
+        : undefined;
+  const tooLong = formula.length > MAX_FORMULA_LENGTH;
+  const ready = !nameProblem && formula.trim() !== "" && !tooLong && errors.length === 0;
   return (
     <fieldset className="dash-group">
       <legend>{draft.previous ? `Edit ${draft.previous}` : "New measure"}</legend>
-      <input aria-label="Measure name" value={name} onChange={(e) => setName(e.target.value)} />
+      <input
+        aria-label="Measure name"
+        maxLength={100}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
       {name && nameProblem && <p className="dash-note">{nameProblem}</p>}
       <select
         aria-label="Format"
@@ -130,6 +142,9 @@ function MeasureForm({
         sources={{ contract, measures: others }}
         onChange={setFormula}
       />
+      {tooLong && (
+        <p className="dash-note">{`Formulas have at most ${MAX_FORMULA_LENGTH} characters.`}</p>
+      )}
       {errors.length > 0 && (
         <ul role="alert" className="dash-note">
           {errors.map((e) => (
@@ -211,6 +226,7 @@ export function MeasureEditor({
       ) : (
         <button
           type="button"
+          disabled={spec.measures.length >= MAX_NAMED_MEASURES}
           onClick={() => setDraft({ previous: undefined, name: "", formula: "", format: "" })}
         >
           New measure

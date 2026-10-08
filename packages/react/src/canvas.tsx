@@ -1,6 +1,6 @@
 "use client";
 
-import type { DashboardSpec } from "@adam-riffi/dash-core";
+import { type DashboardSpec, dashboardSpec } from "@adam-riffi/dash-core";
 import { visuals as registered } from "@adam-riffi/dash-visuals";
 import { DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
@@ -42,22 +42,28 @@ const css = `
 .dash-tile[aria-current="true"] { border-color: var(--dash-accent, #e4572e); }
 .dash-tile header { display: flex; justify-content: space-between; align-items: start; gap: 8px; cursor: move; }
 .dash-tile h3 { margin: 0 0 4px; font-size: 0.95rem; }
+.dash-select { all: unset; cursor: pointer; }
+.dash-select:focus-visible { outline: 2px solid var(--dash-accent, #e4572e); outline-offset: 2px; }
 .dash-tile .dash-body { flex: 1; min-height: 0; }
 @media (max-width: 900px) { .dash-builder { grid-template-columns: 1fr; } }
 `;
 
-/** The dashboard's title: a draft while typing, so it can be cleared and retyped; a blank title is never sent. */
+/**
+ * The dashboard's title: a draft while typing, so it can be cleared and retyped, and a blank
+ * title is never sent; otherwise the host's title, so it follows the dashboard the host opens.
+ */
 function TitleInput({ title, onChange }: { title: string; onChange: (title: string) => void }) {
-  const [draft, setDraft] = useState(title);
+  const [draft, setDraft] = useState<string>();
   return (
     <input
       aria-label="Dashboard title"
-      value={draft}
+      maxLength={200}
+      value={draft ?? title}
       onChange={(e) => {
         setDraft(e.target.value);
         if (e.target.value.trim()) onChange(e.target.value);
       }}
-      onBlur={() => setDraft(title)}
+      onBlur={() => setDraft(undefined)}
     />
   );
 }
@@ -95,8 +101,16 @@ function VisualOptions({
         type="number"
         min={1}
         max={max}
+        step={1}
         value={String(options.limit ?? "")}
-        onChange={(e) => set("limit", Math.min(max, Math.max(1, Number(e.target.value))))}
+        onChange={(e) => {
+          // Whole rows; an empty field means the visual's default.
+          const { limit: _limit, ...rest } = options;
+          const rows = Math.trunc(Number(e.target.value));
+          onChange(
+            e.target.value === "" ? rest : { ...options, limit: Math.min(max, Math.max(1, rows)) },
+          );
+        }}
       />
     </label>
   );
@@ -132,10 +146,25 @@ export function DashboardBuilder({
   const { stateOf, formats, currency } = useVisualStates(spec);
   const [selected, setSelected] = useState<string>();
   const [picked, setPicked] = useState<Draggable>();
+  const [issues, setIssues] = useState<string[]>();
   const { width, containerRef, mounted } = useContainerWidth();
   // A pointer must move before a drag starts, so clicks still pick fields.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const current = spec.visuals.find((v) => v.id === selected);
+
+  // The host gets a spec it can store: stamped with the contract it was built on, and valid.
+  const save = () => {
+    const version = contract.data?.contractVersion ?? spec.contractVersion;
+    const checked = dashboardSpec.safeParse({ ...spec, contractVersion: version });
+    if (!checked.success) {
+      setIssues(
+        checked.error.issues.map((i) => `${i.path.join(".") || "dashboard"}: ${i.message}`),
+      );
+      return;
+    }
+    setIssues(undefined);
+    onSave(checked.data);
+  };
 
   return (
     <DndContext sensors={sensors} onDragEnd={(e) => onChange(dropFromEvent(spec, e))}>
@@ -156,9 +185,16 @@ export function DashboardBuilder({
               Add {plugin.label}
             </button>
           ))}
-          <button type="button" onClick={() => onSave(spec)}>
+          <button type="button" onClick={save}>
             Save
           </button>
+          {issues && (
+            <ul role="alert" className="dash-note">
+              {issues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {contract.data ? (
@@ -199,7 +235,17 @@ export function DashboardBuilder({
                       onPointerDown={() => setSelected(visual.id)}
                     >
                       <header>
-                        <h3>{title}</h3>
+                        <h3>
+                          <button
+                            type="button"
+                            className="dash-select"
+                            aria-label={`Select ${title}`}
+                            aria-pressed={visual.id === selected}
+                            onClick={() => setSelected(visual.id)}
+                          >
+                            {title}
+                          </button>
+                        </h3>
                         <button
                           type="button"
                           aria-label={`Remove ${title}`}
@@ -234,6 +280,7 @@ export function DashboardBuilder({
                 Title{" "}
                 <input
                   aria-label="Visual title"
+                  maxLength={120}
                   value={current.title ?? ""}
                   placeholder={titleOf(current)}
                   onChange={(e) => onChange(setVisualTitle(spec, current.id, e.target.value))}

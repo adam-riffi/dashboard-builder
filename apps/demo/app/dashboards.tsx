@@ -98,6 +98,7 @@ export function Dashboards({ getToken }: { getToken: () => Promise<string> }) {
 
       {open?.mode === "edit" ? (
         <DashboardBuilder
+          key={open.id}
           spec={open.spec}
           onChange={(spec) => setOpen({ ...open, spec })}
           onSave={(spec) => void save(open.id, spec)}

@@ -14,6 +14,21 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/10-builder-review-fixes · #53
+- Done: the builder findings of the M5 review (posted on #52).
+  - Measures: a host measure's name is refused (ADR 0007), "New measure" is disabled at 50, formulas are capped at 2,000 characters, names at 100.
+  - Save stamps the contract's version and validates the spec; issues show in an alert instead of reaching the host.
+  - The dashboard title follows the host's spec unless it is being edited, and the demo keys the builder by dashboard.
+  - Each tile title is a "Select X" button, so the wells can be reached from the keyboard.
+  - Smaller fixes:
+    - Rows takes whole numbers, and clearing it removes the limit;
+    - picked measures show as pressed;
+    - the layout is clamped to the spec's bounds;
+    - a measure rename goes through the lexer, so strings keep their text.
+- Tests: unit and component tests for each finding (`builder`, `fields`, `measures`, `canvas`); the fixture builder e2e passes locally.
+- Scope/decisions: none.
+- Next: #54, builder previews per visual and a separate builder entry point (review findings 2 and 9).
+
 ## 2026-10-08 · claude · stack/m5/09-builder-e2e · #52
 - Done: the M5 acceptance test and the builder fixture.
   - `/fixtures/builder`: the builder on the overview fixture with recorded answers (no database, no sign-in). Answers are matched by query (`fixture-transport.ts`), so visuals the builder keeps still find theirs.

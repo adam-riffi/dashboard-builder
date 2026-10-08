@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { type DashboardSpec, dashboardSpec, dataContract } from "@adam-riffi/dash-core";
+import {
+  type DashboardSpec,
+  type DataContract,
+  dashboardSpec,
+  dataContract,
+  MAX_FORMULA_LENGTH,
+  MAX_NAMED_MEASURES,
+} from "@adam-riffi/dash-core";
 import { cleanup, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { useState } from "react";
@@ -42,12 +49,20 @@ const withMeasures = (measures: DashboardSpec["measures"]) =>
     visuals: [],
   });
 
-function Harness({ initial, spy }: { initial: DashboardSpec; spy: (spec: DashboardSpec) => void }) {
+function Harness({
+  initial,
+  spy,
+  host = contract,
+}: {
+  initial: DashboardSpec;
+  spy: (spec: DashboardSpec) => void;
+  host?: DataContract;
+}) {
   const [spec, setSpec] = useState(initial);
   return (
     <MeasureEditor
       spec={spec}
-      contract={contract}
+      contract={host}
       onChange={(s) => {
         setSpec(s);
         spy(s);
@@ -119,6 +134,53 @@ describe("MeasureEditor", () => {
     await userEvent.clear(name);
     // user-event reads "[" as the start of a key name; "[[" types a literal "[".
     await userEvent.type(name, "Twice[[x]");
+    expect((screen.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it("refuses a host measure's name, which the dashboard measure would shadow (ADR 0007)", async () => {
+    const host = {
+      ...contract,
+      measures: [{ name: "Revenue", formula: "SUM(order_items.quantity)", type: "number" }],
+    } as DataContract;
+    render(
+      <Harness
+        initial={withMeasures([{ name: "Units", formula: "SUM(order_items.quantity)" }])}
+        spy={vi.fn()}
+        host={host}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Edit Units" }));
+    const name = screen.getByRole("textbox", { name: "Measure name" });
+    await userEvent.clear(name);
+    await userEvent.type(name, "Revenue");
+    expect(screen.getByText("The host has a measure with this name.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it(`offers no new measure past ${MAX_NAMED_MEASURES}`, () => {
+    const many = Array.from({ length: MAX_NAMED_MEASURES }, (_, i) => ({
+      name: `M${i}`,
+      formula: "SUM(order_items.quantity)",
+    }));
+    render(<Harness initial={withMeasures(many)} spy={vi.fn()} />);
+    expect(
+      (screen.getByRole("button", { name: "New measure" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it(`keeps Apply off for a formula over ${MAX_FORMULA_LENGTH} characters`, async () => {
+    // One long number: a formula the checker accepts, only too long for a spec.
+    const long = `SUM(order_items.quantity) + 0.${"0".repeat(MAX_FORMULA_LENGTH)}`;
+    const spec = { ...withMeasures([]), measures: [{ name: "Long", formula: long }] };
+    render(<Harness initial={spec} spy={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit Long" }));
+    expect(
+      screen.getByText(`Formulas have at most ${MAX_FORMULA_LENGTH} characters.`),
+    ).toBeTruthy();
     expect((screen.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
       true,
     );

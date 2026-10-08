@@ -63,6 +63,20 @@ describe("FieldList", () => {
     expect(screen.getByRole("group", { name: "Order items" })).toBeTruthy();
   });
 
+  it("shows the picked field as pressed, measures included", () => {
+    render(
+      <FieldList
+        contract={contract}
+        measures={dashboardMeasures}
+        picked={{ kind: "measure", name: "Revenue" }}
+        onPick={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Revenue" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+  });
+
   it("hands the picked field to the builder, as a column or a measure", async () => {
     const onPick = vi.fn();
     render(<FieldList contract={contract} measures={dashboardMeasures} onPick={onPick} />);
