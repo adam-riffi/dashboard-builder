@@ -14,6 +14,19 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/08-demo-builder · #51
+- Done: the demo's dashboards page (`apps/demo/app/dashboards.tsx`, inside the signed-in session):
+  - "Your dashboards" from `/api/dashboards`;
+  - "New dashboard" starts from the sample spec with a fresh UUID and opens the builder;
+  - Save `PUT`s and switches to the viewer;
+  - an open dashboard has Edit, Delete and Close;
+  - with nothing open, the sample dashboard shows, as before.
+
+  The layout imports `react-grid-layout/css/styles.css`, which is now a demo dependency.
+- Tests: Playwright `e2e/dashboards.spec.ts` (CI, with Supabase): create, rename, save, reload, reopen with live data, delete, gone after reload.
+- Scope/decisions: no deep links (state only); the sample stays the default view, so the smoke test still holds.
+- Next: stack/m5/09-builder-e2e (M5 acceptance: drag and drop, the formula editor, builder screenshots).
+
 ## 2026-10-08 · claude · stack/m5/07-dashboard-store · #50
 - Done: the demo stores dashboards (Georges' choice: the host stores them).
   - `apps/demo/lib/dashboards.ts`: `listDashboards`, `getDashboard`, `saveDashboard` (an upsert; another user's id is "forbidden", from the RLS error 42501), `deleteDashboard`, each as `dash_app` in a transaction with `app.user_id` (ADR 0001). `parseSave` returns 413 above 256 KB, 400 for bad JSON or an invalid spec.
