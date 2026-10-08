@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FieldType } from "./contract.ts";
 
 /** Rows one query may return and queries one request may carry (DESIGN.md §6). */
 export const MAX_ROWS = 10_000;
@@ -117,3 +118,22 @@ export type MeasureFormat = z.infer<typeof measureFormat>;
 export type NamedMeasure = z.infer<typeof namedMeasure>;
 export type QuerySpec = z.infer<typeof querySpec>;
 export type QueryRequest = z.infer<typeof queryRequest>;
+
+/** One result column of `POST /query`, in select order: dimensions `d0…`, then measures `m0…`. */
+export type ResultColumn =
+  | { key: string; kind: "dimension"; field: string; timeGrain?: TimeGrain; type: FieldType }
+  | ({ key: string; kind: "measure"; type: FieldType } & (
+      | { field: string; aggregation: MeasureAggregation }
+      | { formula: string }
+      | { name: string }
+    ));
+
+/** One query's answer (DESIGN.md §7): `data[i]` holds the values of `columns[i]`. */
+export interface QueryResult {
+  columns: ResultColumn[];
+  data: unknown[][];
+  meta: { cache: "miss" | "hit"; ms: number; truncated: boolean };
+}
+
+/** Each entry of a `POST /query` response, in request order. */
+export type QueryAnswer = QueryResult | { errors: string[] };

@@ -1,4 +1,4 @@
-import type { FieldType, MeasureAggregation, TimeGrain, Typed } from "@adam-riffi/dash-core";
+import type { ResultColumn, Typed } from "@adam-riffi/dash-core";
 import type { JoinPlan } from "./paths.ts";
 import type { ValidQuery } from "./validate.ts";
 
@@ -10,13 +10,7 @@ export interface Policy {
 }
 
 /** One result column, in select order: dimensions `d0…`, then measures `m0…`. */
-export type OutputColumn =
-  | { key: string; kind: "dimension"; field: string; timeGrain?: TimeGrain; type: FieldType }
-  | ({ key: string; kind: "measure"; type: FieldType } & (
-      | { field: string; aggregation: MeasureAggregation }
-      | { formula: string }
-      | { name: string }
-    ));
+export type OutputColumn = ResultColumn;
 
 export interface CompiledQuery {
   text: string;
