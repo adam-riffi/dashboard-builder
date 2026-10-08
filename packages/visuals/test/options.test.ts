@@ -70,7 +70,7 @@ describe("barOption", () => {
     );
     const option = barOption(bars, formattersFor(bars.columns, formats, "USD"))(theme) as {
       yAxis: { type: string; data: string[]; inverse: boolean };
-      xAxis: { axisLabel: { formatter: (v: number) => string } };
+      xAxis: { axisLabel: { formatter: (v: number) => string; hideOverlap: boolean } };
       series: { data: unknown[] }[];
     };
     expect(option.yAxis).toMatchObject({
@@ -79,6 +79,8 @@ describe("barOption", () => {
       inverse: true,
     });
     expect(option.xAxis.axisLabel.formatter(40000)).toBe("$40K");
+    // In a narrow card the labels would run into each other; ECharts drops the ones that would.
+    expect(option.xAxis.axisLabel.hideOverlap).toBe(true);
     expect(option.series[0]?.data).toEqual([83495.78, 39402.8]);
   });
 });

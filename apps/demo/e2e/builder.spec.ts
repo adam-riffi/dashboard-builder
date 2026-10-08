@@ -24,9 +24,11 @@ async function buildBar(page: Page) {
   const category = page.getByRole("group", { name: "Category", exact: true });
   const value = page.getByRole("group", { name: "Value", exact: true });
   await drag(page, page.getByRole("button", { name: "Category, dimension" }), category);
-  await expect(category).toContainText("Category");
+  await expect(
+    category.getByRole("button", { name: "Remove Category from Category" }),
+  ).toBeVisible();
   await drag(page, page.getByRole("button", { name: "Revenue", exact: true }), value);
-  await expect(value).toContainText("Revenue");
+  await expect(value.getByRole("button", { name: "Remove Revenue from Value" })).toBeVisible();
 
   await page.getByRole("button", { name: "New measure" }).click();
   await page.getByRole("textbox", { name: "Measure name" }).fill("Units");
@@ -37,7 +39,7 @@ async function buildBar(page: Page) {
   await page.keyboard.type(")");
   await page.getByRole("button", { name: "Apply" }).click();
   await drag(page, page.getByRole("button", { name: "Units", exact: true }), value);
-  await expect(value).toContainText("Units");
+  await expect(value.getByRole("button", { name: "Remove Units from Value" })).toBeVisible();
 }
 
 test("the builder fills wells by dragging and writes measures with completions", async ({
@@ -48,7 +50,9 @@ test("the builder fills wells by dragging and writes measures with completions",
   // The refused drop: a measure never lands in the category well.
   const category = page.getByRole("group", { name: "Category", exact: true });
   await drag(page, page.getByRole("button", { name: "Orders", exact: true }), category);
-  await expect(category).not.toContainText("Orders");
+  await expect(category.getByRole("button", { name: "Remove Orders from Category" })).toHaveCount(
+    0,
+  );
 });
 
 test("a visitor builds and saves a dashboard (M5 acceptance)", async ({ page }) => {
