@@ -1,4 +1,5 @@
 import { type DashboardSpec, dashboardSpec, type QueryAnswer } from "@adam-riffi/dash-core";
+import { kpi as kpiDefinition, registerVisual } from "@adam-riffi/dash-visuals";
 import { describe, expect, it } from "vitest";
 import { answersByVisual, dashboardRequest } from "../src/index.ts";
 
@@ -61,6 +62,29 @@ describe("dashboardRequest", () => {
 
   it("sends no request when no visual can query", () => {
     expect(dashboardRequest(spec([])).request.queries).toEqual([]);
+  });
+});
+
+describe("dashboard filters on custom visuals", () => {
+  it("reports a visual whose filters and the dashboard's together exceed the cap", () => {
+    const filtered = {
+      ...kpiDefinition,
+      type: "filtered",
+      toQuery: () => ({ dimensions: [], measures: [revenue], filters: [paid] }),
+      render: () => null,
+    };
+    registerVisual(filtered);
+    const twenty = Array.from({ length: 20 }, () => paid);
+    const plan = dashboardRequest(
+      spec([{ id: "f", type: "filtered", slots: { value: [revenue] }, options: {} }], {
+        filters: twenty,
+      }),
+    );
+    expect(plan.request.queries).toEqual([]);
+    expect(plan.visuals[0]).toMatchObject({
+      id: "f",
+      errors: [expect.stringContaining("filters")],
+    });
   });
 });
 
