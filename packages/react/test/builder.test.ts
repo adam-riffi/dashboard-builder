@@ -128,6 +128,13 @@ describe("visuals", () => {
     ]);
     valid(moved);
   });
+
+  it("keeps cells within the spec's bounds, however far the grid pushes them", () => {
+    const { spec } = addVisual(empty, "bar");
+    const moved = setLayout(spec, [{ i: "bar-1", x: 0, y: 5_000, w: 12, h: 400 }]);
+    expect(moved.layout).toEqual([{ i: "bar-1", x: 0, y: 1_000, w: 12, h: 100 }]);
+    valid(moved);
+  });
 });
 
 describe("slots", () => {
@@ -207,6 +214,16 @@ describe("measures", () => {
     ]);
     expect(renamed.visuals[0]?.slots.value).toEqual([{ name: "Items" }]);
     valid(renamed);
+  });
+
+  it("renames references only, never text inside a string", () => {
+    const quoted = { name: "Quoted", formula: '[Units] + LEN("[Units]")' };
+    const renamed = upsertMeasure(
+      upsertMeasure(using, quoted),
+      { ...units, name: "Items" },
+      "Units",
+    );
+    expect(renamed.measures[1]?.formula).toBe('[Items] + LEN("[Units]")');
   });
 
   it("removes a measure and the slot items that used it", () => {
