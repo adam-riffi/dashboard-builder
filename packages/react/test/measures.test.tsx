@@ -117,7 +117,8 @@ describe("MeasureEditor", () => {
       true,
     );
     await userEvent.clear(name);
-    await userEvent.type(name, "Twice[x]");
+    // user-event reads "[" as the start of a key name; "[[" types a literal "[".
+    await userEvent.type(name, "Twice[[x]");
     expect((screen.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
       true,
     );

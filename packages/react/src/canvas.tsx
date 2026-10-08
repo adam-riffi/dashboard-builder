@@ -15,6 +15,7 @@ import {
 } from "./builder.ts";
 import { FieldList } from "./fields.tsx";
 import { FiltersEditor } from "./filters.tsx";
+import { MeasureEditor } from "./measures.tsx";
 import { useContract } from "./provider.tsx";
 import { titleOf } from "./state.ts";
 import { useVisualStates, VisualContent } from "./viewer.tsx";
@@ -159,14 +160,17 @@ export function DashboardBuilder({
         </div>
 
         {contract.data ? (
-          <FieldList
-            contract={contract.data}
-            measures={spec.measures}
-            picked={picked}
-            onPick={(d) =>
-              setPicked((p) => (p && JSON.stringify(p) === JSON.stringify(d) ? undefined : d))
-            }
-          />
+          <div className="dash-fields">
+            <FieldList
+              contract={contract.data}
+              measures={spec.measures}
+              picked={picked}
+              onPick={(d) =>
+                setPicked((p) => (p && JSON.stringify(p) === JSON.stringify(d) ? undefined : d))
+              }
+            />
+            <MeasureEditor spec={spec} contract={contract.data} onChange={onChange} />
+          </div>
         ) : (
           <p className="dash-note">Loading fields…</p>
         )}

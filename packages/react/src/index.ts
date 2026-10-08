@@ -3,6 +3,7 @@ export * from "./canvas.tsx";
 export * from "./fields.tsx";
 export * from "./filters.tsx";
 export * from "./formula.ts";
+export * from "./measures.tsx";
 export * from "./provider.tsx";
 export * from "./request.ts";
 export * from "./state.ts";
