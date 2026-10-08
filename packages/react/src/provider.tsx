@@ -2,7 +2,15 @@
 
 import type { DashboardSpec, DataContract, QueryAnswer, QueryRequest } from "@adam-riffi/dash-core";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { answersByVisual, dashboardRequest } from "./request.ts";
 
 /** How the components reach the gateway; tests and fixtures supply their own (ADR 0008). */
@@ -11,7 +19,17 @@ export interface Transport {
   query(request: QueryRequest): Promise<QueryAnswer[]>;
 }
 
-/** The gateway mounted at `gateway` (DESIGN.md §7), called with the host app's token. */
+/** A gateway answer other than 2xx; 4xx answers are not retried. */
+export class GatewayError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+/** The gateway mounted at `gateway` (DESIGN.md §7), called with the host app's current token. */
 export function gatewayTransport(
   gateway: string,
   getToken: () => string | Promise<string>,
@@ -21,7 +39,7 @@ export function gatewayTransport(
       ...init,
       headers: { ...init.headers, authorization: `Bearer ${await getToken()}` },
     });
-    if (!res.ok) throw new Error(`${path} answered ${res.status}`);
+    if (!res.ok) throw new GatewayError(`${path} answered ${res.status}`, res.status);
     return res.json();
   };
   return {
@@ -49,9 +67,15 @@ const DashContext = createContext<Dash | null>(null);
  * Gives dashboards their data (DESIGN.md §7): a gateway URL and token, or a `transport`.
  * Holds the query cache.
  */
+const noToken = () => "";
+
+/** Retries once, except answers the gateway gave on purpose (401, 403, 429…). */
+const retry = (failures: number, error: unknown) =>
+  failures < 1 && !(error instanceof GatewayError && error.status < 500);
+
 export function DashProvider({
   gateway = "/api/dash",
-  getToken = () => "",
+  getToken = noToken,
   transport,
   currency = "USD",
   children,
@@ -63,13 +87,18 @@ export function DashProvider({
   children: ReactNode;
 }) {
   const [client] = useState(
-    () =>
-      new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } }),
+    () => new QueryClient({ defaultOptions: { queries: { retry, refetchOnWindowFocus: false } } }),
   );
-  const [dash] = useState<Dash>(() => ({
-    transport: transport ?? gatewayTransport(gateway, getToken),
-    currency,
-  }));
+  // Requests always ask the latest getToken, so a host passing a new one (a refreshed token) is
+  // heard without rebuilding the transport.
+  const token = useRef(getToken);
+  useEffect(() => {
+    token.current = getToken;
+  }, [getToken]);
+  const dash = useMemo<Dash>(
+    () => ({ transport: transport ?? gatewayTransport(gateway, () => token.current()), currency }),
+    [transport, gateway, currency],
+  );
   return (
     <QueryClientProvider client={client}>
       <DashContext.Provider value={dash}>{children}</DashContext.Provider>

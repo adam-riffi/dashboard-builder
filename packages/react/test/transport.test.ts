@@ -5,7 +5,9 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("gatewayTransport", () => {
   it("sends the current token on every request and unwraps the results", async () => {
-    const fetch = vi.fn(async () => Response.json({ results: [{ errors: ["x"] }] }));
+    const fetch = vi.fn(async (_url: string, _init?: RequestInit) =>
+      Response.json({ results: [{ errors: ["x"] }] }),
+    );
     vi.stubGlobal("fetch", fetch);
     let token = "first";
     const transport = gatewayTransport("/api/dash", () => token);
@@ -13,10 +15,7 @@ describe("gatewayTransport", () => {
     token = "refreshed";
     await transport.contract();
     expect(
-      fetch.mock.calls.map(([url, init]) => [
-        url,
-        (init?.headers as Record<string, string>).authorization,
-      ]),
+      fetch.mock.calls.map(([url, init]) => [url, new Headers(init?.headers).get("authorization")]),
     ).toEqual([
       ["/api/dash/query", "Bearer first"],
       ["/api/dash/contract", "Bearer refreshed"],

@@ -1,4 +1,9 @@
-import type { DashboardSpec, QueryAnswer, QueryRequest } from "@adam-riffi/dash-core";
+import {
+  type DashboardSpec,
+  type QueryAnswer,
+  type QueryRequest,
+  querySpec,
+} from "@adam-riffi/dash-core";
 import { getVisual, queryOf } from "@adam-riffi/dash-visuals";
 
 /** Where each visual's answer will be: its query's position, or why it has none. */
@@ -20,7 +25,16 @@ export function dashboardRequest(spec: DashboardSpec): DashboardPlan {
     if (!definition) return { id: visual.id, errors: [`unknown visual type ${visual.type}`] };
     const planned = queryOf(definition, visual);
     if (!planned.ok) return { id: visual.id, errors: planned.errors };
-    queries.push({ ...planned.query, filters: [...spec.filters, ...planned.query.filters] });
+    // The dashboard's filters count against the query's own cap.
+    const merged = querySpec.safeParse({
+      ...planned.query,
+      filters: [...spec.filters, ...planned.query.filters],
+    });
+    if (!merged.success) {
+      const errors = merged.error.issues.map((i) => `query.${i.path.join(".")}: ${i.message}`);
+      return { id: visual.id, errors };
+    }
+    queries.push(merged.data);
     return { id: visual.id, query: queries.length - 1 };
   });
   return { request: { measures: spec.measures, queries }, visuals };
