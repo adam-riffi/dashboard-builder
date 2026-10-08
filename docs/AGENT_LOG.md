@@ -14,6 +14,19 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/06-formula-editor · #49
+- Done:
+  - **`<MeasureEditor>`** in the builder's field column: the dashboard's measures with Edit and Remove; a form with name, format and a CodeMirror 6 formula input.
+    - Completions: functions, tables, `table.` columns, `[Measure]` names.
+    - The checker's errors are underlined at their spans and listed as text.
+    - Apply stays off for invalid or duplicate names and for formulas with errors.
+    - Renaming rewrites visuals and formulas through `upsertMeasure`.
+  - Pure `completionsAt` and `diagnosticsOf` (the editor's sources).
+  - Core exports `FUNCTIONS`.
+- Tests: `packages/react/test/formula-editor.test.ts`: completion contexts (columns after a dot, names in brackets, functions/tables/keywords, nothing in strings or after numbers) and diagnostics at spans. `packages/react/test/measures.test.tsx`: apply gating, rename with format, errors shown, name rules, removal. CodeMirror runs in jsdom.
+- Scope/decisions: CodeMirror 6 (state, view, autocomplete, lint) added (DESIGN §6). The completion implementation landed in the same commit as the editor tests, after its own failing test commit.
+- Next: stack/m5/07-dashboard-store.
+
 ## 2026-10-08 · claude · stack/m5/05-filters · #48
 - Done: `<FiltersEditor spec contract onChange>` in the builder's side panel: the dashboard's filters listed in words ("Status is one of paid, shipped") with "×" to remove; a new filter is drafted (field, operator, typed inputs: number, date, or a comma-separated list) and enters the spec only once complete. `filterFrom` builds a filter from the inputs (calendar-valid dates, finite numbers, true/false, lists only for true/false columns); `inputsOf` turns one back into inputs.
 - Tests: `packages/react/test/filters.test.tsx`: 5 built and 5 refused inputs, inputs from a filter, the draft-then-add flow and removal.
