@@ -2,6 +2,7 @@
 
 import type { DataContract, NamedMeasure } from "@adam-riffi/dash-core";
 import { itemLabel } from "@adam-riffi/dash-visuals";
+import { useDraggable } from "@dnd-kit/core";
 import type { Draggable } from "./builder.ts";
 
 /** `order_items` → `Order items`. */
@@ -15,7 +16,10 @@ const humanize = (name: string) => {
 
 const BADGE = { measure: "Σ", time: "◷", id: "#", dimension: "Aa" } as const;
 
-/** One field: a button that hands it to the builder (and, with PR 3, a drag source). */
+/**
+ * One field: a drag source for pointers, and a button that picks it for the keyboard (the
+ * builder's drag context uses the pointer sensor only, so Enter and Space stay a pick).
+ */
 function FieldItem({
   item,
   label,
@@ -29,9 +33,15 @@ function FieldItem({
   ariaLabel?: string;
   onPick?: ((item: Draggable) => void) | undefined;
 }) {
+  const key =
+    item.kind === "measure" ? `measure:${item.name}` : `column:${item.table}.${item.column.name}`;
+  const { setNodeRef, listeners, isDragging } = useDraggable({ id: key, data: { item } });
   return (
     <li style={{ listStyle: "none" }}>
       <button
+        ref={setNodeRef}
+        {...listeners}
+        data-dragging={isDragging || undefined}
         type="button"
         className="dash-field"
         aria-label={ariaLabel}
