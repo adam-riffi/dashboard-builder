@@ -1,6 +1,6 @@
 import { dashboardSpec, type QueryAnswer, type QueryResult } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
-import { titleOf, visualState } from "../src/index.ts";
+import { formatsOf, titleOf, visualState } from "../src/index.ts";
 
 const result = (columns: QueryResult["columns"], data: unknown[][]): QueryResult => ({
   columns,
@@ -57,31 +57,80 @@ describe("visualState", () => {
 });
 
 describe("titleOf", () => {
+  const bar = {
+    type: "bar",
+    slots: {
+      category: [{ field: "dash_demo.products.category" }],
+      value: [
+        { name: "Revenue" },
+        { field: "dash_demo.order_items.quantity", aggregation: "SUM" as const },
+      ],
+    },
+    options: {},
+  };
+
   it("uses the visual's own title first", () => {
-    expect(titleOf({ title: "Top sellers" }, result([category, revenue], [[], []]))).toBe(
-      "Top sellers",
-    );
+    expect(titleOf({ ...bar, title: "Top sellers" })).toBe("Top sellers");
   });
 
-  it("names the measures by the fields otherwise", () => {
-    expect(titleOf({}, result([category, revenue, units], [[], [], []]))).toBe(
-      "Revenue and Total quantity by Category",
+  it("names the measures by the fields from the spec, before any answer", () => {
+    expect(titleOf(bar)).toBe("Revenue and Total quantity by Category");
+    expect(titleOf({ type: "kpi", slots: { value: [{ name: "Revenue" }] }, options: {} })).toBe(
+      "Revenue",
     );
-    expect(titleOf({}, result([revenue], [[]]))).toBe("Revenue");
-    expect(titleOf({}, undefined)).toBe("");
+    // A column in a measure slot is a measure, even without an aggregation.
+    expect(
+      titleOf({
+        type: "kpi",
+        slots: { value: [{ field: "dash_demo.order_items.quantity" }] },
+        options: {},
+      }),
+    ).toBe("Quantity");
+  });
+
+  it("names a time axis by its grain, from the field or the visual's options", () => {
+    const axis = { field: "dash_demo.orders.ordered_at" };
+    const line = (grain: object, options: object) => ({
+      type: "line",
+      slots: { axis: [{ ...axis, ...grain }], value: [{ name: "Orders" }] },
+      options,
+    });
+    expect(titleOf(line({}, { grain: "month" }))).toBe("Orders by month");
+    expect(titleOf(line({ timeGrain: "week" }, {}))).toBe("Orders by week");
+    expect(titleOf(line({}, {}))).toBe("Orders by day");
+  });
+
+  it("still names a visual of an unknown type", () => {
+    expect(titleOf({ type: "pie", slots: {}, options: {} })).toBe("A pie visual");
   });
 });
 
-describe("titles of time axes", () => {
-  it("names a time axis by its grain", () => {
-    const day = {
-      key: "d0",
-      kind: "dimension",
-      field: "dash_demo.orders.ordered_at",
-      timeGrain: "day",
-      type: "date",
-    } as const;
-    expect(titleOf({}, result([day, revenue], [[], []]))).toBe("Revenue by day");
+describe("refreshes", () => {
+  const ready = result([category, revenue], [["Books"], [12]]);
+
+  it("keeps an answer on screen while it refreshes, and when a refresh fails", () => {
+    expect(visualState(ready, true, false)).toEqual({ kind: "ready", result: ready });
+    expect(visualState(ready, false, true)).toEqual({ kind: "ready", result: ready });
+  });
+});
+
+describe("formatsOf", () => {
+  it("takes host formats, overridden by the dashboard's measures of the same name", () => {
+    const host = [
+      { name: "Revenue", format: "currency" as const },
+      { name: "Orders", format: "number" as const },
+      { name: "Margin" },
+    ];
+    const dashboard = [
+      { name: "Revenue", formula: "COUNT(orders.id)" },
+      { name: "Share", formula: "SUM(order_items.quantity)", format: "percent" as const },
+    ];
+    expect(formatsOf(host, dashboard)).toEqual(
+      new Map([
+        ["Orders", "number"],
+        ["Share", "percent"],
+      ]),
+    );
   });
 });
 
