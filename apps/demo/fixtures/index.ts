@@ -168,22 +168,24 @@ const states: Fixture = {
   },
 };
 
-const loading: Fixture = {
-  spec: dashboardSpec.parse({
-    ...states.spec,
-    title: "Loading",
-    layout: states.spec.layout.filter((c) => c.i.startsWith("kpi")),
-    visuals: states.spec.visuals.filter((v) => v.id.startsWith("kpi")),
-  }),
-  answers: {},
-  pending: true,
-};
+// Two KPIs side by side, for the states of the whole request.
+const pair = (title: string) =>
+  dashboardSpec.parse({
+    specVersion: 1,
+    contractVersion: "0".repeat(64),
+    title,
+    layout: [
+      { i: "kpi-revenue", x: 0, y: 0, w: 6, h: 2 },
+      { i: "kpi-orders", x: 6, y: 0, w: 6, h: 2 },
+    ],
+    visuals: [
+      { id: "kpi-revenue", type: "kpi", slots: { value: [{ name: "Revenue" }] } },
+      { id: "kpi-orders", type: "kpi", slots: { value: [{ name: "Orders" }] } },
+    ],
+  });
 
-const failed: Fixture = {
-  ...loading,
-  spec: { ...loading.spec, title: "Failed" },
-  pending: false,
-  failed: true,
-};
+const loading: Fixture = { spec: pair("Loading"), answers: {}, pending: true };
+
+const failed: Fixture = { spec: pair("Failed"), answers: {}, failed: true };
 
 export const fixtures: Record<string, Fixture> = { overview, states, loading, failed };
