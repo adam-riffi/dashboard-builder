@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/01-builder-model · #44
+- Done: M5 starts (plan approved; Georges chose host-side storage: `<DashboardBuilder onSave>`, with the demo storing dashboards). Pure builder operations in `packages/react/src/builder.ts`:
+  - `accepts`: measure slots take named measures and measure columns, time slots take dates, other slots take non-measure columns under the high-cardinality mark;
+  - `addVisual` (unique id, placed below, sized by type, capped at 20) and `removeVisual`;
+  - `setVisualTitle`, `setVisualOptions`, and `setLayout` (clamped to 12 columns);
+  - `dropItem` (refusals and duplicates change nothing; single-item slots replace; others stop at their max) and `removeItem`;
+  - `addFilter`, `setFilter` and `removeFilter`;
+  - `upsertMeasure` (renames rewrite slots and other formulas) and `removeMeasure` (drops its slot items).
+- Tests: `packages/react/test/builder.test.ts`: 10 acceptance cases, and every operation keeps a spec `dashboardSpec` accepts. 98% lines.
+- Scope/decisions: high-cardinality columns are kept out of every field slot (DESIGN §6 says axis slots; tables included for now).
+- Next: stack/m5/02-component-tests.
+
 ## 2026-10-08 · claude · ci/deploy-archive · #42
 - Done: `deploy.yml` uploads each prebuilt deploy as one archive (`--archive=tgz`), and gives previews only to ready, non-draft pull requests (`ready_for_review` added to the triggers). DESIGN §11 updated.
 - Tests: CI configuration; actionlint is clean. The preview of this PR, once marked ready, and the production deploy after its merge prove the upload.
