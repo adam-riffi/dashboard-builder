@@ -113,3 +113,11 @@ jobs:
           name: playwright-results
           path: apps/demo/test-results
           retention-days: 7
+      # New or missing visual baselines are written here; commit them from this artifact (ADR 0008).
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-baselines
+          path: apps/demo/e2e/__screenshots__
+          if-no-files-found: ignore
+          retention-days: 7

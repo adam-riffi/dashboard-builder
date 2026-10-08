@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m4/07-visual-tests · #41
+- Done: M4 acceptance. `apps/demo/e2e/visual.spec.ts` compares the fixture gallery with screenshot baselines: overview in light and dark, states, loading, and the overview on a 390 px phone. Baselines live in `e2e/__screenshots__` (one set, no platform suffix) and are made on CI's Linux runner. The tests skip elsewhere, since fonts differ. The e2e job uploads new baselines as the `screenshot-baselines` artifact, and they are committed from it.
+- Tests: the screenshot tests themselves; tolerance 0.2% of pixels, animations disabled; they skip on Windows locally.
+- Scope/decisions: ADR 0008 (CI-generated baselines). To refresh after an intended visual change, delete the baseline and commit the artifact.
+- Next: independent review of #35–#41, fixes, merge loop, `HANDOFF.md`.
+
 ## 2026-10-08 · claude · stack/m4/06-demo-dashboard · #40
 - Done: the home page renders the sample dashboard (`apps/demo/lib/sample-dashboard.ts`): Revenue, Orders and Average order value KPIs, revenue by category, orders by day, and top products, through `DashProvider` with the Supabase session's token. Host measures carry formats (Revenue and Average order value as currency). Public fixture gallery `/fixtures/[name]` (`overview`, `states`, `loading`): recorded answers through the provider's `transport`, no database or sign-in, `noindex`; unknown names are 404. The `--dash-*` CSS variables map to the demo's palette.
 - Tests: Playwright: the `@smoke` test expects a ready Revenue KPI with a non-zero dollar amount and a drawn bar chart; `e2e/fixtures.spec.ts` covers six ready visuals and their values, the empty, error and unknown-type states, the loading state, and 404. The fixture tests pass locally against the production build; screenshots in light and dark are on the PR.
