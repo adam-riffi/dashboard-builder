@@ -27,7 +27,7 @@ export function Kpi({ result, formatters }: VisualProps) {
         style={{
           ...numerals,
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          fontSize: "clamp(1.25rem, 14cqi, 2.25rem)",
+          fontSize: "clamp(1rem, 14cqi, 2.25rem)",
           lineHeight: 1.1,
           overflowWrap: "anywhere",
           color: ink,

@@ -21,7 +21,7 @@ Entry format:
   - The "Throws" test plugin is registered only by the gallery page, so the builder's picker doesn't offer it.
   - Fixes found by the first CI run:
     - the properties panel is sticky, so wells stay in reach when the field is far down the list (the acceptance drop missed);
-    - KPI values shrink with narrow tiles (`clamp(1.25rem, 14cqi, 2.25rem)`, unchanged at viewer widths);
+    - KPI values shrink with narrow tiles (`clamp(1rem, 14cqi, 2.25rem)`, unchanged at viewer widths);
     - bar value labels hide overlaps;
     - an unset Rows option is empty, not 0.
 - Tests: Playwright `e2e/builder.spec.ts`:
