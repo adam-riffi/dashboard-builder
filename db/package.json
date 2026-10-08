@@ -10,6 +10,7 @@
     "test:integration": "drizzle-kit migrate && vitest run"
   },
   "devDependencies": {
+    "@adam-riffi/dash-core": "workspace:*",
     "@types/node": "^26.6.4",
     "drizzle-kit": "0.31.11",
     "drizzle-orm": "0.45.3",

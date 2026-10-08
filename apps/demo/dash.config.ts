@@ -8,7 +8,7 @@ const tables = [
   "dash_demo.customers",
 ];
 /** App data (memberships) as `dash_app`; demo data is read as `dash_reader` through `source`. */
-const appDb = postgresSource({ url: process.env.DASH_APP_DATABASE_URL ?? "" });
+export const appDb = postgresSource({ url: process.env.DASH_APP_DATABASE_URL ?? "" });
 
 /** The demo's gateway (DESIGN.md §7); every value comes from the environment (DESIGN.md §12). */
 export default defineGateway({
