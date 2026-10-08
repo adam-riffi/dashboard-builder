@@ -5,6 +5,7 @@ import {
   deleteDashboard,
   getDashboard,
   listDashboards,
+  MAX_DASHBOARDS_PER_USER,
   MAX_SPEC_BYTES,
   parseSave,
   saveDashboard,
@@ -20,6 +21,7 @@ const app = postgres(
 );
 const alice = "a1111111-1111-4111-8111-111111111111";
 const bob = "b2222222-2222-4222-8222-222222222222";
+const carol = "c4444444-4444-4444-8444-444444444444";
 const id = "d3333333-3333-4333-8333-333333333333";
 const spec = dashboardSpec.parse({
   specVersion: 1,
@@ -29,9 +31,9 @@ const spec = dashboardSpec.parse({
   visuals: [{ id: "kpi-1", type: "kpi", slots: { value: [{ name: "Revenue" }] } }],
 });
 
-beforeAll(() => admin`delete from dash.dashboards where owner_id in (${alice}, ${bob})`);
+beforeAll(() => admin`delete from dash.dashboards where owner_id in (${alice}, ${bob}, ${carol})`);
 afterAll(async () => {
-  await admin`delete from dash.dashboards where owner_id in (${alice}, ${bob})`;
+  await admin`delete from dash.dashboards where owner_id in (${alice}, ${bob}, ${carol})`;
   await Promise.all([admin.end(), app.end()]);
 });
 
@@ -55,6 +57,22 @@ describe("dashboard store", () => {
     expect(await saveDashboard(app, bob, id, { ...spec, title: "Mine now" })).toBe("forbidden");
     expect(await deleteDashboard(app, bob, id)).toBe(false);
     expect((await getDashboard(app, alice, id))?.spec.title).toBe("Weekly sales v2");
+  });
+
+  it(`stops a user at ${MAX_DASHBOARDS_PER_USER} dashboards, and still saves the ones they have`, async () => {
+    const ids = Array.from(
+      { length: MAX_DASHBOARDS_PER_USER },
+      (_, n) => `e5555555-5555-4555-8555-${String(n).padStart(12, "0")}`,
+    );
+    for (const own of ids) expect(await saveDashboard(app, carol, own, spec)).toBe("saved");
+    const one = "f6666666-6666-4666-8666-666666666666";
+    expect(await saveDashboard(app, carol, one, spec)).toBe("full");
+    expect(await saveDashboard(app, carol, ids[0] ?? "", { ...spec, title: "Still mine" })).toBe(
+      "saved",
+    );
+    // The cap is per user: Alice saves as before.
+    expect(await saveDashboard(app, alice, one, spec)).toBe("saved");
+    await deleteDashboard(app, alice, one);
   });
 
   it("deletes a dashboard for its owner", async () => {
