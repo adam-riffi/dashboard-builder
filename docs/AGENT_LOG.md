@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · ci/deploy-archive · #42
+- Done: `deploy.yml` uploads each prebuilt deploy as one archive (`--archive=tgz`), and gives previews only to ready, non-draft pull requests (`ready_for_review` added to the triggers). DESIGN §11 updated.
+- Tests: CI configuration; actionlint is clean. The preview of this PR, once marked ready, and the production deploy after its merge prove the upload.
+- Scope/decisions: the M4 merges' production deploys failed on Vercel's free-plan cap of 5,000 file uploads a day ("api-upload-free"), after a day of stacked draft previews; production stayed on #35. Previews for drafts are dropped, a deviation from ENGINEERING §10's "a preview per PR".
+- Next: once Vercel accepts uploads again, deploy `main` (M4) and check the sample dashboard on production.
+
 ## 2026-10-08 · claude · stack/m4/01..07 · #35–#41 (review fixes)
 - Done: addressed the independent review (1 blocker, 2 major, 12 minor, 8 nits; no XSS, nothing sensitive in the fixture route, ECharts loads lazily). Blocker: cards overlapped on phones; cells now come in as CSS variables and cards follow reading order (#39), caught first by the phone screenshot. Majors:
   - `DashProvider` follows the latest `getToken` and rebuilds on transport, gateway or currency changes (#37);

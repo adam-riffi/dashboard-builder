@@ -2,6 +2,7 @@ name: deploy
 # Mode B (ENGINEERING.md §10): migrations first, then a prebuilt Vercel deploy, then smoke tests.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
 permissions:
@@ -31,11 +32,12 @@ jobs:
   deploy:
     needs: migrate
     # On main only after migrations succeeded (a timed-out migrate reads as neither failure nor
-    # success); on pull requests migrate is skipped. Secrets are absent on forks.
+    # success); on pull requests migrate is skipped. Secrets are absent on forks. Draft pull
+    # requests get no preview: stacked drafts pushed often would spend Vercel's daily limits.
     if: >-
       always() &&
       (needs.migrate.result == 'success' || (github.event_name == 'pull_request' && needs.migrate.result == 'skipped')) &&
-      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+      (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -57,7 +59,8 @@ jobs:
       - run: pnpm exec vercel build --token="$VERCEL_TOKEN" ${{ env.PROD == 'true' && '--prod' || '' }}
       - id: deploy
         run: |
-          url=$(pnpm exec vercel deploy --prebuilt --token="$VERCEL_TOKEN" ${{ env.PROD == 'true' && '--prod' || '' }})
+          # One archive instead of hundreds of files: the free plan caps uploads at 5,000 a day.
+          url=$(pnpm exec vercel deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN" ${{ env.PROD == 'true' && '--prod' || '' }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
       # One preview comment per PR, found by its marker (pr-meme also posts as github-actions).
       - if: github.event_name == 'pull_request'

@@ -186,7 +186,7 @@ Coverage: `core` and `gateway` at least 90% of lines.
 | Workflow | Jobs |
 | --- | --- |
 | `ci.yml` | `lint`, `typecheck`, `test` (unit + property), `integration` (Postgres service), `build`, `e2e` |
-| `deploy.yml` (mode B) | `migrate` (main only) → `deploy` (preview on PRs, production on main) → `smoke` |
+| `deploy.yml` (mode B) | `migrate` (main only) → `deploy` (preview on ready, non-draft PRs; production on main; one archive per upload) → `smoke` |
 | `release.yml` | Changesets version PR and npm publish with provenance for `@adam-riffi/dash-*` |
 | `nightly.yml` | property tests with 10× runs (`PROPERTY_RUNS_FACTOR=10`), `pnpm audit` of production dependencies; CodeQL runs through GitHub's default setup |
 | `pr-meme.yml` | standard caller |
