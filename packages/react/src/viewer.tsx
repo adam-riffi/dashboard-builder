@@ -21,21 +21,43 @@ const css = `
 `;
 
 /**
- * A saved dashboard (DESIGN.md §7): one request for every visual (ADR 0008), each visual in its
- * layout cell with its loading, empty or error state.
+ * Every visual's state for a spec: one request for the whole dashboard (ADR 0008), formats from
+ * the contract and the dashboard. Shared by the viewer and the builder's previews.
  */
-export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
+export function useVisualStates(spec: DashboardSpec) {
   const { currency } = useDash();
   const contract = useContract();
   const { answers, isPending, error } = useDashboardAnswers(spec);
-
   const formats = useMemo(
     () => formatsOf(contract.data?.measures ?? [], spec.measures),
     [contract.data, spec.measures],
   );
-
-  const visuals = new Map(spec.visuals.map((v) => [v.id, v]));
   const pending = isPending || contract.isPending;
+  const stateOf = (id: string) => visualState(answers?.get(id), pending, error !== null);
+  return { stateOf, formats, currency };
+}
+
+/** A visual's body in its state, with its failures kept inside (an error boundary). */
+export function VisualContent(props: {
+  visual: DashboardVisual;
+  state: VisualState;
+  formats: ReadonlyMap<string, MeasureFormat>;
+  currency: string;
+}) {
+  return (
+    <VisualBoundary>
+      <VisualBody {...props} />
+    </VisualBoundary>
+  );
+}
+
+/**
+ * A saved dashboard (DESIGN.md §7): one request for every visual (ADR 0008), each visual in its
+ * layout cell with its loading, empty or error state.
+ */
+export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
+  const { stateOf, formats, currency } = useVisualStates(spec);
+  const visuals = new Map(spec.visuals.map((v) => [v.id, v]));
   return (
     <section aria-label={spec.title}>
       <style>{css}</style>
@@ -47,7 +69,7 @@ export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
           .map((cell) => {
             const visual = visuals.get(cell.i);
             if (!visual) return null;
-            const state = visualState(answers?.get(visual.id), pending, error !== null);
+            const state = stateOf(visual.id);
             return (
               <article
                 key={cell.i}
@@ -66,14 +88,12 @@ export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
               >
                 <h3>{titleOf(visual)}</h3>
                 <div className="dash-body">
-                  <VisualBoundary>
-                    <VisualBody
-                      visual={visual}
-                      state={state}
-                      formats={formats}
-                      currency={currency}
-                    />
-                  </VisualBoundary>
+                  <VisualContent
+                    visual={visual}
+                    state={state}
+                    formats={formats}
+                    currency={currency}
+                  />
                 </div>
               </article>
             );

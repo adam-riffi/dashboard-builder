@@ -79,9 +79,9 @@ export const removeVisual = (spec: DashboardSpec, id: string): DashboardSpec => 
   visuals: spec.visuals.filter((v) => v.id !== id),
 });
 
-/** A visual's own title; blank clears it, so the title is derived again. */
+/** A visual's own title, as typed; blank clears it, so the title is derived again. */
 export const setVisualTitle = (spec: DashboardSpec, id: string, title: string) =>
-  mapVisual(spec, id, ({ title: _, ...v }) => (title.trim() ? { ...v, title: title.trim() } : v));
+  mapVisual(spec, id, ({ title: _, ...v }) => (title.trim() ? { ...v, title } : v));
 
 export const setVisualOptions = (
   spec: DashboardSpec,

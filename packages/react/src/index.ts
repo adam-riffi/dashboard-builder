@@ -1,4 +1,5 @@
 export * from "./builder.ts";
+export * from "./canvas.tsx";
 export * from "./fields.tsx";
 export * from "./provider.tsx";
 export * from "./request.ts";

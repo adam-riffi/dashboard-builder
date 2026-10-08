@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/04-builder-canvas · #47
+- Done: `<DashboardBuilder spec onChange onSave>`:
+  - a toolbar with the dashboard title (a draft, never blank), "Add" per registered visual, and Save;
+  - the field list, with the picked field pressed;
+  - a react-grid-layout canvas on the 12-column grid, with drag by the tile header and resize writing `spec.layout`; each tile previews through the viewer's states and has "×" to remove it;
+  - a properties panel for the selected visual: title, wells, and the built-in options (bar sort and rows, line grain, table rows).
+
+  Drag ends with dnd-kit's pointer sensor (a 6 px threshold, so clicks still pick). The viewer now shares `useVisualStates` and `VisualContent` with the builder. DESIGN §7 notes the controlled API and the grid stylesheet hosts import.
+- Tests: `packages/react/test/canvas.test.tsx`: build a bar from picked fields and save it; title, sort and remove a visual; rename the dashboard.
+- Scope/decisions: the options panel knows the built-in visuals only (ponytail; host plugins could describe their options later); `react-grid-layout` 2.3.0 added (DESIGN §6).
+- Next: stack/m5/05-filters.
+
 ## 2026-10-08 · claude · stack/m5/03-field-wells · #46
 - Done: `<SlotWells spec visualId picked onChange>`: one well per slot of the visual's plugin (dnd-kit droppables), listing items with "×" to remove. While a field is dragged, a well is marked `accepts` or `refuses`. A picked field shows "Add … to …", disabled where the well refuses it. `dropFromEvent` turns a drag end into the spec change. Fields in the list are drag sources (pointer only), so Enter and Space stay a pick for keyboard users.
 - Tests: `packages/react/test/wells.test.tsx` (DESIGN §10): wells per slot; a picked field updates the spec; refused fields cannot be added; removal; drops from drag events, outside a well, and on a refusing well.
