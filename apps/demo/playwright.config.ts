@@ -4,6 +4,9 @@ const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   testDir: "e2e",
+  // Visual baselines (ADR 0008): one set, made on CI's Linux runner, no platform suffix.
+  snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled" } },
   retries: process.env.CI ? 1 : 0,
   // Screenshots of every test feed the screenshots required on UI pull requests.
   use: {

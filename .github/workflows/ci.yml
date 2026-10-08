@@ -74,7 +74,8 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm test:integration
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: the screenshot baselines depend on this image's fonts (ADR 0008).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       DATABASE_URL_MIGRATIONS: postgres://postgres:postgres@localhost:54322/postgres
@@ -112,4 +113,12 @@ jobs:
         with:
           name: playwright-results
           path: apps/demo/test-results
+          retention-days: 7
+      # New or missing visual baselines are written here; commit them from this artifact (ADR 0008).
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-baselines
+          path: apps/demo/e2e/__screenshots__
+          if-no-files-found: ignore
           retention-days: 7
