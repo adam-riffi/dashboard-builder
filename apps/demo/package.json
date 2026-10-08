@@ -10,7 +10,10 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@adam-riffi/dash-core": "workspace:*",
     "@adam-riffi/dash-gateway": "workspace:*",
+    "@adam-riffi/dash-react": "workspace:*",
+    "@adam-riffi/dash-visuals": "workspace:*",
     "@supabase/supabase-js": "2.117.2",
     "next": "16.3.8",
     "postgres": "3.4.9",

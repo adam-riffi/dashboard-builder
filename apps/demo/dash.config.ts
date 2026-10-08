@@ -27,8 +27,12 @@ export default defineGateway({
   },
   // Every dashboard can use these (ADR 0007); all three share order_items as their fact table.
   measures: [
-    { name: "Revenue", formula: "SUM(order_items.quantity * order_items.unit_price)" },
-    { name: "Orders", formula: "COUNTDISTINCT(order_items.order_id)" },
-    { name: "Average order value", formula: "DIVIDE([Revenue], [Orders])" },
+    {
+      name: "Revenue",
+      formula: "SUM(order_items.quantity * order_items.unit_price)",
+      format: "currency",
+    },
+    { name: "Orders", formula: "COUNTDISTINCT(order_items.order_id)", format: "number" },
+    { name: "Average order value", formula: "DIVIDE([Revenue], [Orders])", format: "currency" },
   ],
 });

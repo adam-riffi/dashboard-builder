@@ -5,6 +5,11 @@
   --muted: #6b6f76;
   --accent: #e4572e;
   color-scheme: light dark;
+  /* Dashboard visuals (packages/visuals) read these. */
+  --dash-ink: var(--ink);
+  --dash-muted: var(--muted);
+  --dash-accent: var(--accent);
+  --dash-grid: rgba(107, 111, 118, 0.25);
 }
 
 @media (prefers-color-scheme: dark) {

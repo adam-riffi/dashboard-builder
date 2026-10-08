@@ -15,7 +15,12 @@ const csp = [
 ].join("; ");
 
 const config: NextConfig = {
-  transpilePackages: ["@adam-riffi/dash-gateway"],
+  transpilePackages: [
+    "@adam-riffi/dash-core",
+    "@adam-riffi/dash-gateway",
+    "@adam-riffi/dash-react",
+    "@adam-riffi/dash-visuals",
+  ],
   headers: async () => [
     {
       source: "/:path*",
