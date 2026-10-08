@@ -8,11 +8,15 @@ import {
 } from "@adam-riffi/dash-core";
 import { sampleDashboard } from "../lib/sample-dashboard";
 
-/** A saved spec with recorded answers by visual id; `pending` never answers (ADR 0008). */
+/**
+ * A saved spec with recorded answers by visual id (ADR 0008). `pending` never answers; `failed`
+ * refuses the whole request, as a gateway answering 401 would.
+ */
 export interface Fixture {
   spec: DashboardSpec;
   answers: Record<string, QueryAnswer>;
   pending?: boolean;
+  failed?: boolean;
 }
 
 /** The host measures and their formats, as the demo's contract serves them. */
@@ -128,6 +132,7 @@ const states: Fixture = {
       { i: "kpi-broken", x: 6, y: 0, w: 6, h: 2 },
       { i: "pie", x: 6, y: 2, w: 6, h: 2 },
       { i: "kpi-ready", x: 0, y: 4, w: 6, h: 2 },
+      { i: "throws", x: 6, y: 4, w: 6, h: 2 },
     ],
     visuals: [
       {
@@ -147,12 +152,19 @@ const states: Fixture = {
       },
       { id: "pie", type: "pie", title: "A visual this host lacks", slots: {} },
       { id: "kpi-ready", type: "kpi", slots: { value: [{ name: "Orders" }] } },
+      {
+        id: "throws",
+        type: "throws",
+        title: "A renderer with a bug",
+        slots: { value: [{ name: "Orders" }] },
+      },
     ],
   }),
   answers: {
     "bar-empty": answer([category, named("Revenue")], [[], []]),
     "kpi-broken": { errors: ["dash_demo.orders.nope: unknown column"] },
     "kpi-ready": answer([named("Orders")], [[1978]]),
+    throws: answer([named("Orders")], [[1978]]),
   },
 };
 
@@ -167,4 +179,11 @@ const loading: Fixture = {
   pending: true,
 };
 
-export const fixtures: Record<string, Fixture> = { overview, states, loading };
+const failed: Fixture = {
+  ...loading,
+  spec: { ...loading.spec, title: "Failed" },
+  pending: false,
+  failed: true,
+};
+
+export const fixtures: Record<string, Fixture> = { overview, states, loading, failed };
