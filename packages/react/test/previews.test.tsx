@@ -34,7 +34,7 @@ const base: DashboardSpec = dashboardSpec.parse({
   ],
 });
 const answer = (n: number): QueryAnswer => ({
-  columns: [{ name: "value", type: "number" }],
+  columns: [{ key: "m0", kind: "measure", name: "value", type: "number" }],
   data: [[n]],
   meta: { cache: "miss", ms: 1, truncated: false },
 });
@@ -108,5 +108,25 @@ describe("previews", () => {
     );
     await tick();
     expect(stateOf("units")).toBe("ready");
+  });
+
+  it("give each visual its own answer, or its reasons for having none", async () => {
+    const { transport, answerWith } = counting();
+    // One answer short: the second visual's query goes unanswered.
+    answerWith(() => Promise.resolve([answer(7)]));
+    const broken = { id: "pie", type: "pie", slots: {}, options: {} };
+    const spec = {
+      ...base,
+      layout: [...base.layout, { i: "pie", x: 0, y: 2, w: 12, h: 2 }],
+      visuals: [...base.visuals, broken],
+    };
+    render(view(transport, spec));
+    await waitFor(() => expect(stateOf("revenue")).toBe("ready"));
+    expect(document.querySelector('[data-visual="units"]')?.textContent).toContain(
+      "No answer for this visual",
+    );
+    expect(document.querySelector('[data-visual="pie"]')?.textContent).toContain(
+      "unknown visual type pie",
+    );
   });
 });

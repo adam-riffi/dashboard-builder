@@ -1,7 +1,9 @@
 import {
   type DashboardSpec,
-  type QueryAnswer,
+  lex,
+  type NamedMeasure,
   type QueryRequest,
+  type QuerySpec,
   querySpec,
 } from "@adam-riffi/dash-core";
 import { getVisual, queryOf } from "@adam-riffi/dash-visuals";
@@ -40,14 +42,23 @@ export function dashboardRequest(spec: DashboardSpec): DashboardPlan {
   return { request: { measures: spec.measures, queries }, visuals };
 }
 
-/** Each visual's answer by id: its query's result or errors, or the reasons it never queried. */
-export function answersByVisual(plan: DashboardPlan, answers: QueryAnswer[]) {
-  return new Map(
-    plan.visuals.map((v): [string, QueryAnswer] => [
-      v.id,
-      "errors" in v
-        ? { errors: v.errors }
-        : (answers[v.query] ?? { errors: ["No answer for this visual"] }),
-    ]),
-  );
+/** The dashboard measures a query reaches: the ones it names, and the ones their formulas name. */
+export function measuresFor(query: QuerySpec, measures: NamedMeasure[]): NamedMeasure[] {
+  const byName = new Map(measures.map((m) => [m.name, m]));
+  const used = new Set<string>();
+  function visit(formula: string) {
+    const lexed = lex(formula);
+    if (lexed.ok) for (const t of lexed.tokens) if (t.kind === "measure") use(t.value);
+  }
+  function use(name: string) {
+    if (used.has(name)) return;
+    used.add(name);
+    const named = byName.get(name);
+    if (named) visit(named.formula);
+  }
+  for (const m of query.measures) {
+    if ("name" in m) use(m.name);
+    else if ("formula" in m) visit(m.formula);
+  }
+  return measures.filter((m) => used.has(m.name));
 }
