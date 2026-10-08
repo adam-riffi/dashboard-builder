@@ -21,19 +21,21 @@ const css = `
 `;
 
 /**
- * Every visual's state for a spec: one request for the whole dashboard (ADR 0008), formats from
- * the contract and the dashboard. Shared by the viewer and the builder's previews.
+ * Every visual's state for a spec: answers asked for together (ADR 0008), formats from the
+ * contract and the dashboard. Shared by the viewer and the builder's previews.
  */
 export function useVisualStates(spec: DashboardSpec) {
   const { currency } = useDash();
   const contract = useContract();
-  const { answers, isPending, error } = useDashboardAnswers(spec);
+  const { answerOf } = useDashboardAnswers(spec);
   const formats = useMemo(
     () => formatsOf(contract.data?.measures ?? [], spec.measures),
     [contract.data, spec.measures],
   );
-  const pending = isPending || contract.isPending;
-  const stateOf = (id: string) => visualState(answers?.get(id), pending, error !== null);
+  const stateOf = (id: string) => {
+    const { answer, pending, failed } = answerOf(id);
+    return visualState(answer, pending || contract.isPending, failed);
+  };
   return { stateOf, formats, currency };
 }
 

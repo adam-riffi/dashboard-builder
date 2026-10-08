@@ -14,6 +14,20 @@ Entry format:
 
 ---
 
+## 2026-10-08 · claude · stack/m5/11-builder-previews · #54
+- Done: builder previews no longer refetch the whole dashboard on every edit (M5 review finding 2).
+  - Each visual's answer is cached under its own query and the dashboard measures that query reaches (`measuresFor`, through the lexer).
+  - Queries asked for in the same tick go out as one request (`batched` in the provider), so a dashboard still loads in one (ADR 0008). An edit asks only for the visuals it changed, and a measure no visual uses asks for nothing.
+  - Each visual keeps its latest answer on screen while its next one is on the way, so tiles no longer flash to loading.
+- Tests: `test/previews.test.tsx` (written first):
+  - one request on load;
+  - an edited measure asks again for its one visual, with only its measures;
+  - a title or an unused measure asks nothing;
+  - the answer stays while an edit is asked for;
+  - per-visual answers and reasons (ported from the removed `answersByVisual` tests).
+- Scope/decisions: `answersByVisual` is removed (no single request to split any more); Rows is not debounced, since one keystroke now refetches one visual.
+- Next: #55, the builder's own entry point (review finding 9).
+
 ## 2026-10-08 · claude · stack/m5/10-builder-review-fixes · #53
 - Done: the builder findings of the M5 review (posted on #52).
   - Measures: a host measure's name is refused (ADR 0007), "New measure" is disabled at 50, formulas are capped at 2,000 characters, names at 100.
