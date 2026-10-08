@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import { type DataContract, type QuerySpec, queryRequest } from "@adam-riffi/dash-core";
+import {
+  type Checking,
+  type DataContract,
+  type QuerySpec,
+  queryRequest,
+} from "@adam-riffi/dash-core";
 import { AuthError, authenticate } from "./auth.ts";
 import type { GatewayConfig } from "./config.ts";
 import { inferContract } from "./contract/index.ts";
@@ -81,11 +86,13 @@ export function createGateway(config: GatewayConfig): Handler {
   async function runQuery(
     spec: QuerySpec,
     current: DataContract,
+    named: ReadonlyMap<string, string>,
+    memo: Map<string, Checking>,
     scope: Record<string, unknown>,
     scopeHash: string,
     log: Log,
   ): Promise<QueryResult | { errors: string[] }> {
-    const valid = validateQuery(spec, current);
+    const valid = validateQuery(spec, current, named, memo);
     if (!valid.ok) return { errors: valid.errors };
     const planned = planJoins(valid.query, current);
     if (!planned.ok) return { errors: planned.errors };
@@ -179,9 +186,12 @@ export function createGateway(config: GatewayConfig): Handler {
           const broken = policyContractErrors(policies, current);
           if (broken.length > 0) throw new Error(broken.join("; "));
           const results = [];
+          // The dashboard's own measures (ADR 0007).
+          const named = new Map((parsed.data.measures ?? []).map((m) => [m.name, m.formula]));
           // One connection per instance (max 1), so queries run one after another.
+          const memo = new Map<string, Checking>();
           for (const spec of parsed.data.queries) {
-            results.push(await runQuery(spec, current, scope, scopeHash, log));
+            results.push(await runQuery(spec, current, named, memo, scope, scopeHash, log));
           }
           return json({ results }, 200, { "cache-control": "private, no-store" });
         },

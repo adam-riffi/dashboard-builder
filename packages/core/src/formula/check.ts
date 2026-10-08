@@ -89,8 +89,13 @@ const arity = (name: string, [min, max]: [number, number]) =>
  * hand-written core). Every error is reported with the span it is about; a measure's top level
  * must aggregate. Errors inside a referenced measure surface at the reference as `in [Name]: …`.
  */
-export function check(source: string, env: CheckEnv): Checking {
-  return checkMeasure(source, env, [], new Map());
+export function check(
+  source: string,
+  env: CheckEnv,
+  /** Shared by calls with the same env, so each named measure is checked once. */
+  memo: Map<string, Checking> = new Map(),
+): Checking {
+  return checkMeasure(source, env, [], memo);
 }
 
 function checkMeasure(

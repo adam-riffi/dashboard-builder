@@ -123,10 +123,10 @@ export default defineGateway({
 | Method and path | Body / response |
 | --- | --- |
 | `GET /contract` | DataContract; `ETag` = schema hash |
-| `POST /query` | `{ queries: QuerySpec[] }` (1–20) → `{ results: [{ columns, data (column-major), meta: { cache, ms, truncated } } \| { errors: string[] }] }`; one entry per query, in order. `400` for a malformed body, `429` with `Retry-After` past 60 queries a minute per user (§13) |
+| `POST /query` | `{ measures?: [{ name, formula }] (≤ 50, the dashboard's), queries: QuerySpec[] }` (1–20) → `{ results: [{ columns, data (column-major), meta: { cache, ms, truncated } } \| { errors: string[] }] }`; one entry per query, in order. `400` for a malformed body, `429` with `Retry-After` past 60 queries a minute per user (§13) |
 | `GET /health` | `{ status: "ok", db: "ok" }` after `select 1` |
 
-**QuerySpec:** `{ dimensions: [{ field, timeGrain? }], measures: [{ field, aggregation? } | { name } | { formula }], filters: [{ field, op, values }], sort?: [{ by: "dimension" | "measure", index, dir }], limit? }`. Column measures (`{ field, aggregation? }`) arrive in M2; names and formulas in M3 ([ADR 0006](adr/0006-column-measures-in-m2.md)).
+**QuerySpec:** `{ dimensions: [{ field, timeGrain? }], measures: [{ field, aggregation? } | { name } | { formula }], filters: [{ field, op, values }], sort?: [{ by: "dimension" | "measure", index, dir }], limit? }`. Column measures (`{ field, aggregation? }`) arrive in M2; names and formulas in M3 ([ADR 0006](adr/0006-column-measures-in-m2.md)). A name refers to a host measure from the contract or a dashboard measure sent with the request; a query's measures share one fact table, from which the other tables they read are looked up ([ADR 0007](adr/0007-named-measures-and-formula-semantics.md)).
 
 **DashboardSpec (stored JSON, versioned):** `{ specVersion: 1, contractVersion, title, refreshIntervalSec, measures: [{ name, formula, format }], filters: [...], layout: [{ i, x, y, w, h }], visuals: [{ id, type, slots: { category: [...], value: [...] }, options }] }`.
 

@@ -25,15 +25,17 @@ beforeAll(async () => {
   await admin.unsafe(`
     drop schema if exists fx_exec cascade;
     create schema fx_exec;
+    create type fx_exec.channel as enum ('web', 'store');
     create table fx_exec.sales (
       id int primary key, tenant_id int not null, region text not null,
-      amount numeric(10, 2) not null, sold_at timestamptz not null, refunded boolean not null
+      amount numeric(10, 2) not null, sold_at timestamptz not null, refunded boolean not null,
+      channel fx_exec.channel not null, ref uuid not null
     );
     insert into fx_exec.sales values
-      (1, 1, 'north', 10, '2026-01-01T23:30:00Z', false),
-      (2, 1, 'south', 20, '2026-01-02T00:30:00Z', true),
-      (3, 2, 'north', 30, '2026-01-02T10:00:00Z', false),
-      (4, 3, 'east', 40, '2026-01-03T10:00:00Z', false);
+      (1, 1, 'north', 10, '2026-01-01T23:30:00Z', false, 'web', '00000000-0000-0000-0000-000000000001'),
+      (2, 1, 'south', 20, '2026-01-02T00:30:00Z', true, 'store', '00000000-0000-0000-0000-000000000002'),
+      (3, 2, 'north', 30, '2026-01-02T10:00:00Z', false, 'web', '00000000-0000-0000-0000-000000000003'),
+      (4, 3, 'east', 40, '2026-01-03T10:00:00Z', false, 'web', '00000000-0000-0000-0000-000000000004');
     alter table fx_exec.sales enable row level security;
     create policy scoped on fx_exec.sales for select to dash_reader
       using (tenant_id = any(string_to_array(current_setting('app.tenant_ids', true), ',')::int[]));
@@ -152,6 +154,58 @@ describe("executeQuery", () => {
       settings: { "app.tenant_ids": "1,2,3" },
     });
     expect(result.data).toEqual([[20]]);
+  });
+
+  it("computes formulas: numeric division, DIVIDE by zero, conditions, rounding, grains", async () => {
+    const { query, limit } = compiled(
+      {
+        dimensions: [region],
+        measures: [
+          { formula: "COUNT(sales.id) / 2" },
+          { formula: "DIVIDE(SUM(sales.amount), SUM(IF(sales.refunded, sales.amount, 0)))" },
+          { formula: 'COUNT(IF(sales.region = "north", sales.id))' },
+          { formula: "ROUND(AVG(sales.amount) / 3, 1)" },
+          { formula: 'MIN(DATE_TRUNC("month", sales.sold_at))' },
+        ],
+      },
+      { tenantIds: [1, 2] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2" },
+    });
+    expect(result.data).toEqual([
+      ["north", "south"],
+      [1, 0.5],
+      [null, 1],
+      [2, 0],
+      [6.7, 6.7],
+      ["2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z"],
+    ]);
+  });
+
+  it("compares enum and uuid columns with string literals in formulas", async () => {
+    const { query, limit } = compiled(
+      {
+        dimensions: [region],
+        measures: [
+          { formula: 'COUNT(IF(sales.channel = "web", sales.id))' },
+          { formula: 'COUNT(IF(sales.ref = "00000000-0000-0000-0000-000000000003", sales.id))' },
+          { formula: "MAX(sales.channel)" },
+        ],
+      },
+      { tenantIds: [1, 2] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2" },
+    });
+    expect(result.data).toEqual([
+      ["north", "south"],
+      [2, 0],
+      [1, 0],
+      ["web", "store"],
+    ]);
   });
 
   it("runs read-only, so a statement can never write", async () => {

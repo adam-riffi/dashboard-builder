@@ -1,5 +1,7 @@
 import {
+  type Checking,
   type ContractColumn,
+  check,
   children,
   type DataContract,
   type FilterOp,
@@ -38,6 +40,7 @@ export interface ValidQuery {
 export type Validation = { ok: true; query: ValidQuery } | { ok: false; errors: string[] };
 
 const NUMERIC_ONLY = new Set<MeasureAggregation>(["SUM", "AVG"]);
+const MAX_MEASURE_ERRORS = 5;
 
 /** The tables a checked expression reads, sorted. */
 export function tablesOf(expr: Typed): string[] {
@@ -77,10 +80,18 @@ function isIsoDate(value: unknown): boolean {
 
 /**
  * Checks a QuerySpec against the contract (pure). Every problem is reported, each prefixed with
- * the field it is about; on success the fields are resolved and the defaults filled in.
+ * the field or measure it is about; on success the fields are resolved, formulas and named
+ * measures (`named`: formula text by name, ADR 0007) checked, and the defaults filled in.
  */
-export function validateQuery(spec: QuerySpec, contract: DataContract): Validation {
+export function validateQuery(
+  spec: QuerySpec,
+  contract: DataContract,
+  named: ReadonlyMap<string, string> = new Map(),
+  /** Shared by the queries of one request, so each named measure is checked once. */
+  memo: Map<string, Checking> = new Map(),
+): Validation {
   const errors: string[] = [];
+  const env = { contract, measures: named };
   const tables = new Map(contract.tables.map((t) => [t.name, t]));
 
   const resolve = (field: string): ResolvedField | undefined => {
@@ -108,7 +119,25 @@ export function validateQuery(spec: QuerySpec, contract: DataContract): Validati
     return [d.timeGrain ? { ...r, timeGrain: d.timeGrain } : r];
   });
 
-  const measures = spec.measures.flatMap((m) => {
+  const measures = spec.measures.flatMap((m, i): ValidMeasure[] => {
+    if (!("field" in m)) {
+      const formula = "formula" in m ? m.formula : `[${m.name}]`;
+      const checked = check(formula, env, memo);
+      if (!checked.ok) {
+        // A named measure's characters belong to a formula the caller did not send here.
+        const at = (e: { start: number; end: number }) =>
+          "formula" in m ? ` (characters ${e.start}–${e.end})` : "";
+        // The first few errors are enough to act on and keep responses small.
+        for (const e of checked.errors.slice(0, MAX_MEASURE_ERRORS)) {
+          errors.push(`measures[${i}]: ${e.message}${at(e)}`);
+        }
+        const more = checked.errors.length - MAX_MEASURE_ERRORS;
+        if (more > 0) errors.push(`measures[${i}]: and ${more} more error${more === 1 ? "" : "s"}`);
+        return [];
+      }
+      const done = { expr: checked.expr, tables: tablesOf(checked.expr) };
+      return ["formula" in m ? { formula: m.formula, ...done } : { name: m.name, ...done }];
+    }
     const r = resolve(m.field);
     if (!r) return [];
     const aggregation = m.aggregation ?? r.column.aggregation;
