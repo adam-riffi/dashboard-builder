@@ -15,20 +15,26 @@ const muted = "var(--dash-muted, #6b6f76)";
 const grid = "var(--dash-grid, rgba(107, 111, 118, 0.25))";
 const numerals: CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
-/** One big number, the first measure of the first row; the card's title names it. */
+/**
+ * One big number, the first measure of the first row; the card's title names it. The number
+ * shrinks with a narrow card (container units) and wraps rather than spill into its neighbour.
+ */
 export function Kpi({ result, formatters }: VisualProps) {
   const format = formatters[0] ?? String;
   return (
-    <div
-      style={{
-        ...numerals,
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        fontSize: "2.25rem",
-        lineHeight: 1.1,
-        color: ink,
-      }}
-    >
-      {format(result.data[0]?.[0])}
+    <div style={{ containerType: "inline-size" }}>
+      <div
+        style={{
+          ...numerals,
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontSize: "clamp(1.25rem, 14cqi, 2.25rem)",
+          lineHeight: 1.1,
+          overflowWrap: "anywhere",
+          color: ink,
+        }}
+      >
+        {format(result.data[0]?.[0])}
+      </div>
     </div>
   );
 }

@@ -28,6 +28,8 @@ const css = `
 .dash-toolbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .dash-toolbar input { font: inherit; min-width: 16rem; }
 .dash-fields, .dash-props { display: flex; flex-direction: column; gap: 12px; }
+/* The wells stay in view while a field is dragged from far down the list. */
+.dash-props { position: sticky; top: 0; }
 .dash-group, .dash-well { border: 1px solid var(--dash-grid, rgba(107, 111, 118, 0.25)); border-radius: 8px; padding: 8px; margin: 0; }
 .dash-field { display: flex; gap: 6px; width: 100%; text-align: left; background: none; border: 0; padding: 2px 4px; color: inherit; font: inherit; cursor: grab; }
 .dash-field[aria-pressed="true"] { outline: 2px solid var(--dash-accent, #e4572e); }
@@ -38,7 +40,7 @@ const css = `
 .dash-tile { display: flex; flex-direction: column; height: 100%; padding: 8px 12px; box-sizing: border-box;
   border: 1px solid var(--dash-grid, rgba(107, 111, 118, 0.25)); border-radius: 8px; background: inherit; }
 .dash-tile[aria-current="true"] { border-color: var(--dash-accent, #e4572e); }
-.dash-tile header { display: flex; justify-content: space-between; gap: 8px; cursor: move; }
+.dash-tile header { display: flex; justify-content: space-between; align-items: start; gap: 8px; cursor: move; }
 .dash-tile h3 { margin: 0 0 4px; font-size: 0.95rem; }
 .dash-tile .dash-body { flex: 1; min-height: 0; }
 @media (max-width: 900px) { .dash-builder { grid-template-columns: 1fr; } }
@@ -93,7 +95,7 @@ function VisualOptions({
         type="number"
         min={1}
         max={max}
-        value={Number(options.limit ?? "")}
+        value={String(options.limit ?? "")}
         onChange={(e) => set("limit", Math.min(max, Math.max(1, Number(e.target.value))))}
       />
     </label>
