@@ -14,15 +14,15 @@
     "@adam-riffi/dash-gateway": "workspace:*",
     "@adam-riffi/dash-react": "workspace:*",
     "@adam-riffi/dash-visuals": "workspace:*",
-    "@supabase/supabase-js": "2.117.2",
-    "next": "16.3.8",
+    "@supabase/supabase-js": "2.117.3",
+    "next": "16.4.0",
     "postgres": "3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-grid-layout": "2.3.0"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.64.0",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
