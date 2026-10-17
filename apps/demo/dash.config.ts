@@ -1,4 +1,4 @@
-import { defineGateway, jwtAuth, postgresSource } from "@adam-riffi/dash-gateway";
+import { defineGateway, jwtAuth, memoryCache, postgresSource } from "@adam-riffi/dash-gateway";
 import { tenantsOf } from "./lib/tenants";
 
 const tables = [
@@ -35,4 +35,6 @@ export default defineGateway({
     { name: "Orders", formula: "COUNTDISTINCT(order_items.order_id)", format: "number" },
     { name: "Average order value", formula: "DIVIDE([Revenue], [Orders])", format: "currency" },
   ],
+  // Per function instance; keyed by scope and compiled query (DESIGN.md §6, ADR 0010).
+  cache: memoryCache({ maxBytes: 50_000_000 }),
 });

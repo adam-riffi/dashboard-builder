@@ -1,7 +1,13 @@
 import { dataContract } from "@adam-riffi/dash-core";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createGateway, defineGateway, jwtAuth, postgresSource } from "../../src/index.ts";
+import {
+  createGateway,
+  defineGateway,
+  jwtAuth,
+  memoryCache,
+  postgresSource,
+} from "../../src/index.ts";
 import { AUDIENCE, ISSUER, startJwks, USER } from "./jwks.ts";
 
 const jwks = await startJwks();
@@ -180,6 +186,45 @@ describe("POST /query", () => {
       meta: { cache: "miss", truncated: false },
     });
     expect(results[1].data).toEqual([[3]]);
+  });
+
+  it("serves a repeated query from the cache, and never across scopes", async () => {
+    const cached = createGateway(
+      defineGateway({
+        source: postgresSource({
+          url:
+            process.env.DASH_SOURCE_URL ??
+            "postgres://dash_reader:password@localhost:54322/postgres",
+        }),
+        auth: jwtAuth({ jwksUrl: jwks.url, issuer: ISSUER, audience: AUDIENCE }),
+        identity: { claim: "sub", format: "uuid" },
+        tables: ["fx_api.sales"],
+        policies: [{ table: "fx_api.sales", column: "tenant_id", in: "tenantIds" }],
+        resolveScope: async () => scope,
+        cache: memoryCache({ maxBytes: 1_000_000 }),
+      }),
+    );
+    const ask = async () => {
+      const res = await cached(
+        new Request("http://demo.test/api/dash/query", {
+          method: "POST",
+          headers: { ...(await bearer()), "content-type": "application/json" },
+          body: JSON.stringify({ queries: [byRegion], maxAgeSec: 60 }),
+        }),
+      );
+      return (await res.json()).results[0];
+    };
+    scope = { tenantIds: [1, 2] };
+    const first = await ask();
+    const again = await ask();
+    expect(first.meta.cache).toBe("miss");
+    expect(again.meta.cache).toBe("hit");
+    expect(again.data).toEqual(first.data);
+    scope = { tenantIds: [3] };
+    const other = await ask();
+    scope = { tenantIds: [1, 2] };
+    expect(other.meta.cache).toBe("miss");
+    expect(other.data).toEqual([["east"], [40]]);
   });
 
   it("reports invalid queries one by one, next to valid ones", async () => {

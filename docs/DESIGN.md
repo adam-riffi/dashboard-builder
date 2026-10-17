@@ -99,7 +99,7 @@ Foreign keys become many-to-one relationships. The contract carries `schemaHash`
 - Defense in depth: queries run in a transaction that sets `set_config('app.tenant_ids', …, true)` and `SET LOCAL statement_timeout`; the demo's Postgres RLS policies read that setting, so a planner bug still cannot leak rows.
 - Identifiers come only from the contract (quoted); values are always bound parameters. Limits: 10,000 rows returned, 2 s statement timeout, 20 queries per request batch.
 
-**Caching.** Contract cache keyed by source and config, refreshed when the schema hash changes (checked at most every 60 s). Result cache keyed by `sha256(normalized QuerySpec + contract version + scope hash)`, TTL = the smallest refresh interval among requesting visuals (minimum 5 s), LRU bounded by bytes. The client sends `If-None-Match`; unchanged results return `304`. Missing the scope in the key is a release-blocking bug and has its own property test.
+**Caching.** Contract cache keyed by source and config, refreshed when the schema hash changes (checked at most every 60 s). Result cache keyed by `sha256(scope hash + contract version + compiled SQL + parameters)`; an entry serves a request only while younger than its `maxAgeSec` (the dashboard's refresh interval, minimum 5 s), so the TTL is the smallest refresh interval among requesting visuals; LRU bounded by bytes ([ADR 0010](adr/0010-result-cache-keys-and-freshness.md)). The client sends `If-None-Match`; unchanged results return `304`. Missing the scope in the key is a release-blocking bug and has its own property test.
 
 **Cross-filtering.** A selection in one visual becomes a filter clause on its field; the coordinator adds it to every other visual's QuerySpec on the page, while the source visual only highlights. Clearing the selection removes it.
 
@@ -124,7 +124,7 @@ export default defineGateway({
 | Method and path | Body / response |
 | --- | --- |
 | `GET /contract` | DataContract, including the host measures with their types; `ETag` = schema hash |
-| `POST /query` | `{ measures?: [{ name, formula }] (≤ 50, the dashboard's), queries: QuerySpec[] }` (1–20) → `{ results: [{ columns, data (column-major), meta: { cache, ms, truncated } } \| { errors: string[] }] }`; one entry per query, in order. `400` for a malformed body, `429` with `Retry-After` past 60 queries a minute per user (§13) |
+| `POST /query` | `{ measures?: [{ name, formula }] (≤ 50, the dashboard's), queries: QuerySpec[] (1–20), maxAgeSec? (5–86,400, default 60) }` → `{ results: [{ columns, data (column-major), meta: { cache: "hit" \| "miss", ms, truncated } } \| { errors: string[] }] }`; one entry per query, in order. `400` for a malformed body, `429` with `Retry-After` past 60 queries a minute per user (§13) |
 | `GET /health` | `{ status: "ok", db: "ok" }` after `select 1` |
 
 **QuerySpec:** `{ dimensions: [{ field, timeGrain? }], measures: [{ field, aggregation? } | { name } | { formula }], filters: [{ field, op, values }], sort?: [{ by: "dimension" | "measure", index, dir }], limit? }`. Column measures (`{ field, aggregation? }`) arrive in M2; names and formulas in M3 ([ADR 0006](adr/0006-column-measures-in-m2.md)). A name refers to a host measure from the contract or a dashboard measure sent with the request; a query's measures share one fact table, from which the other tables they read are looked up ([ADR 0007](adr/0007-named-measures-and-formula-semantics.md)).

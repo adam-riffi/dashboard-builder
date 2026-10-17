@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   type Checking,
   type DataContract,
@@ -7,6 +6,7 @@ import {
   queryRequest,
 } from "@adam-riffi/dash-core";
 import { AuthError, authenticate } from "./auth.ts";
+import { resultKey, scopeHashOf } from "./cache.ts";
 import type { GatewayConfig } from "./config.ts";
 import { cachedContract } from "./contract/cache.ts";
 import { inferContract } from "./contract/index.ts";
@@ -34,6 +34,9 @@ interface Route {
 
 /** A request still running after this long is logged with the stage it is in. */
 const SLOW_MS = 10_000;
+
+/** A request without `maxAgeSec` accepts results this old: a dashboard's default refresh. */
+const DEFAULT_MAX_AGE_SEC = 60;
 
 const json = (body: unknown, status: number, headers: Record<string, string> = {}) =>
   Response.json(body, { status, headers });
@@ -104,6 +107,7 @@ export function createGateway(config: GatewayConfig): Handler {
     memo: Map<string, Checking>,
     scope: Record<string, unknown>,
     scopeHash: string,
+    maxAgeMs: number,
     log: Log,
   ): Promise<QueryResult | { errors: string[] }> {
     const valid = validateQuery(spec, current, named, memo);
@@ -117,13 +121,27 @@ export function createGateway(config: GatewayConfig): Handler {
       return { errors: ["This query is outside your data scope"] };
     }
     try {
-      const result = await executeQuery(config.source(), compiled.query, {
-        limit: valid.query.limit,
-        settings: settingsFor(scope),
+      const started = performance.now();
+      const key = resultKey({
+        scopeHash,
+        contractVersion: current.contractVersion,
+        sql: compiled.query.text,
+        params: compiled.query.params,
       });
+      const cached = config.cache?.get(key, maxAgeMs);
+      const result: QueryResult = cached
+        ? {
+            ...cached,
+            meta: { ...cached.meta, cache: "hit", ms: Math.round(performance.now() - started) },
+          }
+        : await executeQuery(config.source(), compiled.query, {
+            limit: valid.query.limit,
+            settings: settingsFor(scope),
+          });
+      if (!cached) config.cache?.set(key, result);
       // DESIGN.md §13: a scope hash, never the tenant ids.
       log("info", "query", {
-        scopeHash,
+        scopeHash: scopeHash.slice(0, 16),
         cache: result.meta.cache,
         rows: result.data[0]?.length ?? 0,
         truncated: result.meta.truncated,
@@ -194,10 +212,9 @@ export function createGateway(config: GatewayConfig): Handler {
           }
           step("scope");
           const scope = (await config.resolveScope?.(claims)) ?? {};
-          const scopeHash = createHash("sha256")
-            .update(JSON.stringify(Object.entries(scope).sort()))
-            .digest("hex")
-            .slice(0, 16);
+          const scopeHash = scopeHashOf(scope);
+          // Results no older than the dashboard's refresh interval (DESIGN.md §6, ADR 0010).
+          const maxAgeMs = (parsed.data.maxAgeSec ?? DEFAULT_MAX_AGE_SEC) * 1000;
           step("contract");
           const current = await contract();
           const broken = policyContractErrors(policies, current);
@@ -213,7 +230,9 @@ export function createGateway(config: GatewayConfig): Handler {
           const memo = new Map<string, Checking>();
           step("query");
           for (const spec of parsed.data.queries) {
-            results.push(await runQuery(spec, current, named, memo, scope, scopeHash, log));
+            results.push(
+              await runQuery(spec, current, named, memo, scope, scopeHash, maxAgeMs, log),
+            );
           }
           return json({ results }, 200, { "cache-control": "private, no-store" });
         },

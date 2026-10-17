@@ -5,6 +5,7 @@ export {
   type IdentityConfig,
   jwtAuth,
 } from "./auth.ts";
+export { memoryCache, type ResultCache } from "./cache.ts";
 export { defineGateway, type GatewayConfig, postgresSource } from "./config.ts";
 export { createGateway } from "./gateway.ts";
 export { health } from "./health.ts";
