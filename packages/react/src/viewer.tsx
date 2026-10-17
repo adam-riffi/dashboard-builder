@@ -6,7 +6,7 @@ import type {
   MeasureFormat,
   QueryResult,
 } from "@adam-riffi/dash-core";
-import { formattersFor, getVisual } from "@adam-riffi/dash-visuals";
+import { formattersFor, getVisual, labelOf } from "@adam-riffi/dash-visuals";
 import { Component, type CSSProperties, type ReactNode, useMemo, useState } from "react";
 import type { Selection } from "./crossfilter.ts";
 import { useContract, useDash, useDashboardAnswers } from "./provider.tsx";
@@ -95,6 +95,14 @@ export function DashboardViewer({
 }) {
   // Cross-filtering (DESIGN.md §6): at most one selection per visual, each filtering the others.
   const [selections, setSelections] = useState<Selection[]>([]);
+  // What each chip says: the field and the value as the visual's axis shows it.
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  // Selections belong to one dashboard: another spec starts with none.
+  const [shown, setShown] = useState(spec);
+  if (shown !== spec) {
+    setShown(spec);
+    setSelections([]);
+  }
   // A saved dashboard is live: it refreshes on its interval (DESIGN.md §6).
   const { stateOf, formats, currency } = useVisualStates(spec, { refresh: true, selections });
   const select = (visualId: string, result: QueryResult) => (value: unknown) => {
@@ -103,6 +111,8 @@ export function DashboardViewer({
     const mine = selections.find((s) => s.visualId === visualId);
     const others = selections.filter((s) => s.visualId !== visualId);
     if (mine && selectedValue(mine) === value) return setSelections(others);
+    const shownAs = formattersFor(result.columns, formats, currency)[0] ?? String;
+    setLabels((l) => ({ ...l, [visualId]: `${labelOf(axis)}: ${shownAs(value)}` }));
     const picked: Selection = axis.timeGrain
       ? { visualId, field: axis.field, bucket: String(value), grain: axis.timeGrain }
       : { visualId, field: axis.field, value: value as string | number | boolean };
@@ -120,10 +130,10 @@ export function DashboardViewer({
               key={s.visualId}
               type="button"
               className="dash-chip"
-              aria-label={`Clear filter ${String(selectedValue(s))}`}
+              aria-label={`Clear filter ${labels[s.visualId] ?? String(selectedValue(s))}`}
               onClick={() => setSelections(selections.filter((o) => o !== s))}
             >
-              {String(selectedValue(s))} ×
+              {labels[s.visualId] ?? String(selectedValue(s))} ×
             </button>
           ))}
         </p>

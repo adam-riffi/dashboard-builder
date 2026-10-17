@@ -47,14 +47,32 @@ export function Kpi({ result, formatters }: VisualProps) {
 function Pick({ result, formatters, selected, onSelect }: VisualProps) {
   const [axis] = result.columns;
   const values = result.data[0] ?? [];
-  if (!onSelect || !axis) return null;
   const at = values.indexOf(selected);
+  const current = at < 0 ? "" : String(at);
+  // Arrow keys change a closed select one step at a time; the choice applies on Enter or on
+  // leaving the picker, not on each step.
+  const [draft, setDraft] = useState(current);
+  // A selection changed elsewhere (a click, a cleared chip) resets the draft to it.
+  const [applied, setApplied] = useState(current);
+  if (applied !== current) {
+    setApplied(current);
+    setDraft(current);
+  }
+  if (!onSelect || !axis) return null;
+  const apply = () => {
+    if (draft === current) return;
+    onSelect(draft === "" ? selected : values[Number(draft)]);
+  };
   return (
     <select
       className="dash-pick"
       aria-label={`Filter by ${labelOf(axis)}`}
-      value={at < 0 ? "" : String(at)}
-      onChange={(e) => onSelect(e.target.value === "" ? selected : values[Number(e.target.value)])}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") apply();
+      }}
+      onBlur={apply}
     >
       <option value="">All</option>
       {values.map((v, i) => (

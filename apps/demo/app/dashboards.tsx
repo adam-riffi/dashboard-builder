@@ -131,7 +131,7 @@ export function Dashboards({ getToken }: { getToken: () => Promise<string> }) {
               Close
             </button>
           </p>
-          <DashboardViewer spec={open.spec} underTheHood />
+          <DashboardViewer key={open.id} spec={open.spec} underTheHood />
         </>
       ) : (
         <DashboardViewer spec={sampleDashboard} underTheHood />

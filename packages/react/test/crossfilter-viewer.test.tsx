@@ -106,9 +106,7 @@ describe("cross-filtering in the viewer (DESIGN.md §6)", () => {
 
     // The chip names the field and the value as the axis shows it.
     await userEvent.click(screen.getByRole("button", { name: "Clear filter Category: Garden" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull());
     expect(
       query.mock.calls.map((c) => c[0].queries.flatMap((q) => q.filters)).at(-1) ?? [],
     ).toEqual([]);
@@ -163,10 +161,22 @@ describe("cross-filtering in the viewer (DESIGN.md §6)", () => {
     await userEvent.keyboard("{Enter}");
     await screen.findByRole("button", { name: "Clear filter Category: Garden" });
     show({ ...spec("bar"), title: "Another dashboard" });
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull());
     await tick();
     expect(query.mock.lastCall?.[0].queries.flatMap((q) => q.filters)).toEqual([]);
+  });
+
+  it("never brings back a cleared choice when the picker loses focus later", async () => {
+    setup("bar");
+    const pick = await screen.findByRole("combobox", { name: "Filter by Category" });
+    await userEvent.selectOptions(pick, "Garden");
+    await userEvent.keyboard("{Enter}");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Clear filter Category: Garden" }),
+    );
+    fireEvent.focus(pick);
+    fireEvent.blur(pick);
+    await tick();
+    expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull();
   });
 });

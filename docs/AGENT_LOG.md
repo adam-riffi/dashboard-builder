@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · stack/m6/10-client-review · #69
+- Done: the client findings of the M6 review (posted on #67): 1 (blocker), 4, 5, 6, 11, 12.
+  - A visual shows its last answer only while the next is pending. A failed new query (a refused cross-filter, a 429) shows its error, never the unfiltered numbers under the chip.
+  - Refresh intervals are at least 2 s per querying visual, keeping refreshes under half the gateway's 60 queries a minute.
+  - Selections reset when the viewer gets another spec, and the demo keys the viewer by dashboard.
+  - The keyboard picker applies its choice on Enter or blur, not on each arrow key, and resyncs when the selection changes elsewhere.
+  - Chips read "Category: Garden" with the axis's formatting.
+  - The live e2e polls for at least `count + 1` and deletes its order in `finally`; a new e2e clicks a real bar (the demo script's path).
+- Tests (written first): arrow keys don't filter; Enter and blur do; a refused filtered query shows the error; another spec has no selection; a cleared choice never comes back on blur (found while fixing); the refresh budget for three visuals.
+- Scope/decisions: findings 3 (unreachable selections) and 8 (two refresh requests after a selection) stay open, recorded in HANDOFF.
+- Next: CI, then merge M6 one PR at a time and check it on production.
+
 ## 2026-10-17 · claude · stack/m6/09-gateway-review · #68
 - Done: the gateway findings of the M6 review (posted on #67): 2, 7, 9, 10.
   - A cache hit answers with the columns of the query it answers: a host measure asked by name and by its inlined formula compile to one SQL and share an entry, but each keeps its own echo (title, format).
