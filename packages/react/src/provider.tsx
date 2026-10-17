@@ -86,11 +86,15 @@ interface Dash {
   transport: Transport;
   /** ISO 4217 code for `currency` measures. */
   currency: string;
-  /** One query's answer, sent with the other queries asked for in the same tick. */
-  ask: (query: QuerySpec, measures: NamedMeasure[]) => Promise<QueryAnswer>;
+  /**
+   * One query's answer, sent with the other queries asked for in the same tick, accepting a
+   * cached result no older than `maxAgeSec` (the gateway's default when absent).
+   */
+  ask: (query: QuerySpec, measures: NamedMeasure[], maxAgeSec?: number) => Promise<QueryAnswer>;
 }
 
 interface Batch {
+  maxAgeSec: number | undefined;
   queries: QuerySpec[];
   measures: Map<string, NamedMeasure>;
   waiting: { resolve: (answer: QueryAnswer) => void; reject: (error: unknown) => void }[];
@@ -100,7 +104,7 @@ interface Batch {
 /**
  * Queries asked for in the same tick go out as one request (ADR 0008): a dashboard still loads
  * in one, and an edit asks only for what it changed. Two dashboards whose measures disagree on
- * a name never share a request.
+ * a name, or that accept results of different ages, never share a request.
  */
 function batched(transport: Transport): Dash["ask"] {
   let open: Batch | undefined;
@@ -108,29 +112,39 @@ function batched(transport: Transport): Dash["ask"] {
     if (batch.sent) return;
     batch.sent = true;
     if (open === batch) open = undefined;
-    transport.query({ measures: [...batch.measures.values()], queries: batch.queries }).then(
-      (answers) => {
-        batch.waiting.forEach((w, i) => {
-          w.resolve(answers[i] ?? { errors: ["No answer for this visual"] });
-        });
-      },
-      (error) => {
-        for (const w of batch.waiting) w.reject(error);
-      },
-    );
+    const maxAge = batch.maxAgeSec === undefined ? {} : { maxAgeSec: batch.maxAgeSec };
+    transport
+      .query({ measures: [...batch.measures.values()], queries: batch.queries, ...maxAge })
+      .then(
+        (answers) => {
+          batch.waiting.forEach((w, i) => {
+            w.resolve(answers[i] ?? { errors: ["No answer for this visual"] });
+          });
+        },
+        (error) => {
+          for (const w of batch.waiting) w.reject(error);
+        },
+      );
   };
-  const clashes = (batch: Batch, measures: NamedMeasure[]) =>
+  const clashes = (batch: Batch, measures: NamedMeasure[], maxAgeSec: number | undefined) =>
     batch.queries.length >= MAX_QUERIES ||
+    batch.maxAgeSec !== maxAgeSec ||
     measures.some((m) => {
       const had = batch.measures.get(m.name);
       return had !== undefined && JSON.stringify(had) !== JSON.stringify(m);
     });
-  return (query, measures) =>
+  return (query, measures, maxAgeSec) =>
     new Promise((resolve, reject) => {
-      if (open && clashes(open, measures)) send(open);
+      if (open && clashes(open, measures, maxAgeSec)) send(open);
       let batch = open;
       if (!batch) {
-        const fresh: Batch = { queries: [], measures: new Map(), waiting: [], sent: false };
+        const fresh: Batch = {
+          maxAgeSec,
+          queries: [],
+          measures: new Map(),
+          waiting: [],
+          sent: false,
+        };
         setTimeout(() => send(fresh), 0);
         batch = fresh;
         open = fresh;
@@ -205,10 +219,12 @@ export function useContract() {
 /**
  * Every visual's answer, each cached under its own query and the measures that query reaches,
  * so an edit asks again only for the visuals it changed. Asked together, they share one request
- * (ADR 0008).
+ * (ADR 0008). With `refresh`, every visual asks again each `refreshIntervalSec` (at least 5 s),
+ * all in the same tick, so a refresh is one request too, usually answered 304 (DESIGN.md §6).
  */
-export function useDashboardAnswers(spec: DashboardSpec) {
+export function useDashboardAnswers(spec: DashboardSpec, { refresh = false } = {}) {
   const { ask } = useDash();
+  const interval = refresh ? Math.max(5, spec.refreshIntervalSec) : undefined;
   const plan = useMemo(() => dashboardRequest(spec), [spec]);
   const asked = plan.visuals.flatMap((v) =>
     "query" in v ? [{ id: v.id, query: plan.request.queries[v.query] as QuerySpec }] : [],
@@ -217,8 +233,9 @@ export function useDashboardAnswers(spec: DashboardSpec) {
     queries: asked.map(({ id, query }) => {
       const measures = measuresFor(query, spec.measures);
       return {
-        queryKey: ["dash", "query", id, query, measures],
-        queryFn: () => ask(query, measures),
+        queryKey: ["dash", "query", id, query, measures, interval],
+        queryFn: () => ask(query, measures, interval),
+        refetchInterval: interval === undefined ? false : interval * 1000,
       };
     }),
   });
