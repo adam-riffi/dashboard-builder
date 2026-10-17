@@ -9,13 +9,15 @@ It talks to [`@adam-riffi/dash-gateway`](https://www.npmjs.com/package/@adam-rif
 ## Host setup
 
 ```tsx
-import { DashboardViewer, DashProvider } from "@adam-riffi/dash-react";
+"use client";
+import { type DashboardSpec, DashboardViewer, DashProvider } from "@adam-riffi/dash-react";
 import { DashboardBuilder } from "@adam-riffi/dash-react/builder"; // only pages that edit load it
-import "react-grid-layout/css/styles.css"; // the builder's grid
+import "react-grid-layout/css/styles.css"; // the builder's grid: pnpm add react-grid-layout
 import { useState } from "react";
 
-export function Dashboard({ saved, save, getToken }) {
-  const [spec, setSpec] = useState(saved); // a DashboardSpec; you store it (onSave)
+type Props = { saved: DashboardSpec; save: (s: DashboardSpec) => void; getToken: () => Promise<string> };
+export function Dashboard({ saved, save, getToken }: Props) {
+  const [spec, setSpec] = useState(saved); // you store dashboards: Save hands them to `save`
   const [editing, setEditing] = useState(false);
   return (
     <DashProvider gateway="/api/dash" getToken={getToken}>
@@ -26,6 +28,8 @@ export function Dashboard({ saved, save, getToken }) {
   );
 }
 ```
+
+The builder's grid stylesheet comes from `react-grid-layout`, which you install alongside (`pnpm add react-grid-layout@^2.3.0`): pnpm keeps a package's own dependencies out of your imports.
 
 ## What you get
 

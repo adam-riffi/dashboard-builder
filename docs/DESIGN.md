@@ -113,7 +113,8 @@ export default defineGateway({
   identity: { claim: "sub", format: "uuid" },
   tables: ["dash_demo.orders", "dash_demo.order_items", "dash_demo.products", "dash_demo.customers"],
   resolveScope: async (claims) => ({ userId: claims.sub, tenantIds: await tenantsOf(appDb(), claims.sub) }),
-  policies: [{ table: "dash_demo.orders", column: "tenant_id", in: "tenantIds" }],
+  // every table holding tenant rows: a query is filtered only on the tables it joins
+  policies: ["dash_demo.orders", "dash_demo.order_items", "dash_demo.products", "dash_demo.customers"].map((table) => ({ table, column: "tenant_id", in: "tenantIds" })),
   measures: [{ name: "Revenue", formula: "SUM(order_items.quantity * order_items.unit_price)" }], // ADR 0007
   cache: memoryCache({ maxBytes: 50_000_000 }),
   explain: false, // true adds SQL, parameters and scope to answers: development or demo data only (§13)

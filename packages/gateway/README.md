@@ -11,22 +11,27 @@ The server half of [dashboard-builder](https://github.com/adam-riffi/dashboard-b
 ```ts
 // dash.config.ts: secrets from the environment, a read-only database role
 import { defineGateway, jwtAuth, memoryCache, postgresSource } from "@adam-riffi/dash-gateway";
+import { tenantsOf } from "./tenants"; // your lookup: the tenants this user may see
 
+const tables = ["shop.orders", "shop.order_items", "shop.products"];
 export default defineGateway({
   source: postgresSource({ url: process.env.DASH_SOURCE_URL! }),
   auth: jwtAuth({ jwksUrl: process.env.DASH_JWKS_URL!, issuer: process.env.DASH_JWT_ISSUER!, audience: "authenticated" }),
   identity: { claim: "sub", format: "uuid" },
-  tables: ["shop.orders", "shop.order_items", "shop.products"],
+  tables,
   resolveScope: async (claims) => ({ tenantIds: await tenantsOf(String(claims.sub)) }),
-  policies: [{ table: "shop.orders", column: "tenant_id", in: "tenantIds" }],
+  policies: tables.map((table) => ({ table, column: "tenant_id", in: "tenantIds" })),
   cache: memoryCache({ maxBytes: 50_000_000 }),
 });
 
-// app/api/dash/[...path]/route.ts: any server that speaks Fetch Request/Response works
+// app/api/dash/[...path]/route.ts: a Node.js route (the default; not the Edge runtime)
 import { createGateway } from "@adam-riffi/dash-gateway";
 import config from "../../../../dash.config";
 export const GET = createGateway(config), POST = GET;
 ```
+
+- **Policies:** give every allowlisted table that holds tenant rows a policy. A query is filtered only on the tables it joins.
+- **Runtime:** the gateway runs on Node.js 20 or later. It uses `node:crypto`, `Buffer` and a TCP connection to Postgres, so it doesn't run on Edge or Workers runtimes.
 
 Then render the builder and viewer from [`@adam-riffi/dash-react`](https://www.npmjs.com/package/@adam-riffi/dash-react).
 
