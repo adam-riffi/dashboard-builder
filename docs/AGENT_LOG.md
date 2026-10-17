@@ -23,6 +23,7 @@ Entry format:
   "Hide" is remembered in `localStorage` (safe if storage is blocked). The panel renders after mount, so server and browser agree.
 - Tests (written first): `e2e/onboarding.spec.ts`, six steps, the GitHub link, hiding and a reload (also passes locally: the panel needs no sign-in).
 - Scope/decisions: the panel sits outside the signed-in session, so it shows even when sign-in fails.
+- Review fix (#74's review): the panel's "Under the hood" text broke `live.spec.ts`'s `getByText` in CI. The drawer test now targets the drawer by its role. The panel is named by its heading, "Hide these steps" hands focus to `main`, and the order rate is stated as it is: one a minute across five tenants.
 - Next: #74, the repository README with the demo GIF, diagrams and benchmarks.
 
 ## 2026-10-18 · claude · stack/m7/02-package-readmes · #72

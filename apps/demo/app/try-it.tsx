@@ -23,6 +23,8 @@ export function TryIt() {
   if (hidden) return null;
   const hide = () => {
     setHidden(true);
+    // The button disappears with the panel: focus goes to the page rather than nowhere.
+    document.querySelector<HTMLElement>("main")?.focus();
     try {
       localStorage.setItem(HIDDEN, "1");
     } catch {
@@ -30,8 +32,8 @@ export function TryIt() {
     }
   };
   return (
-    <section aria-label="Try it" className="try-it">
-      <h2>Try it in a minute</h2>
+    <section aria-labelledby="try-it-title" className="try-it">
+      <h2 id="try-it-title">Try it in a minute</h2>
       <ol>
         <li>
           You are signed in as a guest with two of the shop's five tenants: only their orders show.
@@ -44,7 +46,10 @@ export function TryIt() {
           into Value (or click a field, then its Add button), and <strong>Save</strong>.
         </li>
         <li>Click a bar: every other visual filters to that category.</li>
-        <li>Leave it open: a new order arrives every minute and the numbers refresh.</li>
+        <li>
+          Leave it open: the shop takes an order a minute across its five tenants, and your numbers
+          refresh when one of yours arrives.
+        </li>
         <li>
           Open <strong>Under the hood</strong>: your security context, each query's SQL, cache hit
           or miss, and time.
@@ -53,7 +58,7 @@ export function TryIt() {
       <p>
         <a href="https://github.com/adam-riffi/dashboard-builder">Source on GitHub</a>{" "}
         <button type="button" onClick={hide}>
-          Hide
+          Hide these steps
         </button>
       </p>
     </section>

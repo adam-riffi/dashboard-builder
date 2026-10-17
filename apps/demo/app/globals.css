@@ -70,3 +70,7 @@ code {
 .try-it a {
   color: var(--accent);
 }
+
+main:focus {
+  outline: none;
+}
