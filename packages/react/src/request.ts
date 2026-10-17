@@ -7,6 +7,7 @@ import {
   querySpec,
 } from "@adam-riffi/dash-core";
 import { getVisual, queryOf } from "@adam-riffi/dash-visuals";
+import { filtersOf, type Selection } from "./crossfilter.ts";
 
 /** Where each visual's answer will be: its query's position, or why it has none. */
 export type VisualPlan = { id: string; query: number } | { id: string; errors: string[] };
@@ -19,8 +20,10 @@ export interface DashboardPlan {
 /**
  * One `POST /query` for a whole dashboard (ADR 0008): every visual that can query becomes a
  * QuerySpec with the dashboard's filters added, and the dashboard's measures travel with it.
+ * The cross-filter coordinator (DESIGN.md §6) adds every other visual's selection to each
+ * visual's query; a visual is never filtered by its own selection, which it only highlights.
  */
-export function dashboardRequest(spec: DashboardSpec): DashboardPlan {
+export function dashboardRequest(spec: DashboardSpec, selections: Selection[] = []): DashboardPlan {
   const queries: QueryRequest["queries"] = [];
   const visuals = spec.visuals.map((visual): VisualPlan => {
     const definition = getVisual(visual.type);
@@ -30,7 +33,11 @@ export function dashboardRequest(spec: DashboardSpec): DashboardPlan {
     // The dashboard's filters count against the query's own cap.
     const merged = querySpec.safeParse({
       ...planned.query,
-      filters: [...spec.filters, ...planned.query.filters],
+      filters: [
+        ...spec.filters,
+        ...selections.filter((s) => s.visualId !== visual.id).flatMap(filtersOf),
+        ...planned.query.filters,
+      ],
     });
     if (!merged.success) {
       const errors = merged.error.issues.map((i) => `query.${i.path.join(".")}: ${i.message}`);

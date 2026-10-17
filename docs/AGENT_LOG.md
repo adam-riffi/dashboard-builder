@@ -14,6 +14,14 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · stack/m6/05-cross-filter-core · #64
+- Done: the cross-filter coordinator (DESIGN.md §6, M6 PR 5, hand-written core).
+  - `packages/react/src/crossfilter.ts`: `Selection` is one value of a field, or one time bucket at a grain. `filtersOf` makes an equality (`in`) for a value, and `[start, next start)` (`gte` and `lt`, ISO dates, UTC) for a bucket.
+  - `dashboardRequest(spec, selections)` adds every other visual's selection to each visual's query; the source visual's query is untouched.
+- Tests (written first): table-driven buckets for every grain, including year and month ends and a leap February; value selections; a property test (fast-check, now a react dev dependency with the shared setup) that a visual carries exactly the other visuals' selections.
+- Scope/decisions: buckets compile to `gte` and `lt` rather than `between`, which is inclusive at both ends.
+- Next: #65, selectable bars, lines and rows, wired into the viewer.
+
 ## 2026-10-17 · claude · stack/m6/04-interval-refresh · #63
 - Done: saved dashboards refresh on their interval (DESIGN.md §6, M6 PR 4).
   - `useDashboardAnswers(spec, { refresh })` refetches every visual each `refreshIntervalSec` (at least 5 s). The timers line up, so a refresh is one batched request, usually answered `304` (#62).
