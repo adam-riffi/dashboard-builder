@@ -48,3 +48,25 @@ code {
 .muted {
   color: var(--muted);
 }
+
+.try-it {
+  margin: 24px 0;
+  padding: 16px 20px;
+  border: 1px solid var(--dash-grid);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+}
+
+.try-it h2 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.try-it ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.try-it a {
+  color: var(--accent);
+}
