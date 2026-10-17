@@ -233,11 +233,13 @@ export function useDashboardAnswers(
   }: { refresh?: boolean; selections?: Selection[] } = {},
 ) {
   const { ask } = useDash();
-  const interval = refresh ? Math.max(5, spec.refreshIntervalSec) : undefined;
   const plan = useMemo(() => dashboardRequest(spec, selections), [spec, selections]);
   const asked = plan.visuals.flatMap((v) =>
     "query" in v ? [{ id: v.id, query: plan.request.queries[v.query] as QuerySpec }] : [],
   );
+  // At least 2 s per querying visual: refreshes alone stay under half the gateway's 60 queries
+  // a minute, leaving room for cross-filtering (DESIGN.md §13).
+  const interval = refresh ? Math.max(5, spec.refreshIntervalSec, 2 * asked.length) : undefined;
   const results = useQueries({
     queries: asked.map(({ id, query }) => {
       const measures = measuresFor(query, spec.measures);
@@ -260,7 +262,9 @@ export function useDashboardAnswers(
       return { answer: { errors: planned.errors }, pending: false, failed: false };
     }
     const result = byId.get(id);
-    const answer = result?.data ?? latest.current.get(id);
+    // The last answer stands in only while the next is on its way: a query that failed shows its
+    // failure, never an answer to another question (a cross-filter the gateway refused).
+    const answer = result?.data ?? (result?.isPending ? latest.current.get(id) : undefined);
     return {
       ...(answer ? { answer } : {}),
       pending: result?.isPending ?? true,

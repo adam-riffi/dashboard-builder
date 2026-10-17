@@ -6,10 +6,10 @@ import {
   type QueryAnswer,
   type QueryRequest,
 } from "@adam-riffi/dash-core";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DashboardViewer, DashProvider, type Transport } from "../src/index.ts";
+import { DashboardViewer, DashProvider, GatewayError, type Transport } from "../src/index.ts";
 
 afterEach(cleanup);
 // jsdom has neither; the chart wrapper uses both (charts themselves never draw here).
@@ -73,22 +73,24 @@ const answerTo = (request: QueryRequest): QueryAnswer[] =>
         },
   );
 
-function setup(type: "bar" | "table") {
-  const query = vi.fn(async (request: QueryRequest) => answerTo(request));
+function setup(type: "bar" | "table", answer = async (r: QueryRequest) => answerTo(r)) {
+  const query = vi.fn(answer);
   const transport: Transport = { contract: async () => contract, query };
-  render(
+  const view = (s: DashboardSpec) => (
     <DashProvider transport={transport}>
-      <DashboardViewer spec={spec(type)} />
-    </DashProvider>,
+      <DashboardViewer spec={s} />
+    </DashProvider>
   );
+  const { rerender } = render(view(spec(type)));
   /** The filters each query of the latest request carried, by whether it groups. */
   const lastFilters = () =>
     query.mock.lastCall?.[0].queries.map((q) => ({
       grouped: q.dimensions.length > 0,
       filters: q.filters,
     }));
-  return { query, lastFilters };
+  return { query, lastFilters, show: (s: DashboardSpec) => rerender(view(s)) };
 }
+const tick = () => new Promise((resolve) => setTimeout(resolve, 50));
 const garden = { field: category.field, op: "in", values: ["Garden"] };
 
 describe("cross-filtering in the viewer (DESIGN.md §6)", () => {
@@ -97,14 +99,14 @@ describe("cross-filtering in the viewer (DESIGN.md §6)", () => {
     const pick = await screen.findByRole("combobox", { name: "Filter by Category" });
     const before = query.mock.calls.length;
     await userEvent.selectOptions(pick, "Garden");
+    await userEvent.keyboard("{Enter}");
     await waitFor(() => expect(query.mock.calls.length).toBeGreaterThan(before));
     // Only the KPI asks again: the bar keeps its own answer and highlights.
     expect(lastFilters()).toEqual([{ grouped: false, filters: [garden] }]);
 
-    await userEvent.click(screen.getByRole("button", { name: "Clear filter Garden" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Clear filter Garden" })).toBeNull(),
-    );
+    // The chip names the field and the value as the axis shows it.
+    await userEvent.click(screen.getByRole("button", { name: "Clear filter Category: Garden" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull());
     expect(
       query.mock.calls.map((c) => c[0].queries.flatMap((q) => q.filters)).at(-1) ?? [],
     ).toEqual([]);
@@ -118,5 +120,63 @@ describe("cross-filtering in the viewer (DESIGN.md §6)", () => {
     await waitFor(() => expect(query.mock.calls.length).toBeGreaterThan(before));
     expect(lastFilters()).toEqual([{ grouped: false, filters: [garden] }]);
     expect(row.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("applies the keyboard choice on Enter or on leaving it, not on every arrow key", async () => {
+    const { query } = setup("bar");
+    const pick = await screen.findByRole("combobox", { name: "Filter by Category" });
+    await tick();
+    const before = query.mock.calls.length;
+    // Arrow keys in a closed select fire change: each one must not cross-filter.
+    fireEvent.change(pick, { target: { value: "0" } });
+    fireEvent.change(pick, { target: { value: "1" } });
+    await tick();
+    expect(query.mock.calls.length).toBe(before);
+    fireEvent.blur(pick);
+    await waitFor(() => expect(query.mock.calls.length).toBe(before + 1));
+    expect(screen.getByRole("button", { name: "Clear filter Category: Toys" })).toBeTruthy();
+  });
+
+  it("shows a filtered visual's failure, never the unfiltered numbers under the chip", async () => {
+    setup("bar", async (r) => {
+      if (r.queries.some((q) => q.filters.length > 0)) {
+        throw new GatewayError("query answered 429", 429);
+      }
+      return answerTo(r);
+    });
+    const pick = await screen.findByRole("combobox", { name: "Filter by Category" });
+    await userEvent.selectOptions(pick, "Garden");
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(document.querySelector('[data-visual="total"]')?.getAttribute("data-state")).toBe(
+        "error",
+      ),
+    );
+  });
+
+  it("starts another dashboard with no selection", async () => {
+    const { query, show } = setup("bar");
+    const pick = await screen.findByRole("combobox", { name: "Filter by Category" });
+    await userEvent.selectOptions(pick, "Garden");
+    await userEvent.keyboard("{Enter}");
+    await screen.findByRole("button", { name: "Clear filter Category: Garden" });
+    show({ ...spec("bar"), title: "Another dashboard" });
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull());
+    await tick();
+    expect(query.mock.lastCall?.[0].queries.flatMap((q) => q.filters)).toEqual([]);
+  });
+
+  it("never brings back a cleared choice when the picker loses focus later", async () => {
+    setup("bar");
+    const pick = await screen.findByRole("combobox", { name: "Filter by Category" });
+    await userEvent.selectOptions(pick, "Garden");
+    await userEvent.keyboard("{Enter}");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Clear filter Category: Garden" }),
+    );
+    fireEvent.focus(pick);
+    fireEvent.blur(pick);
+    await tick();
+    expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull();
   });
 });
