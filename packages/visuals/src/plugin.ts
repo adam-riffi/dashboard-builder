@@ -48,6 +48,16 @@ export interface VisualProps {
   result: QueryResult;
   options: Record<string, unknown>;
   formatters: Formatter[];
+  /**
+   * Cross-filtering (DESIGN.md §6): the value of the first dimension this visual has selected,
+   * which it highlights. Absent when nothing is selected.
+   */
+  selected?: unknown;
+  /**
+   * Selects a value of the first dimension (a category, a period's start, a row's key); the
+   * selected value again clears it. Absent where visuals are not selectable (the builder).
+   */
+  onSelect?: (value: unknown) => void;
 }
 
 /** A visual plugin (DESIGN.md §7, ADR 0008): the query half plus a React renderer. */

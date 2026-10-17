@@ -45,7 +45,7 @@ const spec = (type: "bar" | "table"): DashboardSpec =>
         slots:
           type === "bar"
             ? { category: [category], value: [{ name: "Revenue" }] }
-            : { columns: [category, { name: "Revenue" }] },
+            : { rows: [category], values: [{ name: "Revenue" }] },
         options: {},
       },
       { id: "total", type: "kpi", slots: { value: [{ name: "Revenue" }] }, options: {} },

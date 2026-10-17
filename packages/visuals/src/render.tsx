@@ -39,8 +39,36 @@ export function Kpi({ result, formatters }: VisualProps) {
   );
 }
 
-/** Rows and columns as returned, numbers right-aligned. */
-export function Table({ result, formatters }: VisualProps) {
+/**
+ * A keyboard way to select (cross-filtering, DESIGN.md §6): one choice of the first dimension's
+ * values, hidden until it has focus (the host styles `.dash-pick`), so charts need no tab stop
+ * per point.
+ */
+function Pick({ result, formatters, selected, onSelect }: VisualProps) {
+  const [axis] = result.columns;
+  const values = result.data[0] ?? [];
+  if (!onSelect || !axis) return null;
+  const at = values.indexOf(selected);
+  return (
+    <select
+      className="dash-pick"
+      aria-label={`Filter by ${labelOf(axis)}`}
+      value={at < 0 ? "" : String(at)}
+      onChange={(e) => onSelect(e.target.value === "" ? selected : values[Number(e.target.value)])}
+    >
+      <option value="">All</option>
+      {values.map((v, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: values may repeat formatted; positions do not
+        <option key={i} value={String(i)}>
+          {(formatters[0] ?? String)(v)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Rows and columns as returned, numbers right-aligned; a row's key selects it when allowed. */
+export function Table({ result, formatters, selected, onSelect }: VisualProps) {
   const rows = result.data[0]?.length ?? 0;
   const cell = (numeric: boolean): CSSProperties => ({
     padding: "4px 8px",
@@ -64,11 +92,26 @@ export function Table({ result, formatters }: VisualProps) {
           {Array.from({ length: rows }, (_, r) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: rows have no identity beyond position
             <tr key={r}>
-              {result.columns.map((c, i) => (
-                <td key={c.key} style={cell(c.type === "number")}>
-                  {(formatters[i] ?? String)(result.data[i]?.[r])}
-                </td>
-              ))}
+              {result.columns.map((c, i) => {
+                const text = (formatters[i] ?? String)(result.data[i]?.[r]);
+                const key = result.data[0]?.[r];
+                return (
+                  <td key={c.key} style={cell(c.type === "number")}>
+                    {onSelect && i === 0 && c.kind === "dimension" ? (
+                      <button
+                        type="button"
+                        className="dash-row"
+                        aria-pressed={key === selected}
+                        onClick={() => onSelect(key)}
+                      >
+                        {text}
+                      </button>
+                    ) : (
+                      text
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
@@ -100,6 +143,7 @@ function themeOf(el: HTMLElement): Theme {
 
 interface EChart {
   setOption(option: EChartsCoreOption, opts: { notMerge: boolean }): void;
+  on(event: "click", handler: (params: unknown) => void): unknown;
   resize(): void;
   dispose(): void;
 }
@@ -109,10 +153,23 @@ interface EChart {
  * redrawn when its option changes or the color scheme flips. Animations are off so screenshots
  * are stable; `data-ready` is set while a drawing is on screen.
  */
-function Chart({ option, label }: { option: (theme: Theme) => EChartsCoreOption; label: string }) {
+function Chart({
+  option,
+  label,
+  onPick,
+}: {
+  option: (theme: Theme) => EChartsCoreOption;
+  label: string;
+  /** A click on a data point, by its row. */
+  onPick?: ((row: number) => void) | undefined;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<EChart | null>(null);
   const latest = useRef(option);
+  const pick = useRef(onPick);
+  useEffect(() => {
+    pick.current = onPick;
+  });
   const [failed, setFailed] = useState(false);
 
   const draw = useCallback(() => {
@@ -135,7 +192,11 @@ function Chart({ option, label }: { option: (theme: Theme) => EChartsCoreOption;
     import("./echarts.ts")
       .then(({ init }) => {
         if (gone) return;
-        chart.current = init(el, undefined, { renderer: "svg" });
+        const created = init(el, undefined, { renderer: "svg" });
+        created.on("click", (params) =>
+          pick.current?.((params as { dataIndex: number }).dataIndex),
+        );
+        chart.current = created;
         draw();
         resize.observe(el);
         scheme.addEventListener("change", draw);
@@ -174,16 +235,37 @@ function Chart({ option, label }: { option: (theme: Theme) => EChartsCoreOption;
   );
 }
 
-/** Categories as horizontal bars, the first category on top. */
-export function Bar({ result, formatters }: VisualProps) {
-  const option = useMemo(() => barOption(result, formatters), [result, formatters]);
+/** A chart whose points select their row's first-dimension value, by click or by keyboard. */
+function SelectableChart(
+  props: VisualProps & {
+    build: (
+      result: VisualProps["result"],
+      f: VisualProps["formatters"],
+      s?: unknown,
+    ) => (theme: Theme) => EChartsCoreOption;
+  },
+) {
+  const { result, formatters, selected, onSelect, build } = props;
+  const option = useMemo(
+    () => build(result, formatters, selected),
+    [build, result, formatters, selected],
+  );
   const label = useMemo(() => chartLabel(result, formatters), [result, formatters]);
-  return <Chart option={option} label={label} />;
+  const onPick = onSelect && ((row: number) => onSelect(result.data[0]?.[row]));
+  return (
+    <>
+      <Chart option={option} label={label} onPick={onPick} />
+      <Pick {...props} />
+    </>
+  );
+}
+
+/** Categories as horizontal bars, the first category on top. */
+export function Bar(props: VisualProps) {
+  return <SelectableChart {...props} build={barOption} />;
 }
 
 /** Measures over time, oldest on the left, on a time axis. */
-export function Line({ result, formatters }: VisualProps) {
-  const option = useMemo(() => lineOption(result, formatters), [result, formatters]);
-  const label = useMemo(() => chartLabel(result, formatters), [result, formatters]);
-  return <Chart option={option} label={label} />;
+export function Line(props: VisualProps) {
+  return <SelectableChart {...props} build={lineOption} />;
 }

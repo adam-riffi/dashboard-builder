@@ -19,7 +19,10 @@ import {
   useRef,
   useState,
 } from "react";
+import type { Selection } from "./crossfilter.ts";
 import { dashboardRequest, measuresFor } from "./request.ts";
+
+const NO_SELECTIONS: Selection[] = [];
 
 /** How the components reach the gateway; tests and fixtures supply their own (ADR 0008). */
 export interface Transport {
@@ -222,10 +225,16 @@ export function useContract() {
  * (ADR 0008). With `refresh`, every visual asks again each `refreshIntervalSec` (at least 5 s),
  * all in the same tick, so a refresh is one request too, usually answered 304 (DESIGN.md §6).
  */
-export function useDashboardAnswers(spec: DashboardSpec, { refresh = false } = {}) {
+export function useDashboardAnswers(
+  spec: DashboardSpec,
+  {
+    refresh = false,
+    selections = NO_SELECTIONS,
+  }: { refresh?: boolean; selections?: Selection[] } = {},
+) {
   const { ask } = useDash();
   const interval = refresh ? Math.max(5, spec.refreshIntervalSec) : undefined;
-  const plan = useMemo(() => dashboardRequest(spec), [spec]);
+  const plan = useMemo(() => dashboardRequest(spec, selections), [spec, selections]);
   const asked = plan.visuals.flatMap((v) =>
     "query" in v ? [{ id: v.id, query: plan.request.queries[v.query] as QuerySpec }] : [],
   );
