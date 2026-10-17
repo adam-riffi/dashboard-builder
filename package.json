@@ -14,6 +14,7 @@
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e",
     "bench": "pnpm --filter @dash/demo exec playwright test --grep @bench",
+    "record-demo": "node apps/demo/scripts/record-demo.mjs",
     "db:generate": "pnpm --filter @dash/db generate",
     "db:migrate": "pnpm --filter @dash/db migrate",
     "db:seed": "pnpm --filter @dash/db seed",

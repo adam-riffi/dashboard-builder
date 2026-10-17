@@ -34,6 +34,7 @@ Operating manual for coding agents in this repository. Codex and Copilot read th
 | New migration | `pnpm db:generate` |
 | Check the published packages (after a build) | `pnpm check:packages` |
 | Describe a change to a published package | `pnpm changeset` |
+| Re-record `docs/demo.gif` from the live demo (needs ffmpeg) | `pnpm record-demo` |
 | Check all | `pnpm check` |
 
 Keep this table accurate: when you add or change a script, update the table in the same PR.
