@@ -1,31 +1,42 @@
-# Handoff — 2026-10-08 · claude
+# Handoff — 2026-10-17 · claude
 
 ## State
-- `main` at the merge of this PR, on top of `41168b3`: ci(deploy): one archive per deploy, previews for ready pull requests (#42). M4 (viewer) is merged; CI green.
-- **Production is still on #35** (healthy). The deploys for #36–#42 hit Vercel's free-plan daily caps (5,000 uploads, then 100 deployments). A background retry re-runs the latest `deploy` run on `main` every 30 minutes until Vercel's 24-hour window resets.
+- `main` at the merge of this PR, on top of the merge of #70 (a database connection whose read never answers is replaced). M5 (builder) and M6 (live and fast) are merged; CI green.
+- Production runs all of M6 (deploy of #69 succeeded, smoke included).
 - Open PRs: none once this one merges.
 
 ## Done this session
-- M3 formulas, #22–#29 ([ADR 0007](docs/adr/0007-named-measures-and-formula-semantics.md)); nightly workflow, #34.
-- M4 viewer, #35–#41 ([ADR 0008](docs/adr/0008-viewer-plugins-and-visual-tests.md)): DashboardSpec and measure formats; `packages/visuals` (plugins, registry, KPI, bar, line, table on lazily loaded ECharts); `packages/react` (`DashProvider`, one request per dashboard, `DashboardViewer` with loading, empty and error states); sample dashboard on the home page; public fixture gallery `/fixtures/[name]`; six screenshot tests.
-- An independent review of M4 (1 blocker, 2 majors, 12 minors) was fixed before merging.
-- #42: deploys upload one archive; drafts get no preview.
+- **M5 on production:** after the 2026-10-08 merges capped Vercel's 100 deploys a day, #58 (dependency update, Vercel CLI 63 checked) shipped the rest.
+- **The hang on fresh deployments:**
+  - #59 logs the stuck stage and caps API routes at 30 s;
+  - #70 gives gateway reads a 5 s deadline, replaces the stuck connection and retries once.
+- **M6, #60–#69 ([ADR 0010](docs/adr/0010-result-cache-keys-and-freshness.md)):**
+  - contract cache; result cache keyed by scope, contract and compiled SQL, fresh within `maxAgeSec`;
+  - `304` for unchanged results; interval refresh; the cross-filter coordinator;
+  - selectable bars, lines and rows; the "Under the hood" drawer (`explain`, demo only);
+  - acceptance e2e and `pnpm bench` (cached p95 15 ms in CI against the 150 ms budget).
+- **An independent review of M6** (posted on #67): 1 blocker and 5 should-fixes, fixed in #68 and #69.
 
 ## Verified
-- CI green on every merge, including the six screenshot comparisons against baselines made on the pinned `ubuntu-24.04` runner.
-- #42's preview deployed with the archive upload and passed smoke.
-- The first nightly run (10× property runs, production audit) passed.
+- **Production, after the M6 merge:**
+  - choosing Garden took revenue from $3.17M to $0.99M under a "Category: Garden" chip;
+  - the drawer showed scope, SQL and timings;
+  - an immediate reload answered every query `cache hit, 0 ms`;
+  - Orders went from 11,511 to 11,513 at the next 60 s refresh.
+- **The M5 builder on production:** build, save, reload, reopen, delete.
 
 ## Next
-1. When the retry deploys `main`, open https://dashboard-builder-rose.vercel.app: the sample dashboard should show live revenue, and `/fixtures/overview` should render. If the retry stopped, re-run the latest failed `deploy` run on `main`.
-2. M5 builder (DESIGN.md §9): start in plan mode. Visual picker, field wells with drag and drop (dnd-kit), filters, grid layout (react-grid-layout), formula editor with autocomplete (CodeMirror 6, `check` from core), save and load in `dash.dashboards` (RLS via `app.user_id`).
+1. **Watch the next deploys' runtime logs** (Hobby keeps one hour). The fix has already worked once: at 22:08 UTC a preview logged `database connection replaced` at stage `query`, with no timeout after it. Another `request slow` or 30 s timeout would mean it is not enough.
+2. **Known M6 limitations:**
+   - a selection on a field another visual can't reach turns that visual into an error;
+   - after a selection, each refresh is two requests.
+3. **M7 (DESIGN.md §9):** start in plan mode. Demo polish, README, GIF, architecture diagram, npm release via Changesets.
 
 ## Needs from Georges
-- Approval of the M5 plan when it is proposed.
+- Approval of the M7 plan when it is proposed.
 
 ## Notes
-- No local Docker: integration and e2e run in CI. The fixture e2e and screenshots can run locally against `pnpm --filter @dash/demo build` (no database needed); screenshot tests skip off Linux.
-- Screenshot baselines come from CI: delete a baseline, push, download the `screenshot-baselines` artifact, check it by eye, commit it.
-- On Windows, stop a local `next start` by port (`netstat -ano`, `taskkill //PID … //F`) before rebuilding, or it serves stale chunks.
-- `pnpm audit` over all dependencies flags only the dev-only `vercel` CLI; the nightly gates on production dependencies.
-- M6 must key the result cache on the compiled SQL and parameters (ADR 0007).
+- **No local Docker:** integration and e2e run in CI. Fixtures, the builder fixture and screenshots run locally against a production build served on port 3200 (`BASE_URL`); ports 3000 and 3100 belong to another project.
+- **Merging a stack:** each PR needs its own CI run after a restack (squash merges conflict otherwise). Waiting on CI in a loop needs the user's go-ahead per stack in this app.
+- **Vercel's daily caps:** check the last `deploy` run on `main` after merging.
+- **Hobby log retention:** runtime logs last one hour. Read them right after a deploy if something looks wrong.
