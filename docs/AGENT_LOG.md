@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · stack/m6/09-gateway-review · #68
+- Done: the gateway findings of the M6 review (posted on #67): 2, 7, 9, 10.
+  - A cache hit answers with the columns of the query it answers: a host measure asked by name and by its inlined formula compile to one SQL and share an entry, but each keeps its own echo (title, format).
+  - `resultsTag` includes the scope hash and whether `explain` is on, so a `304` never replays another caller's meta.
+  - `memoryCache` documents that `maxBytes` counts JSON bytes.
+- Tests (written first): unit, tags differ by scope and by `explain`; integration (CI), name and formula share an entry with their own columns, and scopes differing only in an attribute no policy binds are separate entries.
+- Scope/decisions: finding 3 (selections another visual can't reach) is a known limitation, left out of M6; finding 8 (two refresh requests after a selection) is kept.
+- Next: #69, the react and demo findings (1, 4, 5, 6, 11, 12).
+
 ## 2026-10-17 · claude · stack/m6/08-m6-acceptance · #67
 - Done: M6 acceptance (DESIGN.md §9, §10).
   - `e2e/live.spec.ts`:
