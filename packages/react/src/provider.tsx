@@ -47,18 +47,37 @@ export function gatewayTransport(
       ...init,
       headers: { ...init.headers, authorization: `Bearer ${await getToken()}` },
     });
-    if (!res.ok) throw new GatewayError(`${path} answered ${res.status}`, res.status);
-    return res.json();
+    if (!res.ok && res.status !== 304) {
+      throw new GatewayError(`${path} answered ${res.status}`, res.status);
+    }
+    return res;
   };
+  // The last answer to each request body and its tag: a refresh that finds the same rows is
+  // answered 304 and keeps them (DESIGN.md §6).
+  // ponytail: one entry per distinct request, capped; enough for the dashboards on one page.
+  const answers = new Map<string, { tag: string; results: QueryAnswer[] }>();
   return {
-    contract: () => call("contract"),
+    contract: async () => (await call("contract")).json(),
     query: async (request) => {
-      const body = await call("query", {
+      const body = JSON.stringify(request);
+      const known = answers.get(body);
+      const res = await call("query", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(request),
+        headers: {
+          "content-type": "application/json",
+          ...(known ? { "if-none-match": known.tag } : {}),
+        },
+        body,
       });
-      return body.results;
+      if (res.status === 304 && known) return known.results;
+      const { results } = (await res.json()) as { results: QueryAnswer[] };
+      const tag = res.headers.get("etag");
+      if (tag) {
+        answers.delete(body);
+        answers.set(body, { tag, results });
+        if (answers.size > 100) answers.delete(answers.keys().next().value as string);
+      }
+      return results;
     },
   };
 }

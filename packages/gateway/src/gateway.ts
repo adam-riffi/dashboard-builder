@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type Checking,
   type DataContract,
@@ -50,6 +51,17 @@ export const withoutStatistics = (contract: DataContract): DataContract => ({
     columns: t.columns.map((c) => ({ ...c, distinct: null })),
   })),
 });
+
+/**
+ * The ETag of a `POST /query` answer: its results without timing and cache status, so a
+ * refresh that finds the same rows gets `304` (DESIGN.md §6).
+ */
+export function resultsTag(results: (QueryResult | { errors: string[] })[]): string {
+  const stable = results.map((r) =>
+    "errors" in r ? r : { columns: r.columns, data: r.data, truncated: r.meta.truncated },
+  );
+  return `"${createHash("sha256").update(JSON.stringify(stable)).digest("hex").slice(0, 32)}"`;
+}
 
 /** `If-None-Match` per RFC 9110: a list of tags, weak comparison, or `*`. */
 export const matches = (header: string | null, etag: string) =>
@@ -234,7 +246,11 @@ export function createGateway(config: GatewayConfig): Handler {
               await runQuery(spec, current, named, memo, scope, scopeHash, maxAgeMs, log),
             );
           }
-          return json({ results }, 200, { "cache-control": "private, no-store" });
+          const headers = { etag: resultsTag(results), "cache-control": "private, no-store" };
+          if (matches(request.headers.get("if-none-match"), headers.etag)) {
+            return new Response(null, { status: 304, headers });
+          }
+          return json({ results }, 200, headers);
         },
       },
     ],
