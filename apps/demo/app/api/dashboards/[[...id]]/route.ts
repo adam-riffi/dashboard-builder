@@ -12,6 +12,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// A stuck request fails in 30 s, not Vercel's 300 s default; the client retries once.
+export const maxDuration = 30;
 
 /**
  * The demo's dashboard storage (M5: the host stores dashboards, DESIGN.md §7). `GET` lists the
