@@ -367,3 +367,66 @@ describe("results tag (ETag of POST /query)", () => {
     expect(tags[0]).toMatch(/^"[0-9a-f]{32}"$/);
   });
 });
+
+describe("database reads with a deadline (the hang on fresh deployments)", () => {
+  const USER = "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
+  /** A client whose queries never answer, like a connection lost behind the pooler. */
+  const stuck = () => new Promise(() => {});
+  /** A client that answers introspection with one table `s.t` and its `id` column. */
+  const answering = (strings: TemplateStringsArray) => {
+    const text = strings.join("?");
+    if (text.includes("from pg_class"))
+      return Promise.resolve([{ oid: "1", name: "s.t", reltuples: 0 }]);
+    if (text.includes("from pg_attribute")) {
+      return Promise.resolve([
+        { oid: "1", name: "id", pg_type: "int4", is_enum: false, nullable: false },
+      ]);
+    }
+    return Promise.resolve([]);
+  };
+
+  it("replaces a connection whose read never answers, and tries the read once more", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const clients = [stuck, answering].map((query) =>
+      Object.assign(query, { end: async () => {} }),
+    );
+    let current = 0;
+    const source = Object.assign(() => clients[current] as never, {
+      reset: vi.fn(() => {
+        current += 1;
+      }),
+    });
+    const handle = createGateway(
+      defineGateway({
+        source,
+        auth: async () => ({ sub: USER }),
+        identity: { claim: "sub", format: "uuid" },
+        tables: ["s.t"],
+      }),
+    );
+    const response = handle(
+      new Request("http://demo.test/api/dash/contract", { headers: { authorization: "Bearer t" } }),
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    const res = await response;
+    vi.useRealTimers();
+    expect(res.status).toBe(200);
+    expect((await res.json()).tables.map((t: { name: string }) => t.name)).toEqual(["s.t"]);
+    expect(source.reset).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls.map(([line]) => JSON.parse(String(line)).msg)).toContain(
+      "database connection replaced",
+    );
+  });
+});
+
+describe("postgresSource", () => {
+  it("opens a new client after reset, so a stuck connection is not reused", () => {
+    // postgres.js connects on the first query, so no database is needed here.
+    const source = postgresSource({ url: "postgres://reader@localhost:1/db" });
+    const first = source();
+    expect(source()).toBe(first);
+    source.reset();
+    expect(source()).not.toBe(first);
+  });
+});
