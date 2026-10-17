@@ -24,6 +24,11 @@ export interface GatewayConfig {
   measures?: NamedMeasure[];
   /** The result cache, keyed by scope and compiled query (DESIGN.md §6); none by default. */
   cache?: ResultCache;
+  /**
+   * Answers carry their SQL, parameters and the caller's scope (`meta.explain`), for an
+   * "Under the hood" view. Only for development or the host's own demo data (DESIGN.md §13).
+   */
+  explain?: boolean;
 }
 
 /** Typed identity function for `dash.config.ts`. */

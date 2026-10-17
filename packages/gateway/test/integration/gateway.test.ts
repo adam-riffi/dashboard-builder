@@ -248,6 +248,40 @@ describe("POST /query", () => {
     expect(await again.text()).toBe("");
   });
 
+  it("explains each answer (SQL, parameters, scope) only when the host turns explain on", async () => {
+    const explained = (explain: boolean) =>
+      createGateway(
+        defineGateway({
+          source: postgresSource({
+            url:
+              process.env.DASH_SOURCE_URL ??
+              "postgres://dash_reader:password@localhost:54322/postgres",
+          }),
+          auth: jwtAuth({ jwksUrl: jwks.url, issuer: ISSUER, audience: AUDIENCE }),
+          identity: { claim: "sub", format: "uuid" },
+          tables: ["fx_api.sales"],
+          policies: [{ table: "fx_api.sales", column: "tenant_id", in: "tenantIds" }],
+          resolveScope: async () => ({ tenantIds: [1, 2] }),
+          explain,
+        }),
+      );
+    const meta = async (explain: boolean) => {
+      const res = await explained(explain)(
+        new Request("http://demo.test/api/dash/query", {
+          method: "POST",
+          headers: { ...(await bearer()), "content-type": "application/json" },
+          body: JSON.stringify({ queries: [byRegion] }),
+        }),
+      );
+      return (await res.json()).results[0].meta;
+    };
+    expect((await meta(false)).explain).toBeUndefined();
+    const on = (await meta(true)).explain;
+    expect(on.sql).toContain('from "fx_api"."sales"');
+    expect(on.params).toContainEqual([1, 2]);
+    expect(on.scope).toEqual({ tenantIds: [1, 2] });
+  });
+
   it("reports invalid queries one by one, next to valid ones", async () => {
     const res = await query({
       queries: [{ measures: [{ field: "fx_api.sales.nope" }] }, byRegion],

@@ -131,10 +131,10 @@ export function Dashboards({ getToken }: { getToken: () => Promise<string> }) {
               Close
             </button>
           </p>
-          <DashboardViewer spec={open.spec} />
+          <DashboardViewer spec={open.spec} underTheHood />
         </>
       ) : (
-        <DashboardViewer spec={sampleDashboard} />
+        <DashboardViewer spec={sampleDashboard} underTheHood />
       )}
     </>
   );

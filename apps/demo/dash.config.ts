@@ -37,4 +37,6 @@ export default defineGateway({
   ],
   // Per function instance; keyed by scope and compiled query (DESIGN.md §6, ADR 0010).
   cache: memoryCache({ maxBytes: 50_000_000 }),
+  // The demo's own data, so its SQL may be shown (DESIGN.md §13).
+  explain: true,
 });

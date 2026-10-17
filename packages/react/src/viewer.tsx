@@ -31,6 +31,9 @@ const css = `
 .dash-row { all: unset; cursor: pointer; }
 .dash-row[aria-pressed="true"] { color: var(--dash-accent, #e4572e); font-weight: 600; }
 .dash-row:focus-visible, .dash-chip:focus-visible { outline: 2px solid var(--dash-accent, #e4572e); outline-offset: 2px; }
+.dash-hood { margin-top: 16px; border-top: 1px solid var(--dash-grid, rgba(107, 111, 118, 0.25)); padding-top: 8px; }
+.dash-hood h3 { font-size: 0.9rem; margin: 12px 0 4px; }
+.dash-hood pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; color: var(--dash-muted, #6b6f76); }
 .dash-pick { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .dash-pick:focus { position: static; width: auto; height: auto; clip-path: none; margin-top: 4px; }
 @media (max-width: 640px) { .dash-grid { grid-template-columns: 1fr; }
@@ -82,7 +85,14 @@ export function VisualContent(props: ContentProps) {
  * A saved dashboard (DESIGN.md §7): one request for every visual (ADR 0008), each visual in its
  * layout cell with its loading, empty or error state.
  */
-export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
+export function DashboardViewer({
+  spec,
+  underTheHood = false,
+}: {
+  spec: DashboardSpec;
+  /** Shows the drawer of SQL, cache status and security context (needs the gateway's `explain`). */
+  underTheHood?: boolean;
+}) {
   // Cross-filtering (DESIGN.md §6): at most one selection per visual, each filtering the others.
   const [selections, setSelections] = useState<Selection[]>([]);
   // A saved dashboard is live: it refreshes on its interval (DESIGN.md §6).
@@ -157,7 +167,51 @@ export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
             );
           })}
       </div>
+      {underTheHood && <UnderTheHood spec={spec} stateOf={stateOf} />}
     </section>
+  );
+}
+
+/**
+ * The "Under the hood" drawer (DESIGN.md §2): each visual's cache status, time, rows and SQL,
+ * and the security context the gateway applied. The SQL and scope come only from a gateway
+ * with `explain` on.
+ */
+function UnderTheHood({
+  spec,
+  stateOf,
+}: {
+  spec: DashboardSpec;
+  stateOf: (id: string) => VisualState;
+}) {
+  const answers = spec.visuals.flatMap((v) => {
+    const state = stateOf(v.id);
+    return state.kind === "ready"
+      ? [{ visual: v, meta: state.result.meta, rows: state.result.data[0]?.length ?? 0 }]
+      : [];
+  });
+  const scope = answers.find((a) => a.meta.explain)?.meta.explain?.scope;
+  return (
+    <details className="dash-hood" aria-label="Under the hood">
+      <summary>Under the hood</summary>
+      {scope && (
+        <>
+          <h3>Security context</h3>
+          <pre>{JSON.stringify(scope, null, 2)}</pre>
+        </>
+      )}
+      {answers.map(({ visual, meta, rows }) => (
+        <section key={visual.id}>
+          <h3>
+            {`${titleOf(visual)}: cache ${meta.cache}, ${meta.ms} ms, ${rows} row${rows === 1 ? "" : "s"}`}
+          </h3>
+          {meta.explain && <pre>{meta.explain.sql}</pre>}
+          {meta.explain && meta.explain.params.length > 0 && (
+            <pre>{`params: ${JSON.stringify(meta.explain.params)}`}</pre>
+          )}
+        </section>
+      ))}
+    </details>
   );
 }
 
