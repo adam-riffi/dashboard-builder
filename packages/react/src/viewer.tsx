@@ -24,10 +24,10 @@ const css = `
  * Every visual's state for a spec: answers asked for together (ADR 0008), formats from the
  * contract and the dashboard. Shared by the viewer and the builder's previews.
  */
-export function useVisualStates(spec: DashboardSpec) {
+export function useVisualStates(spec: DashboardSpec, options: { refresh?: boolean } = {}) {
   const { currency } = useDash();
   const contract = useContract();
-  const { answerOf } = useDashboardAnswers(spec);
+  const { answerOf } = useDashboardAnswers(spec, options);
   const formats = useMemo(
     () => formatsOf(contract.data?.measures ?? [], spec.measures),
     [contract.data, spec.measures],
@@ -58,7 +58,8 @@ export function VisualContent(props: {
  * layout cell with its loading, empty or error state.
  */
 export function DashboardViewer({ spec }: { spec: DashboardSpec }) {
-  const { stateOf, formats, currency } = useVisualStates(spec);
+  // A saved dashboard is live: it refreshes on its interval (DESIGN.md §6).
+  const { stateOf, formats, currency } = useVisualStates(spec, { refresh: true });
   const visuals = new Map(spec.visuals.map((v) => [v.id, v]));
   return (
     <section aria-label={spec.title}>

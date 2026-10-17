@@ -82,6 +82,8 @@ describe("previews", () => {
     expect(query.mock.calls[1]?.[0]).toEqual({
       measures: [doubled],
       queries: [{ dimensions: [], measures: [{ name: "Units" }], filters: [] }],
+      // The viewer refreshes, and accepts results no older than its interval (60 s by default).
+      maxAgeSec: 60,
     });
   });
 
