@@ -26,7 +26,7 @@
 - **The M5 builder on production:** build, save, reload, reopen, delete.
 
 ## Next
-1. **Watch the next deploys' runtime logs** (Hobby keeps one hour): `database connection replaced` means the fix worked; `request slow` or a 30 s timeout means it did not.
+1. **Watch the next deploys' runtime logs** (Hobby keeps one hour). The fix has already worked once: at 22:08 UTC a preview logged `database connection replaced` at stage `query`, with no timeout after it. Another `request slow` or 30 s timeout would mean it is not enough.
 2. **Known M6 limitations:**
    - a selection on a field another visual can't reach turns that visual into an error;
    - after a selection, each refresh is two requests.
