@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · stack/m6/01-contract-cache · #60
+- Done: the contract cache (DESIGN.md §6, M6 PR 1).
+  - `cachedContract` in `packages/gateway/src/contract/cache.ts`: one introspection at a time, shared by concurrent requests; kept 60 s.
+  - After 60 s it checks again while the last contract keeps serving; failures are never kept.
+  - `/contract` and `/query` share it, so a request no longer introspects the database.
+- Tests: `test/unit/contract-cache.test.ts` (written first): concurrent first requests share one load; nothing reloads within 60 s; the stale contract serves while one check runs; a failed first load is retried; a failed later check keeps the last contract and is retried on the next request.
+- Scope/decisions: the cache is per function instance (memory), as planned; the fresh-deployment hang (#59) loses its per-request introspection.
+- Next: #61, the result cache scoped by security context.
+
 ## 2026-10-17 · claude · fix/gateway-hang · #59
 - Done: the first step on the hang on fresh deployments.
   - The gateway logs "request slow" with the request's stage (`auth`, `contract`, `scope`, `query`) after 10 s.
