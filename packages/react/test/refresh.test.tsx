@@ -103,4 +103,27 @@ describe("interval refresh (DESIGN.md §6)", () => {
     await advance(30_000);
     expect(query).toHaveBeenCalledTimes(asked);
   });
+
+  it("keeps refreshes within the rate limit: at least 2 s per visual that queries", async () => {
+    const { query, transport } = counting();
+    const three = {
+      ...spec(5),
+      layout: [...spec(5).layout, { i: "units", x: 0, y: 2, w: 6, h: 2 }],
+      visuals: [
+        ...spec(5).visuals,
+        { id: "units", type: "kpi", slots: { value: [{ name: "Revenue" }] }, options: {} },
+      ],
+    };
+    render(
+      <DashProvider transport={transport}>
+        <DashboardViewer spec={three} />
+      </DashProvider>,
+    );
+    await advance(100);
+    expect(query.mock.calls[0]?.[0]).toMatchObject({ maxAgeSec: 6 });
+    await advance(5_000);
+    expect(query).toHaveBeenCalledTimes(1);
+    await advance(1_000);
+    expect(query).toHaveBeenCalledTimes(2);
+  });
 });

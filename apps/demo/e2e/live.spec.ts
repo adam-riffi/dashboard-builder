@@ -28,10 +28,11 @@ test("selecting a category filters every other visual, and clearing it restores 
   await expect(revenue).toContainText("$");
   const before = await revenue.textContent();
 
-  await page
-    .getByRole("combobox", { name: "Filter by Category" })
-    .selectOption({ label: "Garden" });
-  await expect(page.getByRole("button", { name: "Clear filter Garden" })).toBeVisible();
+  const pick = page.getByRole("combobox", { name: "Filter by Category" });
+  await pick.selectOption({ label: "Garden" });
+  await pick.press("Enter");
+  const chip = page.getByRole("button", { name: "Clear filter Category: Garden" });
+  await expect(chip).toBeVisible();
   // Garden is part of the revenue, so the KPI changes; the bar itself keeps every category.
   await expect(revenue).not.toHaveText(before ?? "");
   await expect(page.locator('[data-visual="bar-category"] [role="img"]')).toHaveAttribute(
@@ -39,8 +40,23 @@ test("selecting a category filters every other visual, and clearing it restores 
     /Toys/,
   );
 
-  await page.getByRole("button", { name: "Clear filter Garden" }).click();
+  await chip.click();
   await expect(revenue).toHaveText(before ?? "");
+});
+
+test("clicking a bar filters the other visuals, as in the demo script", async ({ page }) => {
+  await page.goto("/");
+  const revenue = revenueOf(page);
+  await expect(revenue).toHaveAttribute("data-state", "ready");
+  await expect(page.locator('[data-visual="bar-category"] [data-ready="true"]')).toBeVisible();
+  const before = await revenue.textContent();
+  // The first filled shape in the bar chart's SVG is its first bar.
+  await page
+    .locator('[data-visual="bar-category"] svg path[fill]:not([fill="none"])')
+    .first()
+    .click();
+  await expect(page.getByRole("button", { name: /^Clear filter Category: / })).toBeVisible();
+  await expect(revenue).not.toHaveText(before ?? "");
 });
 
 test("a dashboard shows new orders within its refresh interval", async ({ page }) => {
@@ -71,6 +87,7 @@ test("a dashboard shows new orders within its refresh interval", async ({ page }
   const count = Number((await orders.textContent())?.replace(/\D/g, ""));
 
   const admin = postgres(adminUrl, { onnotice: () => {} });
+  let inserted: number | undefined;
   try {
     const [membership] = await admin<{ tenant_id: number }[]>`
       select tenant_id from dash.memberships where user_id = ${userId} order by tenant_id limit 1`;
@@ -86,12 +103,15 @@ test("a dashboard shows new orders within its refresh interval", async ({ page }
       select ${order?.id ?? 0}, ${tenant}, p.id, 1, 10 from dash_demo.products p
       where p.tenant_id = ${tenant} limit 1`;
 
-    // Within two intervals the new order has been counted.
-    await expect(orders).toContainText(new Intl.NumberFormat("en-US").format(count + 1), {
-      timeout: 15_000,
-    });
-    await admin`delete from dash_demo.orders where id = ${order?.id ?? 0}`;
+    inserted = order?.id;
+    // Within two intervals the new order has been counted (pg_cron may add one more).
+    await expect
+      .poll(async () => Number((await orders.textContent())?.replace(/\D/g, "")), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThanOrEqual(count + 1);
   } finally {
+    if (inserted !== undefined) await admin`delete from dash_demo.orders where id = ${inserted}`;
     await admin.end();
     await page.request.delete(`/api/dashboards/${id}`, {
       headers: { authorization: `Bearer ${token}` },
