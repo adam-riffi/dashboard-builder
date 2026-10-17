@@ -222,6 +222,7 @@ describe("POST /query", () => {
     expect(again.data).toEqual(first.data);
     scope = { tenantIds: [3] };
     const other = await ask();
+    scope = { tenantIds: [1, 2] };
     expect(other.meta.cache).toBe("miss");
     expect(other.data).toEqual([["east"], [40]]);
   });

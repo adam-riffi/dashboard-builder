@@ -53,6 +53,9 @@ const parts = fc.record({
   params: fc.array(fc.oneof(fc.string(), fc.integer(), fc.array(fc.integer()))),
 });
 
+// Scope keys are the host's own names (`tenantIds`); `__proto__` would set a prototype instead.
+const name = fc.string().filter((s) => s !== "__proto__");
+
 describe("result cache key (DESIGN.md §6: missing the scope is release-blocking)", () => {
   it("changes whenever the scope changes, whatever the query", () => {
     fc.assert(
@@ -75,13 +78,16 @@ describe("result cache key (DESIGN.md §6: missing the scope is release-blocking
   it("hashes a scope the same in any key order, and differently for any other value", () => {
     fc.assert(
       fc.property(
-        fc.dictionary(fc.string(), fc.array(fc.integer())),
-        fc.string(),
+        fc.dictionary(name, fc.array(fc.integer())),
+        name,
         fc.integer(),
         (scope, key, value) => {
           const reversed = Object.fromEntries(Object.entries(scope).reverse());
           expect(scopeHashOf(reversed)).toBe(scopeHashOf(scope));
-          const changed = { ...scope, [key]: [...(scope[key] ?? []), value] };
+          const changed = {
+            ...scope,
+            [key]: [...(Object.hasOwn(scope, key) ? (scope[key] ?? []) : []), value],
+          };
           expect(scopeHashOf(changed)).not.toBe(scopeHashOf(scope));
         },
       ),
