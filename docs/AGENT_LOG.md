@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · stack/m6/08-m6-acceptance · #67
+- Done: M6 acceptance (DESIGN.md §9, §10).
+  - `e2e/live.spec.ts`:
+    - choosing Garden from the bar's keyboard control changes revenue, the bar keeps every category, and the chip restores revenue;
+    - a 5 s-refresh dashboard counts an order the test inserts (admin connection, the visitor's tenant) within 15 s;
+    - the drawer shows the security context, `Revenue: cache hit|miss, n ms, 1 row` and the SQL, with its screenshot attached.
+  - `e2e/bench.spec.ts` (`@bench`, also in `pnpm test:e2e`): 15 uncached and 25 cached Revenue queries from the browser; prints p50 and p95 and fails if cached p95 ≥ 150 ms, under the 60 queries a minute limit.
+  - `pnpm bench` runs only the bench; AGENTS.md lists it.
+- Tests: the e2e above (CI, local Supabase).
+- Scope/decisions: latency is measured in the browser, so it includes the route and authentication, not just the cache.
+- Next: an independent review of M6 (#60–#67), fixes, merges, then a production check (cross-filter, an order arriving within a minute, the drawer, `cache: "hit"` in the logs).
+
 ## 2026-10-17 · claude · stack/m6/07-under-the-hood · #66
 - Done: the "Under the hood" drawer (DESIGN.md §2, §13; M6 PR 7).
   - The gateway's `explain` option (off by default) adds `meta.explain = { sql, params, scope }` to each answer, on a copy, so cached entries stay as executed.

@@ -30,6 +30,7 @@ Operating manual for coding agents in this repository. Codex and Copilot read th
 | Dev server (demo at localhost:3000) | `pnpm dev` |
 | Integration tests (local Postgres) | `pnpm test:integration` |
 | End-to-end tests | `pnpm test:e2e` |
+| Gateway latency (cached and uncached p95; fails if cached p95 ≥ 150 ms) | `pnpm bench` (same stack as the end-to-end tests) |
 | New migration | `pnpm db:generate` |
 | Check all | `pnpm check` |
 
