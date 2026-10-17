@@ -9,6 +9,8 @@ import { pathToFileURL } from "node:url";
 
 const root = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const PACKAGES = ["core", "gateway", "visuals", "react"];
+// The packages a host installs: their README shows host setup in under 20 lines (DESIGN.md §15).
+const HOST_SETUP = ["gateway", "react"];
 // Entries Node can load on its own; the React packages are checked by their contents only.
 const NODE_ENTRIES = { core: ["dist/index.js"], gateway: ["dist/index.js"] };
 
@@ -50,6 +52,19 @@ try {
         problems.push(`${where} ${entry}: exports ${js}, not built JS`);
       if (!String(types).endsWith(".d.ts"))
         problems.push(`${where} ${entry}: no type declarations`);
+    }
+    for (const required of ["README.md", "LICENSE"]) {
+      if (!files.includes(required)) problems.push(`${where}: no ${required}`);
+    }
+    if (HOST_SETUP.includes(name) && files.includes("README.md")) {
+      const readme = tar("-xzOf", basename(tarball), "package/README.md");
+      const section = readme.split(/^## /m).find((s) => s.startsWith("Host setup"));
+      const code = (section ?? "").split("```").filter((_, i) => i % 2 === 1);
+      // Each block's first line is its language tag.
+      const lines = code.flatMap((block) => block.trim().split(/\r?\n/).slice(1));
+      if (lines.length === 0 || lines.length >= 20) {
+        problems.push(`${where}: README's host setup is ${lines.length} lines, not 1–19`);
+      }
     }
     for (const file of files) {
       if (/^(src|test)\//.test(file) || /\.test\./.test(file)) {
