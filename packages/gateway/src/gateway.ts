@@ -8,6 +8,7 @@ import {
 } from "@adam-riffi/dash-core";
 import { AuthError, authenticate } from "./auth.ts";
 import type { GatewayConfig } from "./config.ts";
+import { cachedContract } from "./contract/cache.ts";
 import { inferContract } from "./contract/index.ts";
 import { introspect } from "./contract/introspect.ts";
 import { health } from "./health.ts";
@@ -88,12 +89,13 @@ export function createGateway(config: GatewayConfig): Handler {
   if (host.size !== hostMeasures.length) throw new Error("host measure names must be unique");
   const limiter = createRateLimiter({ limit: QUERIES_PER_MINUTE, windowMs: 60_000 });
 
-  // The contract cache arrives in M6; until then every request introspects.
-  const contract = async () =>
+  // One contract per instance, checked again every minute (DESIGN.md §6).
+  const contract = cachedContract(async () =>
     inferContract(await introspect(config.source(), config.tables), {
       tables: config.tables,
       measures: hostMeasures,
-    });
+    }),
+  );
 
   async function runQuery(
     spec: QuerySpec,
