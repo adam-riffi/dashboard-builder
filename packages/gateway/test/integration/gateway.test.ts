@@ -227,6 +227,27 @@ describe("POST /query", () => {
     expect(other.data).toEqual([["east"], [40]]);
   });
 
+  it("answers 304 when the client already has these results", async () => {
+    scope = { tenantIds: [1, 2] };
+    const first = await query({ queries: [byRegion] });
+    const tag = first.headers.get("etag");
+    expect(tag).toMatch(/^"[0-9a-f]{32}"$/);
+    const again = await api(
+      new Request("http://demo.test/api/dash/query", {
+        method: "POST",
+        headers: {
+          ...(await bearer()),
+          "content-type": "application/json",
+          "if-none-match": tag ?? "",
+        },
+        body: JSON.stringify({ queries: [byRegion] }),
+      }),
+    );
+    expect(again.status).toBe(304);
+    expect(again.headers.get("etag")).toBe(tag);
+    expect(await again.text()).toBe("");
+  });
+
   it("reports invalid queries one by one, next to valid ones", async () => {
     const res = await query({
       queries: [{ measures: [{ field: "fx_api.sales.nope" }] }, byRegion],

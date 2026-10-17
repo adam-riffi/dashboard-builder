@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthError } from "../../src/auth.ts";
-import { matches, settingsFor, withoutStatistics } from "../../src/gateway.ts";
+import { matches, resultsTag, settingsFor, withoutStatistics } from "../../src/gateway.ts";
 import { createGateway, defineGateway, postgresSource } from "../../src/index.ts";
 
 /** A gateway whose database must not be touched: every test here stops before any query. */
@@ -331,5 +331,33 @@ describe("slow requests", () => {
     await call("contract");
     await vi.advanceTimersByTimeAsync(10_000);
     expect(slowLog(warn)).toBeUndefined();
+  });
+});
+
+describe("results tag (ETag of POST /query)", () => {
+  const answer = (n: number, meta: { cache: "hit" | "miss"; ms: number }) => ({
+    columns: [{ key: "m0", kind: "measure" as const, name: "n", type: "number" as const }],
+    data: [[n]],
+    meta: { ...meta, truncated: false },
+  });
+
+  it("ignores how long a query took and whether it came from the cache", () => {
+    expect(resultsTag([answer(1, { cache: "miss", ms: 40 })])).toBe(
+      resultsTag([answer(1, { cache: "hit", ms: 0 })]),
+    );
+  });
+
+  it("changes with the data, the errors and their order", () => {
+    const one = answer(1, { cache: "miss", ms: 1 });
+    const two = answer(2, { cache: "miss", ms: 1 });
+    const tags = [
+      resultsTag([one]),
+      resultsTag([two]),
+      resultsTag([one, two]),
+      resultsTag([two, one]),
+      resultsTag([{ errors: ["Query failed"] }]),
+    ];
+    expect(new Set(tags).size).toBe(tags.length);
+    expect(tags[0]).toMatch(/^"[0-9a-f]{32}"$/);
   });
 });
