@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · docs/handoff-m5 · #57
+- Done: HANDOFF.md rewritten after M6 (#60–#69 merged and checked on production) and the hang fix (#70).
+- Tests: none (docs).
+- Scope/decisions: the M5 and M6 merges waited on CI after each restack, with the user's go-ahead per stack.
+- Next: watch deploy logs for `database connection replaced`; M7 in plan mode.
+
 ## 2026-10-17 · claude · fix/db-deadline · #70
 - Done: the cause of the hang on fresh deployments, found with #59's watchdog, and its fix.
   - **Evidence:** on a preview deploy during the M6 merges (dpl_28mtyozW…, 21:37 UTC), six `/contract` and `/query` requests logged `request slow` at stage `contract`, then hit the 30 s cap. The contract's introspection query never answered. The pooler had shown such connections idle (2026-10-08 and 2026-10-17), so a first query through it can be lost. With one connection per instance, every later read waited behind it.
