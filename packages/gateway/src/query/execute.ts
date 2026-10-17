@@ -11,14 +11,14 @@ export interface ExecuteOptions {
 }
 
 export interface QueryResult extends Omit<ShapedResult, "truncated"> {
-  meta: { cache: "miss"; ms: number; truncated: boolean };
+  meta: { cache: "miss" | "hit"; ms: number; truncated: boolean };
 }
 
 /**
  * Runs one compiled query (DESIGN.md §6). It runs in its own transaction with a statement
  * timeout, UTC time (so time grains do not depend on the server's zone) and the RLS settings,
  * which stay local to the transaction: a later query on the same pooled connection never sees
- * them. The result cache arrives in M6.
+ * them. The gateway's result cache sits in front of it (`cache.ts`).
  */
 export async function executeQuery(
   sql: postgres.Sql,

@@ -2,6 +2,7 @@ import type { NamedMeasure } from "@adam-riffi/dash-core";
 import type { JWTPayload } from "jose";
 import postgres from "postgres";
 import type { IdentityConfig, Verifier } from "./auth.ts";
+import type { ResultCache } from "./cache.ts";
 import type { Policy } from "./query/compile.ts";
 
 /** Host configuration (DESIGN.md §7); secrets come from environment variables. */
@@ -21,6 +22,8 @@ export interface GatewayConfig {
   resolveScope?: (claims: JWTPayload) => Promise<Record<string, unknown>>;
   /** Named measures every dashboard can use, served in the contract (ADR 0007). */
   measures?: NamedMeasure[];
+  /** The result cache, keyed by scope and compiled query (DESIGN.md §6); none by default. */
+  cache?: ResultCache;
 }
 
 /** Typed identity function for `dash.config.ts`. */

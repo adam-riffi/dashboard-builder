@@ -108,6 +108,8 @@ export const queryRequest = z.object({
     })
     .optional(),
   queries: z.array(querySpec).min(1).max(MAX_QUERIES),
+  /** The oldest cached result the caller accepts: its refresh interval (DESIGN.md §6, ADR 0010). */
+  maxAgeSec: z.number().int().min(5).max(86_400).optional(),
 });
 
 export type TimeGrain = z.infer<typeof timeGrain>;
