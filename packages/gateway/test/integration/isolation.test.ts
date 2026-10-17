@@ -2,6 +2,7 @@ import { type Measure, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
 import fc from "fast-check";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { memoryCache, resultKey, scopeHashOf } from "../../src/cache.ts";
 import { inferContract } from "../../src/contract/index.ts";
 import { introspect } from "../../src/contract/introspect.ts";
 import { compileQuery, type Policy } from "../../src/query/compile.ts";
@@ -157,18 +158,36 @@ const FORMULAS: { measure: Measure; joins: string[]; value: (rows: Row[]) => num
 const formulaOf = (m: Measure) =>
   FORMULAS.find((f) => JSON.stringify(f.measure) === JSON.stringify(m));
 
-/** Runs a spec through the real pipeline: validate, plan, compile with policies, execute. */
+// One cache for every run: a scope must never be answered from another scope's entry (DESIGN.md §6).
+const cache = memoryCache({ maxBytes: 10_000_000 });
+
+/**
+ * Runs a spec through the real pipeline: validate, plan, compile with policies, execute. Each
+ * query runs twice through the shared cache, so the second answer comes from it.
+ */
 async function run(spec: QuerySpec, tenantIds: number[]) {
+  const once = await runOnce(spec, tenantIds);
+  expect(await runOnce(spec, tenantIds)).toEqual(once);
+  return once;
+}
+
+async function runOnce(spec: QuerySpec, tenantIds: number[]) {
   const valid = validateQuery(spec, contract, new Map([["Revenue", REVENUE]]));
   if (!valid.ok) throw new Error(valid.errors.join("; "));
   const plan = planJoins(valid.query, contract);
   if (!plan.ok) throw new Error(plan.errors.join("; "));
   const compiled = compileQuery(valid.query, plan.plan, policies, { tenantIds });
   if (!compiled.ok) throw new Error(compiled.errors.join("; "));
-  const result = await executeQuery(admin, compiled.query, {
-    limit: valid.query.limit,
-    settings: {},
+  const key = resultKey({
+    scopeHash: scopeHashOf({ tenantIds }),
+    contractVersion: contract.contractVersion,
+    sql: compiled.query.text,
+    params: compiled.query.params,
   });
+  const result =
+    cache.get(key, 60_000) ??
+    (await executeQuery(admin, compiled.query, { limit: valid.query.limit, settings: {} }));
+  cache.set(key, result);
   const rowCount = result.data[0]?.length ?? 0;
   return Array.from({ length: rowCount }, (_, r) => result.data.map((column) => column[r]));
 }
