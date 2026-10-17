@@ -56,11 +56,17 @@ export const withoutStatistics = (contract: DataContract): DataContract => ({
  * The ETag of a `POST /query` answer: its results without timing and cache status, so a
  * refresh that finds the same rows gets `304` (DESIGN.md §6).
  */
-export function resultsTag(results: (QueryResult | { errors: string[] })[]): string {
+export function resultsTag(
+  results: (QueryResult | { errors: string[] })[],
+  scopeHash = "",
+  explain = false,
+): string {
   const stable = results.map((r) =>
     "errors" in r ? r : { columns: r.columns, data: r.data, truncated: r.meta.truncated },
   );
-  return `"${createHash("sha256").update(JSON.stringify(stable)).digest("hex").slice(0, 32)}"`;
+  // The scope and explain belong to the answer too: a 304 never replays another caller's meta.
+  const tagged = JSON.stringify([scopeHash, explain, stable]);
+  return `"${createHash("sha256").update(tagged).digest("hex").slice(0, 32)}"`;
 }
 
 /** `If-None-Match` per RFC 9110: a list of tags, weak comparison, or `*`. */
@@ -144,6 +150,8 @@ export function createGateway(config: GatewayConfig): Handler {
       let result: QueryResult = cached
         ? {
             ...cached,
+            // The SQL is shared, the echo is not: a name and its inlined formula share an entry.
+            columns: compiled.query.columns,
             meta: { ...cached.meta, cache: "hit", ms: Math.round(performance.now() - started) },
           }
         : await executeQuery(config.source(), compiled.query, {
@@ -251,7 +259,10 @@ export function createGateway(config: GatewayConfig): Handler {
               await runQuery(spec, current, named, memo, scope, scopeHash, maxAgeMs, log),
             );
           }
-          const headers = { etag: resultsTag(results), "cache-control": "private, no-store" };
+          const headers = {
+            etag: resultsTag(results, scopeHash, config.explain ?? false),
+            "cache-control": "private, no-store",
+          };
           if (matches(request.headers.get("if-none-match"), headers.etag)) {
             return new Response(null, { status: 304, headers });
           }

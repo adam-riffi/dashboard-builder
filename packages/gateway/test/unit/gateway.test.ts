@@ -347,6 +347,12 @@ describe("results tag (ETag of POST /query)", () => {
     );
   });
 
+  it("changes with the caller's scope and with explain, so a 304 never replays another's answer", () => {
+    const one = [answer(1, { cache: "miss", ms: 1 })];
+    expect(resultsTag(one, "scope-a")).not.toBe(resultsTag(one, "scope-b"));
+    expect(resultsTag(one, "scope-a", true)).not.toBe(resultsTag(one, "scope-a"));
+  });
+
   it("changes with the data, the errors and their order", () => {
     const one = answer(1, { cache: "miss", ms: 1 });
     const two = answer(2, { cache: "miss", ms: 1 });

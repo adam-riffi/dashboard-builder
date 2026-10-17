@@ -11,7 +11,10 @@ export interface ResultCache {
   set(key: string, result: QueryResult): void;
 }
 
-/** Results in memory, per function instance; the least recently used go first past `maxBytes`. */
+/**
+ * Results in memory, per function instance; the least recently used go first past `maxBytes`.
+ * Sizes are the results' JSON bytes: the objects in memory take a few times more, so leave room.
+ */
 export function memoryCache({
   maxBytes,
   now = Date.now,
