@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-18 · claude · stack/m7/01-package-build · #71
+- Done: publishable packages and Changesets (M7 PR 1).
+  - **Builds:** each package builds to `dist` (`tsconfig.build.json`, `rewriteRelativeImportExtensions`). The workspace keeps exporting `src`; `publishConfig.exports` points npm at `dist` (`types` and `import`, including `@adam-riffi/dash-react/builder`).
+  - **Metadata:** no longer private; description, MIT license, repository, homepage, `files: ["dist"]`.
+  - **Changesets:** `@changesets/cli` with the four packages versioned together, the demo and db ignored, and a first-release changeset (minor, so 0.1.0). No release workflow: npm isn't set up yet (Georges' choice).
+  - **Erasable syntax:** `erasableSyntaxOnly` is on; two parameter properties became plain fields, so Node's type stripping can load the sources.
+- Tests: `scripts/check-packages.mjs` (written first; in `pnpm check` and CI's build job) packs every package and checks it is public, with no `workspace:` dependencies, built JS and `.d.ts` for every export, and no sources or tests; core's and gateway's Node entries load.
+- Scope/decisions: the React packages are checked by contents only; Node can't load JSX workspace sources.
+- Next: #72, package READMEs and the MIT license.
+
 ## 2026-10-17 · claude · docs/handoff-m5 · #57
 - Done: HANDOFF.md rewritten after M6 (#60–#69 merged and checked on production) and the hang fix (#70).
 - Tests: none (docs).

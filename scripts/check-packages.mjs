@@ -1,7 +1,7 @@
 // Checks what npm would publish (DESIGN.md §9, M7): each package packs a built `dist` with JS and
 // type declarations for every export, ships no sources or tests, and its Node entry points load.
 // Run after `pnpm build`: `node scripts/check-packages.mjs`.
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -17,10 +17,10 @@ const out = mkdtempSync(join(tmpdir(), "dash-pack-"));
 try {
   for (const name of PACKAGES) {
     const dir = join(root, "packages", name);
-    const tarball = execFileSync("pnpm", ["pack", "--pack-destination", out], {
+    // One command string: pnpm is a .cmd on Windows, and `out` is a temp folder made here.
+    const tarball = execSync(`pnpm pack --pack-destination "${out}"`, {
       cwd: dir,
       encoding: "utf8",
-      shell: process.platform === "win32",
     })
       .trim()
       .split(/\r?\n/)

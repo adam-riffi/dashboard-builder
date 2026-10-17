@@ -32,6 +32,8 @@ Operating manual for coding agents in this repository. Codex and Copilot read th
 | End-to-end tests | `pnpm test:e2e` |
 | Gateway latency (cached and uncached p95; fails if cached p95 ≥ 150 ms) | `pnpm bench` (same stack as the end-to-end tests) |
 | New migration | `pnpm db:generate` |
+| Check the published packages (after a build) | `pnpm check:packages` |
+| Describe a change to a published package | `pnpm changeset` |
 | Check all | `pnpm check` |
 
 Keep this table accurate: when you add or change a script, update the table in the same PR.
