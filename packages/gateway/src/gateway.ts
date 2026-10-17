@@ -6,6 +6,7 @@ import {
   type QuerySpec,
   queryRequest,
 } from "@adam-riffi/dash-core";
+import type postgres from "postgres";
 import { AuthError, authenticate } from "./auth.ts";
 import { resultKey, scopeHashOf } from "./cache.ts";
 import type { GatewayConfig } from "./config.ts";
@@ -35,6 +36,15 @@ interface Route {
 
 /** A request still running after this long is logged with the stage it is in. */
 const SLOW_MS = 10_000;
+
+/**
+ * A database read still unanswered after this long is abandoned. On fresh deployments a first
+ * query through the pooler sometimes never answers (the pooler sees the connection idle), and
+ * with one connection per instance every later read would wait behind it.
+ */
+const DB_DEADLINE_MS = 5_000;
+
+class DatabaseTimeout extends Error {}
 
 /** A request without `maxAgeSec` accepts results this old: a dashboard's default refresh. */
 const DEFAULT_MAX_AGE_SEC = 60;
@@ -110,9 +120,37 @@ export function createGateway(config: GatewayConfig): Handler {
   if (host.size !== hostMeasures.length) throw new Error("host measure names must be unique");
   const limiter = createRateLimiter({ limit: QUERIES_PER_MINUTE, windowMs: 60_000 });
 
+  /**
+   * Runs a read with a deadline. A read that misses it gets a new connection and one more try;
+   * reads are idempotent, so trying again is safe.
+   */
+  async function read<T>(stage: string, run: (sql: postgres.Sql) => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      const pending = run(config.source());
+      // A read abandoned below rejects when its connection closes: nobody is waiting for it.
+      pending.catch(() => {});
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const deadline = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new DatabaseTimeout(`${stage} took over 5 s`)),
+          DB_DEADLINE_MS,
+        );
+      });
+      try {
+        return await Promise.race([pending, deadline]);
+      } catch (error) {
+        if (!(error instanceof DatabaseTimeout) || attempt > 1 || !config.source.reset) throw error;
+        console.warn(JSON.stringify({ level: "warn", msg: "database connection replaced", stage }));
+        config.source.reset();
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
+
   // One contract per instance, checked again every minute (DESIGN.md §6).
   const contract = cachedContract(async () =>
-    inferContract(await introspect(config.source(), config.tables), {
+    inferContract(await read("contract", (sql) => introspect(sql, config.tables)), {
       tables: config.tables,
       measures: hostMeasures,
     }),
@@ -154,10 +192,12 @@ export function createGateway(config: GatewayConfig): Handler {
             columns: compiled.query.columns,
             meta: { ...cached.meta, cache: "hit", ms: Math.round(performance.now() - started) },
           }
-        : await executeQuery(config.source(), compiled.query, {
-            limit: valid.query.limit,
-            settings: settingsFor(scope),
-          });
+        : await read("query", (sql) =>
+            executeQuery(sql, compiled.query, {
+              limit: valid.query.limit,
+              settings: settingsFor(scope),
+            }),
+          );
       if (!cached) config.cache?.set(key, result);
       if (config.explain) {
         // A copy: the cached entry stays as executed.
@@ -187,7 +227,7 @@ export function createGateway(config: GatewayConfig): Handler {
       {
         methods: ["GET", "HEAD"],
         handle: async () => {
-          const { status, body } = await health(config.source());
+          const { status, body } = await read("health", (sql) => health(sql));
           return json(body, status);
         },
       },
