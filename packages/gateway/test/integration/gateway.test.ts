@@ -248,6 +248,45 @@ describe("POST /query", () => {
     expect(await again.text()).toBe("");
   });
 
+  it("keeps each asker's columns on a hit, and keys on scopes no policy binds", async () => {
+    let role = "analyst";
+    const cached = createGateway(
+      defineGateway({
+        source: postgresSource({
+          url:
+            process.env.DASH_SOURCE_URL ??
+            "postgres://dash_reader:password@localhost:54322/postgres",
+        }),
+        auth: jwtAuth({ jwksUrl: jwks.url, issuer: ISSUER, audience: AUDIENCE }),
+        identity: { claim: "sub", format: "uuid" },
+        tables: ["fx_api.sales"],
+        policies: [{ table: "fx_api.sales", column: "tenant_id", in: "tenantIds" }],
+        resolveScope: async () => ({ tenantIds: [1, 2], role }),
+        measures: [{ name: "Revenue", formula: "SUM(sales.amount)" }],
+        cache: memoryCache({ maxBytes: 1_000_000 }),
+      }),
+    );
+    const ask = async (measure: unknown) => {
+      const res = await cached(
+        new Request("http://demo.test/api/dash/query", {
+          method: "POST",
+          headers: { ...(await bearer()), "content-type": "application/json" },
+          body: JSON.stringify({ queries: [{ measures: [measure] }] }),
+        }),
+      );
+      return (await res.json()).results[0];
+    };
+    // The name inlines to the same SQL as the formula: one entry, each answer its own columns.
+    const byName = await ask({ name: "Revenue" });
+    const byFormula = await ask({ formula: "SUM(sales.amount)" });
+    expect(byFormula.meta.cache).toBe("hit");
+    expect(byName.columns[0]).toMatchObject({ name: "Revenue" });
+    expect(byFormula.columns[0]).toMatchObject({ formula: "SUM(sales.amount)" });
+    // `role` binds no policy, so the SQL is the same; the scope hash still keeps them apart.
+    role = "auditor";
+    expect((await ask({ name: "Revenue" })).meta.cache).toBe("miss");
+  });
+
   it("explains each answer (SQL, parameters, scope) only when the host turns explain on", async () => {
     const explained = (explain: boolean) =>
       createGateway(
