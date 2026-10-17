@@ -14,6 +14,14 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · fix/db-deadline · #70
+- Done: the cause of the hang on fresh deployments, found with #59's watchdog, and its fix.
+  - **Evidence:** on a preview deploy during the M6 merges (dpl_28mtyozW…, 21:37 UTC), six `/contract` and `/query` requests logged `request slow` at stage `contract`, then hit the 30 s cap. The contract's introspection query never answered. The pooler had shown such connections idle (2026-10-08 and 2026-10-17), so a first query through it can be lost. With one connection per instance, every later read waited behind it.
+  - **Fix:** gateway reads (contract introspection, queries, health) get a 5 s deadline. A read that misses it gets a new connection (`postgresSource().reset()`) and one more try, logged as `database connection replaced`. Reads are idempotent.
+- Tests (written first): a source whose first connection never answers still serves `/contract` once the connection is replaced; `reset` gives a new client; without `reset`, a stuck read fails the request at 5 s instead of hanging. The #59 watchdog test now uses a stuck `resolveScope`, which has no deadline.
+- Scope/decisions: the demo's own `appDb` (memberships, dashboards) has no deadline yet; the evidence pointed at the source connection only.
+- Next: watch the next deploys for `database connection replaced` and for timeouts.
+
 ## 2026-10-17 · claude · stack/m6/10-client-review · #69
 - Done: the client findings of the M6 review (posted on #67): 1 (blocker), 4, 5, 6, 11, 12.
   - A visual shows its last answer only while the next is pending. A failed new query (a refused cross-filter, a 429) shows its error, never the unfiltered numbers under the chip.

@@ -7,8 +7,11 @@ import type { Policy } from "./query/compile.ts";
 
 /** Host configuration (DESIGN.md §7); secrets come from environment variables. */
 export interface GatewayConfig {
-  /** The source database, connected as a read-only role. */
-  source: () => postgres.Sql;
+  /**
+   * The source database, connected as a read-only role. `reset`, when present, drops the client
+   * so the next call opens a new connection (the gateway does it when a read never answers).
+   */
+  source: (() => postgres.Sql) & { reset?: () => void };
   auth: Verifier;
   identity: IdentityConfig;
   /** Allowlisted tables, `schema.table`. */
@@ -36,13 +39,22 @@ export const defineGateway = (config: GatewayConfig): GatewayConfig => config;
 
 /**
  * A lazily opened connection: one per function instance, idle connections closed, and prepared
- * statements off because the Supabase transaction pooler does not support them.
+ * statements off because the Supabase transaction pooler does not support them. `reset` closes
+ * the connection at once; the next call opens a new one.
  */
-export function postgresSource({ url }: { url: string }): () => postgres.Sql {
+export function postgresSource({ url }: { url: string }): (() => postgres.Sql) & {
+  reset: () => void;
+} {
   let sql: postgres.Sql | undefined;
-  return () => {
+  const source = () => {
     if (!url) throw new Error("postgresSource: the connection URL is empty");
     sql ??= postgres(url, { max: 1, prepare: false, connect_timeout: 5, idle_timeout: 20 });
     return sql;
   };
+  return Object.assign(source, {
+    reset: () => {
+      void sql?.end({ timeout: 0 }).catch(() => {});
+      sql = undefined;
+    },
+  });
 }

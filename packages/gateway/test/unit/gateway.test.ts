@@ -317,12 +317,39 @@ describe("slow requests", () => {
     });
   });
 
-  it("names the stage a request is stuck in: reading the contract from the database", async () => {
+  it("names the stage a request is stuck in: the host resolving the caller's scope", async () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    contract(gateway(async () => ({ sub: USER }), never));
+    // Database reads give up after 5 s; the host's own code has no deadline.
+    const stuckScope = createGateway(
+      defineGateway({
+        source: () => never as never,
+        auth: async () => ({ sub: USER }),
+        identity: { claim: "sub", format: "uuid" },
+        tables: ["s.t"],
+        resolveScope: never,
+      }),
+    );
+    void stuckScope(
+      new Request("http://demo.test/api/dash/query", {
+        method: "POST",
+        headers: { authorization: "Bearer t", "content-type": "application/json" },
+        body: JSON.stringify({ queries: [{ measures: [{ field: "s.t.n" }] }] }),
+      }),
+    );
     await vi.advanceTimersByTimeAsync(10_000);
-    expect(slowLog(warn)).toMatchObject({ route: "contract", stage: "contract" });
+    expect(slowLog(warn)).toMatchObject({ route: "query", stage: "scope" });
+  });
+
+  it("fails a database read that never answers after 5 s, rather than hanging", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const handler = gateway(async () => ({ sub: USER }), never);
+    const response = handler(
+      new Request("http://demo.test/api/dash/contract", { headers: { authorization: "Bearer t" } }),
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect((await response).status).toBe(500);
   });
 
   it("says nothing about requests that finish in time", async () => {
