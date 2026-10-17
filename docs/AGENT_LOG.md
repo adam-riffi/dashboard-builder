@@ -14,6 +14,17 @@ Entry format:
 
 ---
 
+## 2026-10-17 · claude · fix/gateway-hang · #59
+- Done: the first step on the hang on fresh deployments.
+  - The gateway logs "request slow" with the request's stage (`auth`, `contract`, `scope`, `query`) after 10 s.
+  - The demo's API routes stop at 30 s (`maxDuration`) instead of Vercel's 300 s, and the client retries once.
+- Tests: unit tests for the slow log by stage, and for no log on requests that finish (fake timers).
+- Scope/decisions:
+  - Reproduced on the 2026-10-17 production deploy (#58): the smoke run's 3 `contract` requests and 1 `query` hung to 300 s on the fresh deployment.
+  - Supavisor saw the killed instance's only connection idle, so they waited outside the database.
+  - Locally, a cold postgres.js client (gateway options) under concurrent first queries never hung against PGlite, with or without 70 ms latency.
+- Next: read the stage from the next fresh deployment's logs (within an hour; Hobby keeps one), then fix the cause.
+
 ## 2026-10-08 · claude · stack/m5/13-dashboard-cap · #56
 - Done: the demo's store findings of the M5 review (finding 3 and nits 13, 14, 17).
   - At most 20 dashboards per user; a new one past the cap gets 409, while existing ones still save.

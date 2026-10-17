@@ -277,3 +277,59 @@ describe("host measures in the configuration (ADR 0007)", () => {
     expect(() => createGateway(config([{ ...m, name: "a]b" }]))).toThrow();
   });
 });
+
+describe("slow requests", () => {
+  const USER = "4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
+  const never = () => new Promise<never>(() => {});
+  const gateway = (auth: () => Promise<{ sub: string }>, sql: () => Promise<never>) =>
+    createGateway(
+      defineGateway({
+        source: () => sql as never,
+        auth,
+        identity: { claim: "sub", format: "uuid" },
+        tables: ["s.t"],
+      }),
+    );
+  const contract = (handler: (request: Request) => Promise<Response>) =>
+    void handler(
+      new Request("http://demo.test/api/dash/contract", {
+        headers: { authorization: "Bearer t", "x-vercel-id": "sfo1::slow" },
+      }),
+    );
+  const slowLog = (warn: { mock: { calls: unknown[][] } }) =>
+    warn.mock.calls
+      .map(([line]) => JSON.parse(String(line)))
+      .find((entry) => entry.msg === "request slow");
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("names the stage a request is stuck in: verifying the token", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    contract(gateway(never, never));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(slowLog(warn)).toMatchObject({
+      route: "contract",
+      requestId: "sfo1::slow",
+      stage: "auth",
+    });
+  });
+
+  it("names the stage a request is stuck in: reading the contract from the database", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    contract(gateway(async () => ({ sub: USER }), never));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(slowLog(warn)).toMatchObject({ route: "contract", stage: "contract" });
+  });
+
+  it("says nothing about requests that finish in time", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await call("contract");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(slowLog(warn)).toBeUndefined();
+  });
+});

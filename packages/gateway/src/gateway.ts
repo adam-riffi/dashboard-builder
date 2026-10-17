@@ -24,10 +24,15 @@ type Log = (
   msg: string,
   details: Record<string, unknown>,
 ) => void;
+/** Names the part of a request now running, for the slow-request log. */
+type Step = (stage: "auth" | "contract" | "scope" | "query") => void;
 interface Route {
   methods: string[];
-  handle: (request: Request, log: Log) => Promise<Response>;
+  handle: (request: Request, log: Log, step: Step) => Promise<Response>;
 }
+
+/** A request still running after this long is logged with the stage it is in. */
+const SLOW_MS = 10_000;
 
 const json = (body: unknown, status: number, headers: Record<string, string> = {}) =>
   Response.json(body, { status, headers });
@@ -146,8 +151,9 @@ export function createGateway(config: GatewayConfig): Handler {
       "contract",
       {
         methods: ["GET", "HEAD"],
-        handle: async (request) => {
+        handle: async (request, _log, step) => {
           await authenticate(request, config.auth, config.identity);
+          step("contract");
           // The served body depends only on the schema hash, so the ETag can be strong.
           const served = withoutStatistics(await contract());
           const headers = {
@@ -165,7 +171,7 @@ export function createGateway(config: GatewayConfig): Handler {
       "query",
       {
         methods: ["POST"],
-        handle: async (request, log) => {
+        handle: async (request, log, step) => {
           const { id, claims } = await authenticate(request, config.auth, config.identity);
           let body: unknown;
           try {
@@ -184,11 +190,13 @@ export function createGateway(config: GatewayConfig): Handler {
               "retry-after": String(allowed.retryAfterSeconds),
             });
           }
+          step("scope");
           const scope = (await config.resolveScope?.(claims)) ?? {};
           const scopeHash = createHash("sha256")
             .update(JSON.stringify(Object.entries(scope).sort()))
             .digest("hex")
             .slice(0, 16);
+          step("contract");
           const current = await contract();
           const broken = policyContractErrors(policies, current);
           if (broken.length > 0) throw new Error(broken.join("; "));
@@ -201,6 +209,7 @@ export function createGateway(config: GatewayConfig): Handler {
           ]);
           // One connection per instance (max 1), so queries run one after another.
           const memo = new Map<string, Checking>();
+          step("query");
           for (const spec of parsed.data.queries) {
             results.push(await runQuery(spec, current, named, memo, scope, scopeHash, log));
           }
@@ -230,8 +239,14 @@ export function createGateway(config: GatewayConfig): Handler {
           ...details,
         }),
       );
+    // Every route starts by verifying the token. A request that has not finished after SLOW_MS
+    // is logged with the stage it is in, so a hang shows where it is stuck.
+    let stage = "auth";
+    const slow = setTimeout(() => log("warn", "request slow", { stage }), SLOW_MS);
     try {
-      return await route.handle(request, log);
+      return await route.handle(request, log, (next) => {
+        stage = next;
+      });
     } catch (error) {
       if (error instanceof AuthError) {
         const cause = error.cause instanceof Error ? error.cause.message : error.message;
@@ -242,6 +257,8 @@ export function createGateway(config: GatewayConfig): Handler {
         cause: error instanceof Error ? error.message : String(error),
       });
       return json({ error: "Internal error" }, 500);
+    } finally {
+      clearTimeout(slow);
     }
   };
 }
