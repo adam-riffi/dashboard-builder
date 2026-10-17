@@ -40,9 +40,15 @@ const frame = (t: Theme, series: unknown[]) => ({
 });
 
 /** Categories as horizontal bars, the first category on top, values labelled compactly. */
-export function barOption(result: QueryResult, formatters: Formatter[]) {
-  const labels = (result.data[0] ?? []).map((v) => (formatters[0] ?? String)(v));
-  const series = seriesOf(result, formatters, "bar", (_, value) => value);
+export function barOption(result: QueryResult, formatters: Formatter[], selected?: unknown) {
+  const categories = result.data[0] ?? [];
+  const labels = categories.map((v) => (formatters[0] ?? String)(v));
+  // A selection keeps its bar and fades the others (cross-filtering, DESIGN.md §6).
+  const series = seriesOf(result, formatters, "bar", (row, value) =>
+    selected === undefined
+      ? value
+      : { value, itemStyle: { opacity: categories[row] === selected ? 1 : 0.35 } },
+  );
   const compact = formatters[1]?.compact ?? String;
   return (t: Theme): EChartsCoreOption => ({
     ...frame(t, series),
@@ -60,12 +66,15 @@ export function barOption(result: QueryResult, formatters: Formatter[]) {
  * Measures over time on a time axis, so periods without rows keep their place instead of
  * closing up; the axis is labelled at the query's grain.
  */
-export function lineOption(result: QueryResult, formatters: Formatter[]) {
+export function lineOption(result: QueryResult, formatters: Formatter[], selected?: unknown) {
   const dates = result.data[0] ?? [];
   const date = (ms: number) => (formatters[0] ?? String)(new Date(ms).toISOString());
-  const series = seriesOf(result, formatters, "line", (row, value) => [dates[row], value]).map(
-    (s) => ({ ...s, showSymbol: dates.length <= 40 }),
-  );
+  // A selected period shows as a larger point (cross-filtering, DESIGN.md §6).
+  const series = seriesOf(result, formatters, "line", (row, value) =>
+    selected === undefined
+      ? [dates[row], value]
+      : { value: [dates[row], value], symbolSize: dates[row] === selected ? 12 : 4 },
+  ).map((s) => ({ ...s, showSymbol: selected !== undefined || dates.length <= 40 }));
   const compact = formatters[1]?.compact ?? String;
   return (t: Theme): EChartsCoreOption => ({
     ...frame(t, series),
