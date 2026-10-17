@@ -141,7 +141,7 @@ export function createGateway(config: GatewayConfig): Handler {
         params: compiled.query.params,
       });
       const cached = config.cache?.get(key, maxAgeMs);
-      const result: QueryResult = cached
+      let result: QueryResult = cached
         ? {
             ...cached,
             meta: { ...cached.meta, cache: "hit", ms: Math.round(performance.now() - started) },
@@ -151,6 +151,11 @@ export function createGateway(config: GatewayConfig): Handler {
             settings: settingsFor(scope),
           });
       if (!cached) config.cache?.set(key, result);
+      if (config.explain) {
+        // A copy: the cached entry stays as executed.
+        const explain = { sql: compiled.query.text, params: [...compiled.query.params], scope };
+        result = { ...result, meta: { ...result.meta, explain } };
+      }
       // DESIGN.md §13: a scope hash, never the tenant ids.
       log("info", "query", {
         scopeHash: scopeHash.slice(0, 16),

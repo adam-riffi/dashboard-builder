@@ -134,7 +134,13 @@ export type ResultColumn =
 export interface QueryResult {
   columns: ResultColumn[];
   data: unknown[][];
-  meta: { cache: "miss" | "hit"; ms: number; truncated: boolean };
+  meta: {
+    cache: "miss" | "hit";
+    ms: number;
+    truncated: boolean;
+    /** With the gateway's `explain` on (DESIGN.md §13): the SQL, its parameters, the scope. */
+    explain?: { sql: string; params: unknown[]; scope: Record<string, unknown> };
+  };
 }
 
 /** Each entry of a `POST /query` response, in request order. */

@@ -116,6 +116,7 @@ export default defineGateway({
   policies: [{ table: "dash_demo.orders", column: "tenant_id", in: "tenantIds" }],
   measures: [{ name: "Revenue", formula: "SUM(order_items.quantity * order_items.unit_price)" }], // ADR 0007
   cache: memoryCache({ maxBytes: 50_000_000 }),
+  explain: false, // true adds SQL, parameters and scope to answers: development or demo data only (§13)
 });
 ```
 

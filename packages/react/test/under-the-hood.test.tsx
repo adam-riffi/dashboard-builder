@@ -51,7 +51,8 @@ describe("the Under the hood drawer (DESIGN.md §2, §13)", () => {
       </DashProvider>,
     );
     const drawer = within(await screen.findByRole("group", { name: "Under the hood" }));
-    expect(drawer.getByText(/Revenue: cache hit, 3 ms, 1 row/)).toBeTruthy();
+    // The drawer is there at once; its lines arrive with the answers.
+    expect(await drawer.findByText(/Revenue: cache hit, 3 ms, 1 row/)).toBeTruthy();
     expect(drawer.getByText(/from "dash_demo"."order_items"/)).toBeTruthy();
     expect(drawer.getByText(/"tenantIds":\s*\[\s*1,\s*2\s*\]/)).toBeTruthy();
   });
