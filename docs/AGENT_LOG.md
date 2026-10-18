@@ -14,6 +14,17 @@ Entry format:
 
 ---
 
+## 2026-10-18 · claude · stack/m7/04-readme · #74
+- Done: the repository README (ENGINEERING.md §15 order; M7 PR 4). It has:
+  - the pitch, the demo GIF, the live link and the CI and license badges;
+  - three reasons it is interesting (scope-safe analytics, the hand-written core, cached p95 15 ms);
+  - two Mermaid diagrams (architecture, security model) and notes on the key algorithms;
+  - benchmarks (`pnpm bench`'s method and numbers), the testing approach, running locally, the structure, limitations and next steps, and the license.
+- `docs/demo.gif` (12.8 s, 3.2 MB): recorded by `apps/demo/scripts/record-demo.mjs` (`pnpm record-demo`) on the production URL. It plays DESIGN.md §3's script: drag Category and Revenue into a new bar, save, click a bar to cross-filter (revenue $2.9M to $1.2M under "Category: Garden"), open "Under the hood". The run deleted its dashboard; the GIF cuts the sign-in and the cleanup.
+- Tests: none new (docs, and a script run by hand); the recording itself checked the demo script on production.
+- Scope/decisions: the CV line is left out (Georges' choice); npm publishing waits for npm setup.
+- Next: the M7 review, merges, the repository description and topics, then HANDOFF.
+
 ## 2026-10-18 · claude · stack/m7/03-demo-onboarding · #73
 - Done: a "Try it in a minute" panel on the demo's home page (M7 PR 3). It walks through DESIGN.md §3's script:
   - guest tenants, a new dashboard with a bar of Category and Revenue (drag or click-to-place), and save;
