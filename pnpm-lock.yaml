@@ -264,7 +264,7 @@ importers:
   packages/core:
     dependencies:
       zod:
-        specifier: 4.6.5
+        specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
       '@vitest/coverage-v8':
@@ -286,10 +286,10 @@ importers:
         specifier: workspace:*
         version: link:../core
       jose:
-        specifier: 6.2.12
+        specifier: ^6.2.12
         version: 6.2.12
       postgres:
-        specifier: 3.4.9
+        specifier: ^3.4.9
         version: 3.4.9
     devDependencies:
       '@types/node':
@@ -317,25 +317,25 @@ importers:
         specifier: workspace:*
         version: link:../visuals
       '@codemirror/autocomplete':
-        specifier: 6.20.3
+        specifier: ^6.20.3
         version: 6.20.3
       '@codemirror/lint':
-        specifier: 6.9.7
+        specifier: ^6.9.7
         version: 6.9.7
       '@codemirror/state':
-        specifier: 6.7.6
+        specifier: ^6.7.6
         version: 6.7.6
       '@codemirror/view':
-        specifier: 6.43.14
+        specifier: ^6.43.14
         version: 6.43.14
       '@dnd-kit/core':
-        specifier: 6.3.1
+        specifier: ^6.3.1
         version: 6.3.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-query':
-        specifier: 5.104.1
+        specifier: ^5.104.1
         version: 5.104.1(react@19.3.0)
       react-grid-layout:
-        specifier: 2.3.0
+        specifier: ^2.3.0
         version: 2.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     devDependencies:
       '@testing-library/dom':
@@ -384,10 +384,10 @@ importers:
         specifier: workspace:*
         version: link:../core
       echarts:
-        specifier: 6.1.0
+        specifier: ^6.1.0
         version: 6.1.0
       zod:
-        specifier: 4.6.5
+        specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
       '@types/react':

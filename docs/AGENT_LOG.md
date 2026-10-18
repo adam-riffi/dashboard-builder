@@ -14,6 +14,17 @@ Entry format:
 
 ---
 
+## 2026-10-18 · claude · stack/m7/05-review-fixes · #75
+- Done: the M7 review's remaining findings (posted on #74; the blocker and the panel nits went into #73).
+  - Gateway README and DESIGN.md §7: a policy on every allowlisted table holding tenant rows (a query is filtered only on the tables it joins), and the Node.js runtime is stated; `engines.node >= 20`.
+  - React README: `"use client"`, typed props, installing `react-grid-layout` for its stylesheet. dash-react exports the `DashboardSpec` type.
+  - Packaging: published dependencies take caret ranges; dash-react declares `react-dom` as a peer.
+  - `record-demo.mjs`: the panel is hidden through storage before load; the drawer is found by its role; deletion waits until the dashboard is gone; paths use `fileURLToPath`; the temp folder is removed even on failure; the cut ends before the cleanup. `docs/demo.gif` was re-recorded (12.6 s, 3.1 MB), ending on the drawer.
+  - The README's bench numbers link to the run they came from.
+- Tests (written first): the package check asserts ranges, the gateway's engine and dash-react's `react-dom` peer.
+- Scope/decisions: checking the installed dependency graph (tarballs into a temp project) waits until publishing is set up.
+- Next: CI, then merges (CI waits need Georges' go-ahead), the repository description and topics, HANDOFF.
+
 ## 2026-10-18 · claude · stack/m7/04-readme · #74
 - Done: the repository README (ENGINEERING.md §15 order; M7 PR 4). It has:
   - the pitch, the demo GIF, the live link and the CI and license badges;

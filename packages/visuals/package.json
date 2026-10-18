@@ -32,8 +32,8 @@
   },
   "dependencies": {
     "@adam-riffi/dash-core": "workspace:*",
-    "echarts": "6.1.0",
-    "zod": "4.6.5"
+    "echarts": "^6.1.0",
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "react": "^19.3.0"

@@ -70,7 +70,7 @@ flowchart TB
 - 15 uncached `POST /query` requests, each a distinct query;
 - 25 cached requests for the demo's Revenue measure.
 
-It fails if cached p95 reaches 150 ms. Latest CI run:
+It fails if cached p95 reaches 150 ms. From [the M6 acceptance run](https://github.com/adam-riffi/dashboard-builder/pull/67#issuecomment-6241190336); later runs printed similar or lower numbers, e.g. cached p95 8–10 ms:
 
 | Query | n | p50 | p95 |
 | --- | --- | --- | --- |

@@ -5,12 +5,17 @@ import { execFileSync, execSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const root = fileURLToPath(new URL("..", import.meta.url));
 const PACKAGES = ["core", "gateway", "visuals", "react"];
 // The packages a host installs: their README shows host setup in under 20 lines (DESIGN.md §15).
 const HOST_SETUP = ["gateway", "react"];
+// What hosts need to know from the manifest: the gateway runs on Node; the builder needs react-dom.
+const EXPECTED = {
+  gateway: { "engines.node": ">=20" },
+  react: { "peerDependencies.react-dom": "^19.3.0" },
+};
 // Entries Node can load on its own; the React packages are checked by their contents only.
 const NODE_ENTRIES = { core: ["dist/index.js"], gateway: ["dist/index.js"] };
 
@@ -36,9 +41,17 @@ try {
     const manifest = JSON.parse(tar("-xzOf", basename(tarball), "package/package.json"));
     const where = `@adam-riffi/dash-${name}`;
     if (manifest.private) problems.push(`${where}: still private`);
-    for (const dep of Object.values(manifest.dependencies ?? {})) {
-      if (String(dep).startsWith("workspace:"))
+    for (const [dep, range] of Object.entries(manifest.dependencies ?? {})) {
+      if (String(range).startsWith("workspace:"))
         problems.push(`${where}: workspace dependency left`);
+      // A library pins nothing: a host's own copy of zod or React Query should satisfy it.
+      if (/^\d/.test(String(range)) && !dep.startsWith("@adam-riffi/")) {
+        problems.push(`${where}: ${dep} is pinned to ${range}, not a range`);
+      }
+    }
+    for (const [field, value] of Object.entries(EXPECTED[name] ?? {})) {
+      const actual = field.split(".").reduce((o, k) => o?.[k], manifest);
+      if (actual !== value) problems.push(`${where}: ${field} is ${actual}, expected ${value}`);
     }
     for (const [entry, target] of Object.entries(manifest.exports ?? {})) {
       const js = typeof target === "string" ? target : (target.import ?? target.default);

@@ -5,18 +5,18 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
 const url = process.env.DEMO_URL ?? "https://dashboard-builder-rose.vercel.app";
-const gif = new URL("../../../docs/demo.gif", import.meta.url).pathname.replace(
-  /^\/([A-Za-z]:)/,
-  "$1",
-);
+const gif = fileURLToPath(new URL("../../../docs/demo.gif", import.meta.url));
 const videos = mkdtempSync(join(tmpdir(), "dash-demo-"));
 const size = { width: 1200, height: 760 };
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: size, recordVideo: { dir: videos, size } });
+// A recording is not a first visit: the try-it panel stays hidden.
+await context.addInitScript(() => localStorage.setItem("dash-demo-try-it-hidden", "1"));
 const page = await context.newPage();
 const recording = Date.now();
 const pause = (ms) => page.waitForTimeout(ms);
@@ -38,8 +38,6 @@ let started;
 let ended;
 try {
   await page.goto(url);
-  const hide = page.getByRole("button", { name: "Hide" });
-  if (await hide.isVisible().catch(() => false)) await hide.click();
   await page.locator('[data-visual="kpi-revenue"][data-state="ready"]').waitFor();
   started = Date.now();
   await pause(1500);
@@ -77,8 +75,9 @@ try {
   await pause(2500);
 
   // Under the hood: security context, SQL, cache status.
-  await page.getByText("Under the hood").scrollIntoViewIfNeeded();
-  await page.getByText("Under the hood").click();
+  const drawer = page.getByRole("group", { name: "Under the hood" }).locator("summary");
+  await drawer.scrollIntoViewIfNeeded();
+  await drawer.click();
   await pause(600);
   await page.mouse.wheel(0, 350);
   await pause(2500);
@@ -89,7 +88,10 @@ try {
   if (await open.isVisible().catch(() => false)) {
     await open.click();
     await page.getByRole("button", { name: "Delete dashboard" }).click();
-    await pause(500);
+    // Production keeps nothing from a recording: wait until the dashboard is gone.
+    await open.waitFor({ state: "detached", timeout: 15_000 }).catch(() => {
+      console.warn("The recorded dashboard may still exist: delete it from the demo by hand.");
+    });
   }
   await context.close();
   await browser.close();
@@ -99,26 +101,30 @@ const [video] = readdirSync(videos).filter((f) => f.endsWith(".webm"));
 // From the first loaded dashboard to the drawer (the sign-in and the cleanup are cut), at 10 fps
 // with one shared palette.
 const skip = started ? (started - recording) / 1000 : 0;
-const length = started && ended ? (ended - started) / 1000 : 20;
-execFileSync(
-  "ffmpeg",
-  [
-    "-y",
-    "-loglevel",
-    "error",
-    "-ss",
-    String(skip),
-    "-t",
-    String(length),
-    "-i",
-    join(videos, video),
-    "-vf",
-    "fps=10,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer",
-    gif,
-  ],
-  { stdio: "inherit" },
-);
-rmSync(videos, { recursive: true, force: true });
+// Stop a little short: the video clock starts slightly after `recording`.
+const length = started && ended ? (ended - started) / 1000 - 0.3 : 20;
+try {
+  execFileSync(
+    "ffmpeg",
+    [
+      "-y",
+      "-loglevel",
+      "error",
+      "-ss",
+      String(skip),
+      "-t",
+      String(length),
+      "-i",
+      join(videos, video),
+      "-vf",
+      "fps=10,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer",
+      gif,
+    ],
+    { stdio: "inherit" },
+  );
+} finally {
+  rmSync(videos, { recursive: true, force: true });
+}
 console.log(
   `docs/demo.gif: ${(statSync(gif).size / 1e6).toFixed(1)} MB, about ${length.toFixed(0)} s`,
 );
