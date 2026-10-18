@@ -124,8 +124,9 @@ test("the Under the hood drawer shows each query's SQL, cache status and the sec
 }, testInfo) => {
   await page.goto("/");
   await expect(revenueOf(page)).toHaveAttribute("data-state", "ready");
-  await page.getByText("Under the hood").click();
+  // The drawer by its role: the try-it panel mentions "Under the hood" too.
   const drawer = page.getByRole("group", { name: "Under the hood" });
+  await drawer.locator("summary").click();
   await expect(drawer.getByText("Security context")).toBeVisible();
   await expect(drawer.getByText(/tenantIds/)).toBeVisible();
   await expect(drawer.getByText(/^Revenue: cache (hit|miss), \d+ ms, 1 row$/)).toBeVisible();
