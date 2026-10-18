@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-18 · claude · docs/handoff-m7 · #76
+- Done: HANDOFF.md rewritten after M7 (#71–#75 merged; production and the GitHub README checked; repository description, homepage and topics set).
+- Tests: none (docs).
+- Scope/decisions: npm publishing deferred and the CV line skipped (Georges); the handoff lists the npm steps and the web-UI items left to Georges.
+- Next: npm when Georges is ready; v1.1 in plan mode.
+
 ## 2026-10-18 · claude · stack/m7/05-review-fixes · #75
 - Done: the M7 review's remaining findings (posted on #74; the blocker and the panel nits went into #73).
   - Gateway README and DESIGN.md §7: a policy on every allowlisted table holding tenant rows (a query is filtered only on the tables it joins), and the Node.js runtime is stated; `engines.node >= 20`.
