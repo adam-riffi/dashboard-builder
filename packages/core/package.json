@@ -1,12 +1,32 @@
 {
   "name": "@adam-riffi/dash-core",
   "version": "0.0.0",
-  "private": true,
+  "description": "Shared schemas, the formula language and the DashboardSpec of the dashboard builder.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adam-riffi/dashboard-builder.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/adam-riffi/dashboard-builder#readme",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage"
   },

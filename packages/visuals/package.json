@@ -1,12 +1,32 @@
 {
   "name": "@adam-riffi/dash-visuals",
   "version": "0.0.0",
-  "private": true,
+  "description": "Visual plugins (KPI, bar, line, table) for the dashboard builder, drawn with ECharts.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adam-riffi/dashboard-builder.git",
+    "directory": "packages/visuals"
+  },
+  "homepage": "https://github.com/adam-riffi/dashboard-builder#readme",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage"
   },

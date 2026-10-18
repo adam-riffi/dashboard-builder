@@ -32,11 +32,10 @@ export interface Transport {
 
 /** A gateway answer other than 2xx; 4xx answers are not retried. */
 export class GatewayError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
+  readonly status: number;
+  constructor(message: string, status: number) {
     super(message);
+    this.status = status;
   }
 }
 

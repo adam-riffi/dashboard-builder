@@ -1,12 +1,32 @@
 {
   "name": "@adam-riffi/dash-gateway",
   "version": "0.0.0",
-  "private": true,
+  "description": "Server gateway for embedded dashboards: contract inference, row policies, SQL compilation and caching over Postgres.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adam-riffi/dashboard-builder.git",
+    "directory": "packages/gateway"
+  },
+  "homepage": "https://github.com/adam-riffi/dashboard-builder#readme",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run test/unit --coverage",
     "test:integration": "vitest run test/integration"

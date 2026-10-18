@@ -49,6 +49,8 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # What npm would publish: built, typed, loadable, no sources or tests (M7).
+      - run: pnpm check:packages
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 15

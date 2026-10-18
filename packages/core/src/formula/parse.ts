@@ -41,11 +41,10 @@ const ATOM = 8;
 export const MAX_FORMULA_DEPTH = 100;
 
 class ParseError extends Error {
-  constructor(
-    message: string,
-    readonly span: Span,
-  ) {
+  readonly span: Span;
+  constructor(message: string, span: Span) {
     super(message);
+    this.span = span;
   }
 }
 

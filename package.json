@@ -19,10 +19,13 @@
     "db:seed": "pnpm --filter @dash/db seed",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "check": "biome check . && turbo run typecheck test build"
+    "check": "biome check . && turbo run typecheck test build && node scripts/check-packages.mjs",
+    "check:packages": "node scripts/check-packages.mjs",
+    "changeset": "changeset"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@changesets/cli": "3.0.3",
     "supabase": "2.120.0",
     "turbo": "2.11.7",
     "typescript": "7.0.2",
