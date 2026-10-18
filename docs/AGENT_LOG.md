@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-18 · claude · stack/m7/02-package-readmes · #72
+- Done: package READMEs and the MIT license (M7 PR 2).
+  - Gateway: host setup in 17 lines (`dash.config.ts` and the route), the HTTP API and the security model.
+  - React: host setup in 17 lines (provider, viewer, builder from `/builder`, the grid CSS) and what each component does.
+  - Core: schemas and the formula language. Visuals: the plugin contract with a custom-visual example.
+  - Root `LICENSE` (MIT, Adam Riffi), copied into each package so npm ships it.
+- Tests (written first): the package check requires README.md and LICENSE in every tarball, and a "Host setup" section of 1–19 code lines for gateway and react (DESIGN.md §15).
+- Scope/decisions: package READMEs point to the repository README for the rest (§4 diagrams, benchmarks).
+- Next: #73, the try-it panel on the demo.
+
 ## 2026-10-18 · claude · stack/m7/01-package-build · #71
 - Done: publishable packages and Changesets (M7 PR 1).
   - **Builds:** each package builds to `dist` (`tsconfig.build.json`, `rewriteRelativeImportExtensions`). The workspace keeps exporting `src`; `publishConfig.exports` points npm at `dist` (`types` and `import`, including `@adam-riffi/dash-react/builder`).
