@@ -19,8 +19,8 @@ const visual = (id: string, type: string, slots: DashboardSpec["visuals"][number
   options: {},
 });
 
-// The shop contract has orders(id, status), order_items(id, order_id, product_id, quantity),
-// products(id, category) and the host measure Revenue; everything else here is lost.
+// The shop contract has orders(id, status, ordered_at), order_items(id, order_id, product_id,
+// quantity), products(id, category) and the host measure Revenue; everything else here is lost.
 const broken = dashboard({
   measures: [
     { name: "Units", formula: "SUM(order_items.qty)" },
@@ -81,6 +81,26 @@ describe("lostRefs (ADR 0011)", () => {
     ]);
   });
 
+  it("merges the two spellings of a dropped table's field when the contract has one schema", () => {
+    const dropped = dashboard({
+      visuals: [
+        visual("a", "kpi", { value: [{ field: "dash_demo.returns.id", aggregation: "COUNT" }] }),
+        visual("b", "kpi", { value: [{ formula: "COUNT(returns.id)" }] }),
+      ],
+    });
+    expect(lostRefs(dropped, shop)).toEqual([
+      {
+        kind: "field",
+        name: "dash_demo.returns.id",
+        usages: [
+          { kind: "slot", visualId: "a", slot: "value", index: 0 },
+          { kind: "formula", visualId: "b", slot: "value", index: 0 },
+        ],
+        removable: true,
+      },
+    ]);
+  });
+
   it("finds nothing in a dashboard the contract fully covers", () => {
     const healthy = dashboard({
       measures: [{ name: "Units", formula: "SUM(order_items.quantity)" }],
@@ -104,7 +124,7 @@ describe("replacements (ADR 0011)", () => {
   it.each([
     // Same table first, then the role the usage needs: a category axis wants a dimension.
     ["dash_demo.products.kind", ["dash_demo.products.category", "dash_demo.products.id"]],
-    // A filter on text values takes text columns; the lost column's table comes first.
+    // A filter on text values takes text columns, never a date column; its table comes first.
     ["dash_demo.orders.state", ["dash_demo.orders.status", "dash_demo.products.category"]],
     // Inside a formula any column fits; the measure column of the same table leads.
     ["dash_demo.order_items.qty", ["dash_demo.order_items.quantity", "dash_demo.order_items.id"]],
@@ -146,6 +166,28 @@ describe("replacements (ADR 0011)", () => {
 
   it("offers the other measures for a lost one, never one that uses it", () => {
     expect(replacements(lost("Margin"), broken, shop)).toEqual(["Revenue", "Units"]);
+  });
+
+  it("never offers a measure that uses the lost one through another, and names each once", () => {
+    const chained = dashboard({
+      measures: [
+        { name: "Margin pct", formula: "DIVIDE([Margin], [Revenue])" },
+        { name: "Margin ratio", formula: "[Margin pct] * 100" },
+        // A dashboard measure the host later defined too: offered once.
+        { name: "Revenue", formula: "SUM(order_items.quantity)" },
+      ],
+      visuals: [visual("kpi", "kpi", { value: [{ name: "Margin" }] })],
+    });
+    const [margin] = lostRefs(chained, shop);
+    expect(replacements(margin as LostRef, chained, shop)).toEqual(["Revenue"]);
+  });
+
+  it("offers a date column to a text filter only when its values are dates", () => {
+    const since = dashboard({
+      filters: [{ field: "dash_demo.orders.placed_at", op: "gte", values: ["2026-09-01"] }],
+    });
+    const [ref] = lostRefs(since, shop);
+    expect(replacements(ref as LostRef, since, shop)).toContain("dash_demo.orders.ordered_at");
   });
 });
 

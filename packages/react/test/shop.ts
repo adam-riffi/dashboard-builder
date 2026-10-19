@@ -1,9 +1,9 @@
 import { type DataContract, dataContract } from "@adam-riffi/dash-core";
 
-type Role = "id" | "measure" | "dimension";
-const column = (name: string, type: "number" | "string", role: Role) => ({
+type Role = "id" | "measure" | "dimension" | "time";
+const column = (name: string, type: "number" | "string" | "date", role: Role) => ({
   name,
-  pgType: type === "number" ? "int4" : "text",
+  pgType: { number: "int4", string: "text", date: "timestamptz" }[type],
   type,
   nullable: false,
   role,
@@ -30,7 +30,11 @@ const toOne = (from: string, key: string, to: string) => ({
 export const shop: DataContract = dataContract.parse({
   contractVersion: "0".repeat(64),
   tables: [
-    table("dash_demo.orders", column("status", "string", "dimension")),
+    table(
+      "dash_demo.orders",
+      column("status", "string", "dimension"),
+      column("ordered_at", "date", "time"),
+    ),
     table(
       "dash_demo.order_items",
       column("order_id", "number", "id"),
