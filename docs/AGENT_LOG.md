@@ -16,7 +16,7 @@ Entry format:
 
 ## 2026-10-19 · claude · stack/m8/02-planning-in-core · #79
 - Done: `validateQuery`, `tablesOf` and `planJoins` move from `packages/gateway/src/query/` to `packages/core/src/plan/` (ADR 0011); the gateway imports them from core. Their tests moved first and keep reading the gateway's golden contracts.
-- Tests: core 194 passed (lines 99%); gateway unit 179 passed. Core's tests get Node types; its build keeps none, so `src` stays browser-safe.
+- Tests: core 194 passed (lines 99%); gateway unit 179 passed, lines 93.15% → 90.02% (the moved files now count in core; no test removed). Core's tests get Node types; its build keeps none, so `src` stays browser-safe.
 - Scope/decisions: a pure move, no behaviour change; changeset (core minor, gateway patch).
 - Next: selections skip visuals that can't reach their field (#80).
 
