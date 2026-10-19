@@ -10,13 +10,15 @@ import { sampleDashboard } from "../lib/sample-dashboard";
 
 /**
  * A saved spec with recorded answers by visual id (ADR 0008). `pending` never answers; `failed`
- * refuses the whole request, as a gateway answering 401 would.
+ * refuses the whole request, as a gateway answering 401 would. `repaired` records the answers
+ * of the spec once its lost fields are replaced in the builder (ADR 0011).
  */
 export interface Fixture {
   spec: DashboardSpec;
   answers: Record<string, QueryAnswer>;
   pending?: boolean;
   failed?: boolean;
+  repaired?: Pick<Fixture, "spec" | "answers">;
 }
 
 /** The host measures and their formats, as the demo's contract serves them. */
@@ -241,4 +243,45 @@ const loading: Fixture = { spec: pair("Loading"), answers: {}, pending: true };
 
 const failed: Fixture = { spec: pair("Failed"), answers: {}, failed: true };
 
-export const fixtures: Record<string, Fixture> = { overview, states, loading, failed };
+// A dashboard saved before `products.product_category` was renamed `category` (ADR 0011).
+const afterRename = (field: string) =>
+  dashboardSpec.parse({
+    specVersion: 1,
+    contractVersion: "0".repeat(64),
+    title: "After a schema change",
+    layout: [
+      { i: "bar-category", x: 0, y: 0, w: 8, h: 5 },
+      { i: "kpi-orders", x: 8, y: 0, w: 4, h: 2 },
+    ],
+    visuals: [
+      {
+        id: "bar-category",
+        type: "bar",
+        slots: { category: [{ field }], value: [{ name: "Revenue" }] },
+      },
+      { id: "kpi-orders", type: "kpi", slots: { value: [{ name: "Orders" }] } },
+    ],
+  });
+
+const lost: Fixture = {
+  spec: afterRename("dash_demo.products.product_category"),
+  answers: {
+    "bar-category": { errors: ["dash_demo.products.product_category: unknown column"] },
+    "kpi-orders": answer([named("Orders")], [[1978]]),
+  },
+  repaired: {
+    spec: afterRename("dash_demo.products.category"),
+    answers: {
+      "bar-category": answer(
+        [category, named("Revenue")],
+        [
+          ["Garden", "Toys", "Kitchen"],
+          [83495.78, 61210.4, 40120.5],
+        ],
+      ),
+      "kpi-orders": answer([named("Orders")], [[1978]]),
+    },
+  },
+};
+
+export const fixtures: Record<string, Fixture> = { overview, states, loading, failed, lost };
