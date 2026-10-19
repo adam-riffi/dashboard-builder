@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-19 · claude · stack/m8/04-one-refresh-timer · #81
+- Done: `useDashboardAnswers` drops react-query's per-query `refetchInterval` for one interval per dashboard that refetches every query in the same tick, skipped while the page is hidden and leaving a refresh still on its way alone (ADR 0011). A selection used to restart the other visuals' timers, so refreshes went out as two requests.
+- Tests: written first in `refresh.test.tsx`: after a selection three seconds in, the next interval sends one request with both queries; a refresh on its way is not asked again (checked to fail without the change).
+- Scope/decisions: the README limitation is removed; changeset (react patch).
+- Next: find lost fields and rank replacements (#82).
+
 ## 2026-10-19 · claude · stack/m8/03-selection-reach · #80
 - Done: `dashboardRequest(spec, selections, contract)` adds a selection to a visual only if the visual's query still validates and plans with it (core's `validateQuery` and `planJoins`, ADR 0011). Without the contract, or when the visual fails anyway, it keeps them as before. The viewer passes the contract through `useDashboardAnswers`.
 - Tests: written first. Unit tests on a three-table shop contract, a property (a selection is dropped exactly when the visual can't be planned with it) and a viewer test (counting orders stays ready and unfiltered while Garden is selected).

@@ -9,12 +9,20 @@ import {
   type QueryRequest,
   type QuerySpec,
 } from "@adam-riffi/dash-core";
-import { QueryClient, QueryClientProvider, useQueries, useQuery } from "@tanstack/react-query";
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   createContext,
   type ReactNode,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -222,7 +230,9 @@ export function useContract() {
  * Every visual's answer, each cached under its own query and the measures that query reaches,
  * so an edit asks again only for the visuals it changed. Asked together, they share one request
  * (ADR 0008). With `refresh`, every visual asks again each `refreshIntervalSec` (at least 5 s),
- * all in the same tick, so a refresh is one request too, usually answered 304 (DESIGN.md §6).
+ * all in the same tick of one timer, so a refresh is one request too, usually answered 304
+ * (DESIGN.md §6). One timer per dashboard, not per query: a selection re-asks the other
+ * visuals, and per-query timers would then fire apart (ADR 0011).
  */
 export function useDashboardAnswers(
   spec: DashboardSpec,
@@ -244,16 +254,32 @@ export function useDashboardAnswers(
   // At least 2 s per querying visual: refreshes alone stay under half the gateway's 60 queries
   // a minute, leaving room for cross-filtering (DESIGN.md §13).
   const interval = refresh ? Math.max(5, spec.refreshIntervalSec, 2 * asked.length) : undefined;
-  const results = useQueries({
-    queries: asked.map(({ id, query }) => {
-      const measures = measuresFor(query, spec.measures);
-      return {
-        queryKey: ["dash", "query", id, query, measures, interval],
-        queryFn: () => ask(query, measures, interval),
-        refetchInterval: interval === undefined ? false : interval * 1000,
-      };
-    }),
+  const queries = asked.map(({ id, query }) => {
+    const measures = measuresFor(query, spec.measures);
+    return {
+      queryKey: ["dash", "query", id, query, measures, interval],
+      queryFn: () => ask(query, measures, interval),
+    };
   });
+  const results = useQueries({ queries });
+  const client = useQueryClient();
+  // The timer reads the latest queries without restarting, which would shift its phase.
+  const current = useRef(queries);
+  useLayoutEffect(() => {
+    current.current = queries;
+  });
+  useEffect(() => {
+    if (interval === undefined) return;
+    const timer = setInterval(() => {
+      // Like react-query's own interval: no refresh while the page is hidden.
+      if (!focusManager.isFocused()) return;
+      for (const { queryKey } of current.current) {
+        // A refresh still on its way is left to finish, not asked again.
+        void client.refetchQueries({ queryKey, exact: true }, { cancelRefetch: false });
+      }
+    }, interval * 1000);
+    return () => clearInterval(timer);
+  }, [client, interval]);
   const byId = new Map(asked.map((a, i) => [a.id, results[i]]));
   // Each visual's latest answer, kept on screen while its next one is on the way. (A changed
   // query gets a new observer, so react-query's placeholder data has nothing to keep.)
