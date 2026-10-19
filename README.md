@@ -131,7 +131,6 @@ docs               DESIGN.md, ENGINEERING.md, ADRs, the agent log
 ## Limitations and next steps
 
 - **The result cache lives in each function instance's memory**, so hits come from warm instances. A shared store (Redis) is planned.
-- **Selections another visual can't reach:** a selection on a field another visual has no path to turns that visual into an error. It should skip the filter instead.
 - **Refresh requests:** after a selection, each refresh goes out as two requests instead of one.
 - **Refresh is polling** with `304`s; server-sent events are planned.
 - **npm:** the packages are ready to publish (Changesets, builds, READMEs) but are not on npm yet.

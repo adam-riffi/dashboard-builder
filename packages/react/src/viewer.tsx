@@ -50,7 +50,7 @@ export function useVisualStates(
 ) {
   const { currency } = useDash();
   const contract = useContract();
-  const { answerOf } = useDashboardAnswers(spec, options);
+  const { answerOf } = useDashboardAnswers(spec, { ...options, contract: contract.data });
   const formats = useMemo(
     () => formatsOf(contract.data?.measures ?? [], spec.measures),
     [contract.data, spec.measures],

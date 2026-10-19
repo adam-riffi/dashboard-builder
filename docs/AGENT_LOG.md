@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-19 · claude · stack/m8/03-selection-reach · #80
+- Done: `dashboardRequest(spec, selections, contract)` adds a selection to a visual only if the visual's query still validates and plans with it (core's `validateQuery` and `planJoins`, ADR 0011). Without the contract, or when the visual fails anyway, it keeps them as before. The viewer passes the contract through `useDashboardAnswers`.
+- Tests: written first. Unit tests on a three-table shop contract, a property (a selection is dropped exactly when the visual can't be planned with it) and a viewer test (counting orders stays ready and unfiltered while Garden is selected).
+- Scope/decisions: the README limitation is removed; changeset (react patch).
+- Next: one refresh timer per dashboard (#81).
+
 ## 2026-10-19 · claude · stack/m8/02-planning-in-core · #79
 - Done: `validateQuery`, `tablesOf` and `planJoins` move from `packages/gateway/src/query/` to `packages/core/src/plan/` (ADR 0011); the gateway imports them from core. Their tests moved first and keep reading the gateway's golden contracts.
 - Tests: core 194 passed (lines 99%); gateway unit 179 passed, lines 93.15% → 90.02% (the moved files now count in core; no test removed). Core's tests get Node types; its build keeps none, so `src` stays browser-safe.

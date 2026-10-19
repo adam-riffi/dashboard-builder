@@ -4,7 +4,8 @@ type Filter = QuerySpec["filters"][number];
 
 /**
  * A visual's selection (DESIGN.md §6): one value of a field, or one time bucket of a time field
- * at the grain the visual groups it by. The coordinator filters every other visual by it.
+ * at the grain the visual groups it by. The coordinator filters every other visual that can
+ * reach the field by it (ADR 0011).
  */
 export type Selection =
   | { visualId: string; field: string; value: string | number | boolean }
