@@ -1,10 +1,17 @@
 import { readFileSync } from "node:fs";
-import { check, dataContract, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
+import {
+  check,
+  dataContract,
+  planJoins,
+  type QuerySpec,
+  querySpec,
+  tablesOf,
+  type ValidQuery,
+  validateQuery,
+} from "@adam-riffi/dash-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { compileQuery, type Policy } from "../../src/query/compile.ts";
-import { planJoins } from "../../src/query/paths.ts";
-import { tablesOf, type ValidQuery, validateQuery } from "../../src/query/validate.ts";
 
 const demo = dataContract.parse(
   JSON.parse(

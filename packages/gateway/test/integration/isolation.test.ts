@@ -1,4 +1,10 @@
-import { type Measure, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
+import {
+  type Measure,
+  planJoins,
+  type QuerySpec,
+  querySpec,
+  validateQuery,
+} from "@adam-riffi/dash-core";
 import fc from "fast-check";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -7,8 +13,6 @@ import { inferContract } from "../../src/contract/index.ts";
 import { introspect } from "../../src/contract/introspect.ts";
 import { compileQuery, type Policy } from "../../src/query/compile.ts";
 import { executeQuery } from "../../src/query/execute.ts";
-import { planJoins } from "../../src/query/paths.ts";
-import { validateQuery } from "../../src/query/validate.ts";
 
 // M2 acceptance (DESIGN.md §9, §10), extended with M3 formulas: random queries over a four-tenant
 // fixture must equal a plain TypeScript aggregation of only the scope's rows. The fixture has no RLS and the test connects as

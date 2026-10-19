@@ -1,12 +1,16 @@
 import { readFileSync } from "node:fs";
-import { dataContract, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
+import {
+  dataContract,
+  planJoins,
+  type QuerySpec,
+  querySpec,
+  validateQuery,
+} from "@adam-riffi/dash-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { memoryCache, resultKey, scopeHashOf } from "../../src/cache.ts";
 import { compileQuery } from "../../src/query/compile.ts";
 import type { QueryResult } from "../../src/query/execute.ts";
-import { planJoins } from "../../src/query/paths.ts";
-import { validateQuery } from "../../src/query/validate.ts";
 
 const result = (n: number): QueryResult => ({
   columns: [{ key: "m0", kind: "measure", name: "n", type: "number" }],

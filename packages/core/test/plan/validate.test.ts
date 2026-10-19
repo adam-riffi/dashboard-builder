@@ -1,13 +1,16 @@
 import { readFileSync } from "node:fs";
 import { dataContract, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
-import { validateQuery } from "../../src/query/validate.ts";
+import { validateQuery } from "../../src/plan/validate.ts";
 
 // The demo contract from M1's golden file: real tables, roles and relationships.
 const contract = dataContract.parse(
   JSON.parse(
     readFileSync(
-      new URL("../integration/fixtures/dash_demo.contract.json", import.meta.url),
+      new URL(
+        "../../../gateway/test/integration/fixtures/dash_demo.contract.json",
+        import.meta.url,
+      ),
       "utf8",
     ),
   ),
@@ -151,7 +154,7 @@ describe("validateQuery", () => {
     const saas = dataContract.parse(
       JSON.parse(
         readFileSync(
-          new URL("../integration/fixtures/saas.contract.json", import.meta.url),
+          new URL("../../../gateway/test/integration/fixtures/saas.contract.json", import.meta.url),
           "utf8",
         ),
       ),

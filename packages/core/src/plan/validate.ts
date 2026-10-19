@@ -1,16 +1,12 @@
+import type { ContractColumn, DataContract } from "../contract.ts";
+import { type Checking, check, children, type Typed } from "../formula/check.ts";
 import {
-  type Checking,
-  type ContractColumn,
-  check,
-  children,
-  type DataContract,
   type FilterOp,
   MAX_ROWS,
   type MeasureAggregation,
   type QuerySpec,
   type TimeGrain,
-  type Typed,
-} from "@adam-riffi/dash-core";
+} from "../query.ts";
 
 /** A field resolved to its contract table and column. */
 export interface ResolvedField {

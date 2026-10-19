@@ -1,14 +1,17 @@
 import { readFileSync } from "node:fs";
 import { type DataContract, dataContract, type QuerySpec, querySpec } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
-import { planJoins } from "../../src/query/paths.ts";
-import { type ValidQuery, validateQuery } from "../../src/query/validate.ts";
+import { planJoins } from "../../src/plan/paths.ts";
+import { type ValidQuery, validateQuery } from "../../src/plan/validate.ts";
 
 const fixture = (name: string) =>
   dataContract.parse(
     JSON.parse(
       readFileSync(
-        new URL(`../integration/fixtures/${name}.contract.json`, import.meta.url),
+        new URL(
+          `../../../gateway/test/integration/fixtures/${name}.contract.json`,
+          import.meta.url,
+        ),
         "utf8",
       ),
     ),

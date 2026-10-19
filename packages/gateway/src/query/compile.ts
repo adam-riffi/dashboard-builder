@@ -1,6 +1,4 @@
-import type { ResultColumn, Typed } from "@adam-riffi/dash-core";
-import type { JoinPlan } from "./paths.ts";
-import type { ValidQuery } from "./validate.ts";
+import type { JoinPlan, ResultColumn, Typed, ValidQuery } from "@adam-riffi/dash-core";
 
 /** A row policy (DESIGN.md §6): `table.column` must be in the scope list named by `in`. */
 export interface Policy {
