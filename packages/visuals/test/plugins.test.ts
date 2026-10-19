@@ -9,6 +9,7 @@ import {
   line,
   queryOf,
   registerVisual,
+  scatter,
   table,
   visuals,
 } from "../src/index.ts";
@@ -49,6 +50,29 @@ describe("built-in visuals", () => {
       ok: true,
       query: { sort: [{ by: "dimension", index: 0, dir: "asc" }], limit: 5 },
     });
+  });
+
+  it("asks a scatter for one point per category, x then y, the largest x first", () => {
+    expect(queryOf(scatter, visual({ category: [category], x: [revenue], y: [units] }))).toEqual({
+      ok: true,
+      query: {
+        dimensions: [category],
+        measures: [revenue, units],
+        filters: [],
+        sort: [{ by: "measure", index: 0, dir: "desc" }],
+        limit: 200,
+      },
+    });
+    expect(
+      queryOf(scatter, visual({ category: [category], x: [revenue], y: [units] }, { limit: 1000 })),
+    ).toMatchObject({ ok: true, query: { limit: 1000 } });
+    const tooMany = queryOf(
+      scatter,
+      visual({ category: [category], x: [revenue], y: [units] }, { limit: 1001 }),
+    );
+    expect(tooMany.ok).toBe(false);
+    const noY = queryOf(scatter, visual({ category: [category], x: [revenue] }));
+    expect(noY).toEqual({ ok: false, errors: ["Y: needs 1 measure"] });
   });
 
   it("asks a line chart for its time axis at the chosen grain, in time order", () => {
@@ -168,8 +192,8 @@ describe("plugins that misbehave", () => {
 });
 
 describe("registry", () => {
-  it("knows the four built-ins by type", () => {
-    expect(visuals().map((v) => v.type)).toEqual(["kpi", "bar", "line", "table"]);
+  it("knows the five built-ins by type", () => {
+    expect(visuals().map((v) => v.type)).toEqual(["kpi", "bar", "line", "table", "scatter"]);
     expect(getVisual("line")).toMatchObject({ ...line, render: Line });
     expect(getVisual("pie")).toBeUndefined();
   });

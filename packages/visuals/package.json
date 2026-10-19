@@ -1,7 +1,7 @@
 {
   "name": "@adam-riffi/dash-visuals",
   "version": "0.0.0",
-  "description": "Visual plugins (KPI, bar, line, table) for the dashboard builder, drawn with ECharts.",
+  "description": "Visual plugins (KPI, bar, line, table, scatter) for the dashboard builder, drawn with ECharts.",
   "license": "MIT",
   "repository": {
     "type": "git",

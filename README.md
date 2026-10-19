@@ -121,7 +121,7 @@ To use the packages in your own app, see [`@adam-riffi/dash-gateway`](packages/g
 ```
 packages/core      schemas (DataContract, QuerySpec, DashboardSpec), the formula language
 packages/gateway   contract inference, auth, policies, join planner, SQL compiler, caches, HTTP handler
-packages/visuals   KPI, bar, line and table plugins; ECharts loaded lazily
+packages/visuals   KPI, bar, line, table and scatter plugins; ECharts loaded lazily
 packages/react     provider, viewer, cross-filter coordinator; the builder at /builder
 apps/demo          "Acme Shop", the Next.js demo (anonymous sign-in, saved dashboards)
 db                 Drizzle migrations, seed, RLS integration tests

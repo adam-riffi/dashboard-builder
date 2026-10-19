@@ -128,6 +128,7 @@ function VisualOptions({
       </>
     );
   if (type === "line") return select("grain", "Grain", ["day", "week", "month", "quarter", "year"]);
+  if (type === "scatter") return limit(1_000);
   if (type === "table") return limit(1_000);
   return null;
 }

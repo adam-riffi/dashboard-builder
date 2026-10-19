@@ -50,6 +50,7 @@ const SIZES: Record<string, { w: number; h: number }> = {
   bar: { w: 6, h: 5 },
   line: { w: 6, h: 5 },
   table: { w: 12, h: 5 },
+  scatter: { w: 6, h: 5 },
 };
 
 /** Adds an empty visual below the others; at the visual cap, nothing changes and `id` is unset. */

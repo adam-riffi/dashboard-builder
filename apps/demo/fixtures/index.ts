@@ -284,4 +284,42 @@ const lost: Fixture = {
   },
 };
 
-export const fixtures: Record<string, Fixture> = { overview, states, loading, failed, lost };
+// Revenue against orders per category: the scatter's screenshot (ADR 0011).
+const scatter: Fixture = {
+  spec: dashboardSpec.parse({
+    specVersion: 1,
+    contractVersion: "0".repeat(64),
+    title: "Revenue against orders",
+    layout: [{ i: "scatter-category", x: 0, y: 0, w: 12, h: 6 }],
+    visuals: [
+      {
+        id: "scatter-category",
+        type: "scatter",
+        slots: {
+          category: [{ field: "dash_demo.products.category" }],
+          x: [{ name: "Revenue" }],
+          y: [{ name: "Orders" }],
+        },
+      },
+    ],
+  }),
+  answers: {
+    "scatter-category": answer(
+      [category, named("Revenue"), named("Orders", "m1")],
+      [
+        ["Garden", "Toys", "Kitchen", "Outdoor", "Books"],
+        [83495.78, 61210.4, 40120.5, 22340.1, 9870],
+        [540, 410, 380, 150, 210],
+      ],
+    ),
+  },
+};
+
+export const fixtures: Record<string, Fixture> = {
+  overview,
+  states,
+  loading,
+  failed,
+  lost,
+  scatter,
+};
