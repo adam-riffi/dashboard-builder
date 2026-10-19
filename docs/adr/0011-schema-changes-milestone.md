@@ -22,14 +22,14 @@ DESIGN.md §4 lists v1.1 but §9 plans no milestone for it. The first slice cove
 - **One refresh timer:** the viewer refreshes all of a dashboard's queries on one interval per dashboard, paused while the page is hidden, so a refresh is one request.
 - **Broken references:**
   - **What counts:** a slot field, a `{ name }` slot item, a field or `[Name]` inside a formula (inline or a dashboard measure), or a dashboard filter field that names a table, column or measure the current contract lacks.
-  - **Not covered:** a column whose type changed. The gateway already reports that per visual.
+  - **Not covered:** a column whose type changed, and a `table.column` that became ambiguous because another schema gained a table of that name. The gateway already reports both per visual.
   - **Fields in formulas:** they resolve the way the formula checker resolves them, as `table.column` or `schema.table.column`.
 - **Remapping:**
   - The candidates for a lost field are the columns that fit every place it is used:
     - a slot, by the builder's existing rule for what a slot accepts;
     - a filter, by a type that fits its stored values.
-  - The candidates for a lost measure are the other measures.
-  - **Ranking:** by name parts shared with the lost name (split at `_` and camelCase), then by being in the same table, then in contract order.
+  - The candidates for a lost measure are the other measures, except those that use it, directly or through other measures, which would make a cycle.
+  - **Ranking:** by name parts shared with the lost name (split at `_` and camelCase), then by being in the same table, then by having the role its first use asks for (a measure in formulas and measure slots, a dimension in filters, the slot's own kind otherwise), then in contract order.
   - **Applying:** the user picks one, or "Remove it" when every usage allows removal. The choice rewrites slots, filters and formula text in place.
   - **Where:** in the builder, while anything is broken. The viewer keeps showing the gateway's error in the affected tiles.
 - **Scatter:**

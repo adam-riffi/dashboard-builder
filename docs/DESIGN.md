@@ -167,7 +167,7 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 | M5 Builder | visual picker; field wells with drag and drop; filters; grid layout; formula editor with autocomplete; save/load | E2E: build and save the demo dashboard |
 | M6 Live and fast | cross-filter coordinator; interval refresh with ETag; result and contract caches; "Under the hood" drawer | Cached query p95 < 150 ms; cross-filter E2E passes |
 | M7 Ship | demo polish and onboarding; README, GIF, architecture diagram; npm release via Changesets | Definition of done (§15) |
-| M8 Schema changes (v1.1, [ADR 0011](adr/0011-schema-changes-milestone.md)) | query validation and join planning shared with the browser; selections skip visuals that can't reach their field; one refresh timer per dashboard; lost-field detection, ranked replacements and a builder repair panel; scatter visual | E2E: a dashboard with a lost field is repaired in the builder; scatter screenshot; one request per refresh after a selection |
+| M8 Schema changes (v1.1, [ADR 0011](adr/0011-schema-changes-milestone.md)) | query validation and join planning shared with the browser; selections skip visuals that can't reach their field; one refresh timer per dashboard; lost-field detection, ranked replacements and a builder repair panel; scatter visual | E2E: a dashboard with a lost field is repaired in the builder; scatter screenshot. Unit: one request per refresh after a selection |
 
 ## 10. Testing strategy
 
