@@ -38,7 +38,7 @@ The builder's grid stylesheet comes from `react-grid-layout`, which you install 
   - each visual in its grid cell, with loading, empty and error states;
   - refresh every `spec.refreshIntervalSec`, usually answered `304`;
   - cross-filtering: click a bar, a point or a row to filter the other visuals.
-- **`<DashboardBuilder spec onChange onSave>`:** controlled, so every edit goes to `onChange` and Save hands a valid spec to `onSave`. It covers field wells with drag and drop or a keyboard path, a 12-column grid, filters, and a formula editor with completions and live errors.
+- **`<DashboardBuilder spec onChange onSave>`:** controlled, so every edit goes to `onChange` and Save hands a valid spec to `onSave`. It covers field wells with drag and drop or a keyboard path, a 12-column grid, filters, and a formula editor with completions and live errors. After a schema change, it lists the fields and measures a dashboard lost and suggests replacements (`RepairPanel`; `lostRefs`, `replacements` and `remap` for your own UI).
 - **Your own visuals:** `registerVisual(plugin)` from [`@adam-riffi/dash-visuals`](https://www.npmjs.com/package/@adam-riffi/dash-visuals) adds one.
 
 MIT licensed.

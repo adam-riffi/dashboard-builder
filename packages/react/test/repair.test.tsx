@@ -43,11 +43,14 @@ describe("the repair panel (ADR 0011)", () => {
       expect.stringContaining("Used by 1 filter"),
       expect.stringContaining("Used by the measure Units"),
     ]);
-    const pick = screen.getByRole("combobox", { name: "Replace products.product_category" });
+    const pick = screen.getByRole("combobox", { name: "Replace products.product_category with" });
     expect((pick as HTMLSelectElement).value).toBe("dash_demo.products.category");
     expect(
-      (screen.getByRole("combobox", { name: "Replace orders.order_status" }) as HTMLSelectElement)
-        .value,
+      (
+        screen.getByRole("combobox", {
+          name: "Replace orders.order_status with",
+        }) as HTMLSelectElement
+      ).value,
     ).toBe("dash_demo.orders.status");
   });
 
@@ -64,11 +67,12 @@ describe("the repair panel (ADR 0011)", () => {
   it("offers to remove what only slots and filters use, never a measure's field", async () => {
     const onChange = vi.fn();
     render(<RepairPanel spec={lost} contract={shop} onChange={onChange} />);
-    const filter = screen.getByRole("combobox", { name: "Replace orders.order_status" });
+    const filter = screen.getByRole("combobox", { name: "Replace orders.order_status with" });
     await userEvent.selectOptions(filter, "Remove it");
     await userEvent.click(screen.getByRole("button", { name: "Apply to orders.order_status" }));
-    expect((onChange.mock.lastCall?.[0] as DashboardSpec).filters).toEqual([]);
-    const units = screen.getByRole("combobox", { name: "Replace order_items.qty" });
+    const fixed = onChange.mock.lastCall?.[0] as DashboardSpec;
+    expect(fixed.filters).toEqual([]);
+    const units = screen.getByRole("combobox", { name: "Replace order_items.qty with" });
     expect(within(units).queryByRole("option", { name: "Remove it" })).toBeNull();
   });
 
