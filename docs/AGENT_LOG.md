@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-19 · claude · stack/m8/05-broken-refs · #82
+- Done: `packages/react/src/remap.ts` (ADR 0011):
+  - `lostRefs(spec, contract)` lists every table, column or measure the dashboard names and the contract lacks, with each use: slot item, inline formula, filter, dashboard measure.
+  - `replacements` ranks what fits every use: by shared name parts, then the lost field's table, then the role the use asks for.
+  - `remap` rewrites slots, filters and formula text, or removes slot items and filters.
+  - Core exports `resolveField` (the checker's resolver, now telling missing from ambiguous) and the builder's `renameRefs` is exported.
+- Tests: written first. 13 table-driven tests on the shop contract: what is found and where; the ranking per use; rewriting keeps aggregations; formulas get full names; fixing every lost reference leaves a valid, clean dashboard.
+- Scope/decisions: a lost measure's replacements never include a measure that uses it (no cycles). Changeset (core and react minor).
+- Next: the builder's repair panel (#83).
+
 ## 2026-10-19 · claude · stack/m8/04-one-refresh-timer · #81
 - Done: `useDashboardAnswers` drops react-query's per-query `refetchInterval` for one interval per dashboard that refetches every query in the same tick, skipped while the page is hidden and leaving a refresh still on its way alone (ADR 0011). A selection used to restart the other visuals' timers, so refreshes went out as two requests.
 - Tests: written first in `refresh.test.tsx`: after a selection three seconds in, the next interval sends one request with both queries; a refresh on its way is not asked again (checked to fail without the change).
