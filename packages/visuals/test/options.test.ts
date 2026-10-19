@@ -1,6 +1,6 @@
 import type { QueryResult, ResultColumn } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
-import { barOption, chartLabel, formattersFor, lineOption } from "../src/index.ts";
+import { barOption, chartLabel, formattersFor, lineOption, scatterOption } from "../src/index.ts";
 
 const theme = { ink: "#111", muted: "#666", grid: "#ccc", palette: ["#e4572e", "#4c6a92"] };
 const result = (columns: ResultColumn[], data: unknown[][]): QueryResult => ({
@@ -82,6 +82,58 @@ describe("barOption", () => {
     // In a narrow card the labels would run into each other; ECharts drops the ones that would.
     expect(option.xAxis.axisLabel.hideOverlap).toBe(true);
     expect(option.series[0]?.data).toEqual([83495.78, 39402.8]);
+  });
+});
+
+describe("scatterOption", () => {
+  const orders: ResultColumn = { key: "m1", kind: "measure", type: "number", name: "Orders" };
+  const points = result(
+    [category, revenue, orders],
+    [
+      ["Garden", "<b>Toys</b>"],
+      [83495.78, 39402.8],
+      [540, 1200],
+    ],
+  );
+  const formatters = formattersFor(points.columns, formats, "USD");
+  type Option = {
+    tooltip: { trigger: string; formatter: (p: { dataIndex: number }) => string };
+    xAxis: { type: string; name: string; axisLabel: { formatter: (v: number) => string } };
+    yAxis: { type: string; name: string; axisLabel: { formatter: (v: number) => string } };
+    series: { type: string; data: unknown[] }[];
+  };
+  const option = scatterOption(points, formatters)(theme) as Option;
+
+  it("plots one point per category, x by the first measure and y by the second", () => {
+    expect(option.series).toMatchObject([
+      {
+        type: "scatter",
+        data: [
+          [83495.78, 540],
+          [39402.8, 1200],
+        ],
+      },
+    ]);
+    expect(option.xAxis).toMatchObject({ type: "value", name: "Revenue" });
+    expect(option.yAxis).toMatchObject({ type: "value", name: "Orders" });
+    expect(option.xAxis.axisLabel.formatter(40000)).toBe("$40K");
+    expect(option.yAxis.axisLabel.formatter(1200)).toBe("1.2K");
+  });
+
+  it("names a point's category and both values in its tooltip, escaping the category", () => {
+    expect(option.tooltip.trigger).toBe("item");
+    expect(option.tooltip.formatter({ dataIndex: 0 })).toBe(
+      "Garden<br/>Revenue: $83,495.78<br/>Orders: 540",
+    );
+    expect(option.tooltip.formatter({ dataIndex: 1 })).toContain("&lt;b&gt;Toys&lt;/b&gt;");
+  });
+
+  it("fades the points other than the selected category", () => {
+    const selected = scatterOption(points, formatters, "Garden")(theme) as Option;
+    expect(selected.series[0]?.data).toEqual([
+      { value: [83495.78, 540], itemStyle: { opacity: 1 } },
+      { value: [39402.8, 1200], itemStyle: { opacity: 0.35 } },
+    ]);
   });
 });
 
