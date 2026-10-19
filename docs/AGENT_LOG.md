@@ -21,7 +21,7 @@ Entry format:
   - `remap` rewrites slots, filters and formula text, or removes slot items and filters.
   - Core exports `resolveField` (the checker's resolver, now telling missing from ambiguous) and the builder's `renameRefs` is exported.
 - Tests: written first. 13 table-driven tests on the shop contract: what is found and where; the ranking per use; rewriting keeps aggregations; formulas get full names; fixing every lost reference leaves a valid, clean dashboard.
-- Scope/decisions: a lost measure's replacements never include a measure that uses it (no cycles). Changeset (core and react minor).
+- Scope/decisions: a lost measure's replacements never include a measure that uses it, directly or through others (no cycles), and name each measure once. A text filter is offered a date column only when its values are dates. In a single-schema contract both spellings of a dropped table's field are one lost reference. These came from the M8 review. Changeset (core and react minor).
 - Next: the builder's repair panel (#83).
 
 ## 2026-10-19 · claude · stack/m8/04-one-refresh-timer · #81

@@ -3,6 +3,7 @@ import {
   type DashboardSpec,
   type DataContract,
   type Expr,
+  isIsoDate,
   parse,
   resolveField,
   type SlotItem,
@@ -46,11 +47,18 @@ function refsIn(formula: string): FormulaRef[] {
   return out;
 }
 
-/** A field's name if the contract lacks it; undefined when it resolves (or is ambiguous). */
+/**
+ * A field's name if the contract lacks it; undefined when it resolves (or is ambiguous). A
+ * dropped table's `table.column` takes the contract's schema when there is only one, so both
+ * spellings of the field are one lost reference.
+ */
 function lostField(path: string[], contract: DataContract): string | undefined {
   const r = resolveField(path, contract);
   if (r.ok || r.reason !== "missing") return undefined;
-  return r.table ? `${r.table.name}.${path.at(-1)}` : path.join(".");
+  if (r.table) return `${r.table.name}.${path.at(-1)}`;
+  const schemas = new Set(contract.tables.map((t) => t.name.slice(0, t.name.indexOf("."))));
+  const [schema] = schemas;
+  return path.length === 2 && schemas.size === 1 ? `${schema}.${path.join(".")}` : path.join(".");
 }
 
 /** Every lost reference in the dashboard, in the order it first appears, with all its uses. */
@@ -111,10 +119,11 @@ const shared = (a: string, b: string) => {
 /** Whether a column can take a lost field's place in one use, by the gateway's rules. */
 function fits(usage: Usage, table: string, column: ContractColumn, spec: DashboardSpec): boolean {
   if (usage.kind === "filter") {
-    const type = typeof spec.filters[usage.index]?.values[0];
+    const values = spec.filters[usage.index]?.values ?? [];
+    const type = typeof values[0];
     if (type === "number") return column.type === "number";
     if (type === "boolean") return column.type === "boolean";
-    return column.type === "string" || column.type === "date";
+    return column.type === "string" || (column.type === "date" && values.every(isIsoDate));
   }
   if (usage.kind !== "slot") return true;
   const visual = spec.visuals.find((v) => v.id === usage.visualId);
@@ -159,10 +168,21 @@ const ranked = <T extends { rank: number[]; order: number }>(list: T[]) =>
  */
 export function replacements(lost: LostRef, spec: DashboardSpec, contract: DataContract): string[] {
   if (lost.kind === "measure") {
-    const users = new Set(lost.usages.flatMap((u) => (u.kind === "measure" ? [u.name] : [])));
-    const names = [...contract.measures, ...spec.measures]
-      .map((m) => m.name)
-      .filter((name) => name !== lost.name && !users.has(name));
+    // The dashboard measures that use it, directly or through each other, would make a cycle.
+    const users = new Set([lost.name]);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const m of spec.measures) {
+        if (users.has(m.name)) continue;
+        if (refsIn(m.formula).some((r) => r.kind === "measure" && users.has(r.name))) {
+          users.add(m.name);
+          grew = true;
+        }
+      }
+    }
+    const names = [...new Set([...contract.measures, ...spec.measures].map((m) => m.name))].filter(
+      (name) => !users.has(name),
+    );
     return ranked(
       names.map((name, order) => ({ name, order, rank: [shared(name, lost.name)] })),
     ).map((c) => c.name);
