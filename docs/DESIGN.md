@@ -101,7 +101,7 @@ Foreign keys become many-to-one relationships. The contract carries `schemaHash`
 
 **Caching.** Contract cache keyed by source and config, refreshed when the schema hash changes (checked at most every 60 s). Result cache keyed by `sha256(scope hash + contract version + compiled SQL + parameters)`; an entry serves a request only while younger than its `maxAgeSec` (the dashboard's refresh interval, minimum 5 s), so the TTL is the smallest refresh interval among requesting visuals; LRU bounded by bytes ([ADR 0010](adr/0010-result-cache-keys-and-freshness.md)). The client sends `If-None-Match`; unchanged results return `304`. Missing the scope in the key is a release-blocking bug and has its own property test.
 
-**Cross-filtering.** A selection in one visual becomes a filter clause on its field; the coordinator adds it to every other visual's QuerySpec on the page, while the source visual only highlights. Clearing the selection removes it.
+**Cross-filtering.** A selection in one visual becomes a filter clause on its field; the coordinator adds it to every other visual's QuerySpec on the page that can still be planned with it, while the source visual only highlights. A visual whose fact table can't reach the field stays unfiltered ([ADR 0011](adr/0011-schema-changes-milestone.md)). Clearing the selection removes it.
 
 ## 7. Interfaces
 
@@ -167,6 +167,7 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 | M5 Builder | visual picker; field wells with drag and drop; filters; grid layout; formula editor with autocomplete; save/load | E2E: build and save the demo dashboard |
 | M6 Live and fast | cross-filter coordinator; interval refresh with ETag; result and contract caches; "Under the hood" drawer | Cached query p95 < 150 ms; cross-filter E2E passes |
 | M7 Ship | demo polish and onboarding; README, GIF, architecture diagram; npm release via Changesets | Definition of done (§15) |
+| M8 Schema changes (v1.1, [ADR 0011](adr/0011-schema-changes-milestone.md)) | query validation and join planning shared with the browser; selections skip visuals that can't reach their field; one refresh timer per dashboard; lost-field detection, ranked replacements and a builder repair panel; scatter visual | E2E: a dashboard with a lost field is repaired in the builder; scatter screenshot; one request per refresh after a selection |
 
 ## 10. Testing strategy
 
