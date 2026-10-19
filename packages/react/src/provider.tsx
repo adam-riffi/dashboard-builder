@@ -22,6 +22,7 @@ import {
   type ReactNode,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -262,8 +263,11 @@ export function useDashboardAnswers(
   });
   const results = useQueries({ queries });
   const client = useQueryClient();
+  // The timer reads the latest queries without restarting, which would shift its phase.
   const current = useRef(queries);
-  current.current = queries;
+  useLayoutEffect(() => {
+    current.current = queries;
+  });
   useEffect(() => {
     if (interval === undefined) return;
     const timer = setInterval(() => {
