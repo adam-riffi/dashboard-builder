@@ -3,8 +3,10 @@ import {
   type Checking,
   type DataContract,
   namedMeasure,
+  planJoins,
   type QuerySpec,
   queryRequest,
+  validateQuery,
 } from "@adam-riffi/dash-core";
 import type postgres from "postgres";
 import { AuthError, authenticate } from "./auth.ts";
@@ -17,8 +19,6 @@ import { health } from "./health.ts";
 import { policyConfigErrors, policyContractErrors } from "./policies.ts";
 import { compileQuery } from "./query/compile.ts";
 import { executeQuery, type QueryResult } from "./query/execute.ts";
-import { planJoins } from "./query/paths.ts";
-import { validateQuery } from "./query/validate.ts";
 import { createRateLimiter, QUERIES_PER_MINUTE } from "./ratelimit.ts";
 
 type Handler = (request: Request) => Promise<Response>;

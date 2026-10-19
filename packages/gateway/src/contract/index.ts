@@ -1,6 +1,10 @@
-import { type Checking, check, type DataContract } from "@adam-riffi/dash-core";
-import { planJoins } from "../query/paths.ts";
-import { tablesOf } from "../query/validate.ts";
+import {
+  type Checking,
+  check,
+  type DataContract,
+  planJoins,
+  tablesOf,
+} from "@adam-riffi/dash-core";
 import type { Catalog } from "./catalog.ts";
 import { type ContractConfig, schemaHash } from "./hash.ts";
 import { inferTables } from "./infer.ts";

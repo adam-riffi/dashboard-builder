@@ -65,8 +65,8 @@ flowchart LR
 ```
 dashboard-builder/
 ├── packages/
-│   ├── core/       # types, contract schema, DashboardSpec schema, formula language, QuerySpec
-│   ├── gateway/    # server: config, sources/postgres, introspection, auth, planner, compiler, cache, handlers
+│   ├── core/       # types, contract schema, DashboardSpec schema, formula language, QuerySpec, query validation and join planning
+│   ├── gateway/    # server: config, sources/postgres, introspection, auth, policies, compiler, cache, handlers
 │   ├── react/      # provider, builder, viewer, cross-filter coordinator, hooks
 │   └── visuals/    # registry + KPI, bar, line, table plugins
 ├── apps/

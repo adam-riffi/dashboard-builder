@@ -1,12 +1,10 @@
-import { type QuerySpec, querySpec } from "@adam-riffi/dash-core";
+import { planJoins, type QuerySpec, querySpec, validateQuery } from "@adam-riffi/dash-core";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inferContract } from "../../src/contract/index.ts";
 import { introspect } from "../../src/contract/introspect.ts";
 import { type CompiledQuery, compileQuery, type Policy } from "../../src/query/compile.ts";
 import { executeQuery } from "../../src/query/execute.ts";
-import { planJoins } from "../../src/query/paths.ts";
-import { validateQuery } from "../../src/query/validate.ts";
 
 const adminUrl =
   process.env.DATABASE_URL_MIGRATIONS ?? "postgres://postgres:postgres@localhost:54322/postgres";

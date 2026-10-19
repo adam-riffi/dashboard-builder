@@ -1,4 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
+  // Node types for the tests only: the build (tsconfig.build.json) keeps core browser-safe.
+  "compilerOptions": { "types": ["node"] },
   "include": ["src", "test"]
 }

@@ -1,7 +1,7 @@
 {
   "name": "@adam-riffi/dash-core",
   "version": "0.0.0",
-  "description": "Shared schemas, the formula language and the DashboardSpec of the dashboard builder.",
+  "description": "Shared schemas, the formula language, query planning and the DashboardSpec of the dashboard builder.",
   "license": "MIT",
   "repository": {
     "type": "git",

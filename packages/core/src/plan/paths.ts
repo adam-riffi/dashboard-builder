@@ -1,4 +1,5 @@
-import { children, type DataContract, type Relationship, type Typed } from "@adam-riffi/dash-core";
+import type { DataContract, Relationship } from "../contract.ts";
+import { children, type Typed } from "../formula/check.ts";
 import { tablesOf, type ValidQuery } from "./validate.ts";
 
 /** The base (fact) table and the joins to add, each from a table already in the query. */
