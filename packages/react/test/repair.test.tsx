@@ -76,6 +76,41 @@ describe("the repair panel (ADR 0011)", () => {
     expect(within(units).queryByRole("option", { name: "Remove it" })).toBeNull();
   });
 
+  it("applies what the list shows after the choices change, and says what uses the field", async () => {
+    const counted = (aggregation: "COUNT" | "SUM"): DashboardSpec =>
+      dashboardSpec.parse({
+        ...lost,
+        measures: [],
+        filters: [],
+        layout: [{ i: "kpi", x: 0, y: 0, w: 4, h: 2 }],
+        visuals: [
+          {
+            id: "kpi",
+            type: "kpi",
+            slots: { value: [{ field: "dash_demo.orders.status_code", aggregation }] },
+            options: {},
+          },
+        ],
+      });
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <RepairPanel spec={counted("COUNT")} contract={shop} onChange={onChange} />,
+    );
+    const pick = screen.getByRole("combobox", { name: "Replace orders.status_code with" });
+    expect((pick as HTMLSelectElement).value).toBe("dash_demo.orders.status");
+    expect(document.getElementById(pick.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Used by 1 visual.",
+    );
+    // Summing needs numbers: the text column leaves the list, and Apply uses the new first one.
+    rerender(<RepairPanel spec={counted("SUM")} contract={shop} onChange={onChange} />);
+    expect((pick as HTMLSelectElement).value).toBe("dash_demo.orders.id");
+    await userEvent.click(screen.getByRole("button", { name: "Apply to orders.status_code" }));
+    const fixed = onChange.mock.lastCall?.[0] as DashboardSpec;
+    expect(fixed.visuals[0]?.slots.value).toEqual([
+      { field: "dash_demo.orders.id", aggregation: "SUM" },
+    ]);
+  });
+
   it("shows nothing when the contract has every field", () => {
     const { container } = render(
       <RepairPanel
