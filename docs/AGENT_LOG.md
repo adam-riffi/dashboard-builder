@@ -20,7 +20,7 @@ Entry format:
   - `ScatterChart` is registered in the lazy ECharts chunk. The builder offers "Add Scatter", a row limit and a 6×5 cell.
   - Demo fixture `scatter` with a screenshot test.
 - Tests: written first (the query, slot errors, the limit cap, the registry's five types, the points, axes, escaped tooltip and selection fade). `builder.png` is deleted so CI regenerates it with the new toolbar button; the Linux baselines (`builder.png`, `scatter.png`) are committed from CI's artifact (ADR 0008).
-- Scope/decisions: the live demo dashboard is unchanged. Changeset (visuals minor, react patch).
+- Scope/decisions: the live demo dashboard is unchanged. Categories without an x sort first under a limit, as in bars and tables (Postgres puts nulls first when descending); `NULLS LAST` in the compiler is a follow-up (M8 review). Changeset (visuals minor, react patch).
 - Next: the M8 review, merges, then HANDOFF.
 
 ## 2026-10-19 · claude · stack/m8/06-repair-panel · #83
