@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-19 · claude · stack/m8/01-design · #78
+- Done: ADR 0011 and DESIGN.md §9 add M8 (schema changes), the first v1.1 milestone; §6 states that a selection only filters the visuals that can reach its field.
+- Tests: none (docs).
+- Scope/decisions: Georges chose "schema changes" first; the rest of v1.1 stays in §4 for later milestones.
+- Next: move query validation and join planning to core (#79).
+
 ## 2026-10-18 · claude · docs/handoff-m7 · #76
 - Done: HANDOFF.md rewritten after M7 (#71–#75 merged; production and the GitHub README checked; repository description, homepage and topics set).
 - Tests: none (docs).
