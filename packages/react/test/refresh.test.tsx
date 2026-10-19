@@ -87,7 +87,7 @@ describe("interval refresh (DESIGN.md §6)", () => {
   });
 
   it("keeps the answers on screen while a refresh is on the way", async () => {
-    const { transport, answerWith } = counting();
+    const { query, transport, answerWith } = counting();
     render(
       <DashProvider transport={transport}>
         <DashboardViewer spec={spec(5)} />
@@ -98,6 +98,10 @@ describe("interval refresh (DESIGN.md §6)", () => {
     answerWith(() => new Promise(() => {}));
     await advance(5_100);
     expect(stateOf("orders")).toBe("ready");
+    // The next tick leaves the refresh on its way alone instead of asking again.
+    const asked = query.mock.calls.length;
+    await advance(5_000);
+    expect(query).toHaveBeenCalledTimes(asked);
   });
 
   it("leaves the builder's previews alone: they change only when the dashboard does", async () => {
