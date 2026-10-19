@@ -1,6 +1,6 @@
-import { bar, kpi, line, table } from "./builtins.ts";
+import { bar, kpi, line, scatter, table } from "./builtins.ts";
 import type { VisualPlugin } from "./plugin.ts";
-import { Bar, Kpi, Line, Table } from "./render.tsx";
+import { Bar, Kpi, Line, Scatter, Table } from "./render.tsx";
 
 // ponytail: one registry per page; a host that needs two would pass registries explicitly.
 const registry = new Map<string, VisualPlugin<unknown>>();
@@ -20,3 +20,4 @@ registerVisual({ ...kpi, render: Kpi });
 registerVisual({ ...bar, render: Bar });
 registerVisual({ ...line, render: Line });
 registerVisual({ ...table, render: Table });
+registerVisual({ ...scatter, render: Scatter });

@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-19 · claude · stack/m8/07-scatter · #84
+- Done: the `scatter` built-in (ADR 0011): slots `category`, `x`, `y`; option `limit` (1–1,000, default 200); the categories with the largest x first.
+  - `scatterOption`: one series in row order, so click and keyboard selection reuse `SelectableChart`; named value axes with compact labels; an item tooltip with the category and both values, HTML-escaped.
+  - `ScatterChart` is registered in the lazy ECharts chunk. The builder offers "Add Scatter", a row limit and a 6×5 cell.
+  - Demo fixture `scatter` with a screenshot test.
+- Tests: written first (the query, slot errors, the limit cap, the registry's five types, the points, axes, escaped tooltip and selection fade). `builder.png` is deleted so CI regenerates it with the new toolbar button; the Linux baselines (`builder.png`, `scatter.png`) are committed from CI's artifact (ADR 0008).
+- Scope/decisions: the live demo dashboard is unchanged. Changeset (visuals minor, react patch).
+- Next: the M8 review, merges, then HANDOFF.
+
 ## 2026-10-19 · claude · stack/m8/06-repair-panel · #83
 - Done: `RepairPanel` (`packages/react/src/repair.tsx`), shown by the builder under its toolbar while `lostRefs` finds anything (ADR 0011).
   - Each row reads "Replace … with [best replacement] Apply", with "Used by …" under it, and "Remove it" when only slots and filters use the field.

@@ -89,6 +89,60 @@ export function lineOption(result: QueryResult, formatters: Formatter[], selecte
   });
 }
 
+const ENTITIES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+/** Text for an HTML tooltip: category values are data, never markup. */
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => ENTITIES[c] ?? c);
+
+/**
+ * One point per category, x by the first measure and y by the second, both axes labelled
+ * compactly and named; a point's tooltip names its category and both values.
+ */
+export function scatterOption(result: QueryResult, formatters: Formatter[], selected?: unknown) {
+  const [, xColumn, yColumn] = result.columns;
+  const [category = [], xs = [], ys = []] = result.data;
+  const [name = String, x = String, y = String] = formatters;
+  const xName = xColumn ? labelOf(xColumn) : "";
+  const yName = yColumn ? labelOf(yColumn) : "";
+  // A selection keeps its point and fades the others (cross-filtering, DESIGN.md §6).
+  const data = category.map((c, row) =>
+    selected === undefined
+      ? [xs[row], ys[row]]
+      : { value: [xs[row], ys[row]], itemStyle: { opacity: c === selected ? 1 : 0.35 } },
+  );
+  const tip = ({ dataIndex: row }: { dataIndex: number }) =>
+    [name(category[row]), `${xName}: ${x(xs[row])}`, `${yName}: ${y(ys[row])}`]
+      .map(escapeHtml)
+      .join("<br/>");
+  return (t: Theme): EChartsCoreOption => ({
+    ...frame(t, [data]),
+    grid: { left: 8, right: 24, top: 28, bottom: 28, containLabel: true },
+    tooltip: { trigger: "item", formatter: tip },
+    xAxis: {
+      type: "value",
+      name: xName,
+      nameLocation: "middle",
+      nameGap: 28,
+      nameTextStyle: { color: t.muted },
+      ...axisStyle(t),
+      axisLabel: { color: t.muted, formatter: formatters[1]?.compact ?? String, hideOverlap: true },
+    },
+    yAxis: {
+      type: "value",
+      name: yName,
+      nameTextStyle: { color: t.muted, align: "left" },
+      ...axisStyle(t),
+      axisLabel: { color: t.muted, formatter: formatters[2]?.compact ?? String },
+    },
+    series: [{ type: "scatter", data, symbolSize: 10 }],
+  });
+}
+
 const SPOKEN_POINTS = 12;
 
 /** A chart's data in words, its text alternative: "Revenue by Category: Garden $83,495.78; …". */

@@ -3,7 +3,7 @@
 import type { EChartsCoreOption } from "echarts/core";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { labelOf } from "./format.ts";
-import { barOption, chartLabel, lineOption, type Theme } from "./options.ts";
+import { barOption, chartLabel, lineOption, scatterOption, type Theme } from "./options.ts";
 import type { VisualProps } from "./plugin.ts";
 
 /**
@@ -286,4 +286,9 @@ export function Bar(props: VisualProps) {
 /** Measures over time, oldest on the left, on a time axis. */
 export function Line(props: VisualProps) {
   return <SelectableChart {...props} build={lineOption} />;
+}
+
+/** One point per category, placed by two measures. */
+export function Scatter(props: VisualProps) {
+  return <SelectableChart {...props} build={scatterOption} />;
 }

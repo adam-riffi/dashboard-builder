@@ -1,7 +1,7 @@
 # @adam-riffi/dash-visuals
 
 The visuals of [dashboard-builder](https://github.com/adam-riffi/dashboard-builder):
-- KPI, bar, line and table, each a plugin with slots, options, a query and a renderer;
+- KPI, bar, line, table and scatter, each a plugin with slots, options, a query and a renderer;
 - charts drawn with ECharts, loaded lazily.
 
 ## Your own visual

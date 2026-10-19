@@ -86,3 +86,30 @@ export const table: VisualDefinition<z.infer<typeof tableOptions>> = {
     limit: options.limit,
   }),
 };
+
+const scatterOptions = z
+  .object({ limit: z.number().int().min(1).max(1_000).default(200) })
+  .strict();
+
+/**
+ * One point per category, placed by two measures (ADR 0011): the categories with the largest x
+ * first, so a limit keeps the biggest.
+ */
+export const scatter: VisualDefinition<z.infer<typeof scatterOptions>> = {
+  type: "scatter",
+  label: "Scatter",
+  icon: "scatter",
+  slots: [
+    { name: "category", label: "Category", accepts: "dimension", min: 1, max: 1 },
+    { name: "x", label: "X", accepts: "measure", min: 1, max: 1 },
+    { name: "y", label: "Y", accepts: "measure", min: 1, max: 1 },
+  ],
+  options: scatterOptions,
+  toQuery: (slots, options) => ({
+    dimensions: fieldsOf(slots.category),
+    measures: [...measuresOf(slots.x), ...measuresOf(slots.y)],
+    filters: [],
+    sort: [{ by: "measure", index: 0, dir: "desc" }],
+    limit: options.limit,
+  }),
+};
