@@ -1,4 +1,4 @@
-import type { DataContract, FieldType } from "../contract.ts";
+import type { ContractColumn, ContractTable, DataContract, FieldType } from "../contract.ts";
 import type { FormulaError, Span } from "./lex.ts";
 import { type BinaryOp, type Expr, parse } from "./parse.ts";
 
@@ -25,6 +25,53 @@ export interface CheckEnv {
 }
 
 export type Checking = { ok: true; expr: Typed } | { ok: false; errors: FormulaError[] };
+
+/**
+ * A field as written, resolved: its table and column, or why not. A field whose table or column
+ * the contract lacks is `missing` (with its table when only the column is); one whose bare table
+ * name is in two schemas is `ambiguous`.
+ */
+export type FieldResolution =
+  | { ok: true; table: ContractTable; column: ContractColumn }
+  | { ok: false; reason: "missing" | "ambiguous"; message: string; table?: ContractTable };
+
+/**
+ * Resolves a field written `table.column` or `schema.table.column` (DESIGN.md §6): a bare table
+ * name must be in exactly one schema.
+ */
+export function resolveField(path: string[], contract: DataContract): FieldResolution {
+  const column = path.at(-1) as string;
+  let tableName = path.slice(0, -1).join(".");
+  if (path.length === 2) {
+    const found = contract.tables
+      .map((t) => t.name)
+      .filter((name) => name.slice(name.indexOf(".") + 1) === tableName)
+      .sort();
+    if (found.length > 1) {
+      const schemas = found.map((name) => name.slice(0, name.indexOf(".")));
+      const choices = found.map((name) => `${name}.${column}`).join(" or ");
+      return {
+        ok: false,
+        reason: "ambiguous",
+        message: `${tableName} is in ${schemas.join(" and ")}; write ${choices}`,
+      };
+    }
+    tableName = found[0] ?? tableName;
+  }
+  const table = contract.tables.find((t) => t.name === tableName);
+  if (!table) {
+    return {
+      ok: false,
+      reason: "missing",
+      message: `unknown table ${path.slice(0, -1).join(".")}`,
+    };
+  }
+  const found = table.columns.find((c) => c.name === column);
+  if (!found) {
+    return { ok: false, reason: "missing", message: `unknown column ${path.join(".")}`, table };
+  }
+  return { ok: true, table, column: found };
+}
 
 /** Nodes a formula may have once its measure references are expanded. */
 export const MAX_FORMULA_NODES = 1_000;
@@ -123,25 +170,15 @@ function checkMeasure(
   };
 
   function field(e: Expr & { kind: "field" }): Typed | undefined {
-    const column = e.path.at(-1) as string;
-    let tableName = e.path.slice(0, -1).join(".");
-    if (e.path.length === 2) {
-      const found = env.contract.tables
-        .map((t) => t.name)
-        .filter((name) => name.slice(name.indexOf(".") + 1) === tableName)
-        .sort();
-      if (found.length > 1) {
-        const schemas = found.map((name) => name.slice(0, name.indexOf(".")));
-        const choices = found.map((name) => `${name}.${column}`).join(" or ");
-        return report(`${tableName} is in ${schemas.join(" and ")}; write ${choices}`, e);
-      }
-      tableName = found[0] ?? tableName;
-    }
-    const table = env.contract.tables.find((t) => t.name === tableName);
-    if (!table) return report(`unknown table ${e.path.slice(0, -1).join(".")}`, e);
-    const found = table.columns.find((c) => c.name === column);
-    if (!found) return report(`unknown column ${e.path.join(".")}`, e);
-    return { kind: "column", table: table.name, column, type: found.type, level: "row" };
+    const r = resolveField(e.path, env.contract);
+    if (!r.ok) return report(r.message, e);
+    return {
+      kind: "column",
+      table: r.table.name,
+      column: r.column.name,
+      type: r.column.type,
+      level: "row",
+    };
   }
 
   function measure(e: Expr & { kind: "measure" }): Typed | undefined {

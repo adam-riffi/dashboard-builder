@@ -172,7 +172,7 @@ function mapMeasureRefs(spec: DashboardSpec, name: string, to: string | undefine
 }
 
 /** A formula with its `[from]` references renamed; strings and the rest stay as written. */
-function renameRefs(formula: string, from: string, to: string): string {
+export function renameRefs(formula: string, from: string, to: string): string {
   const lexed = lex(formula);
   if (!lexed.ok) return formula;
   let out = "";

@@ -65,7 +65,7 @@ function columnMeasure(r: ResolvedField, aggregation: MeasureAggregation): Typed
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}([T ][\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
 
 /** An ISO date or timestamp whose calendar date exists: Date.parse rolls 2026-02-30 into March. */
-function isIsoDate(value: unknown): boolean {
+export function isIsoDate(value: unknown): boolean {
   if (typeof value !== "string" || !ISO_DATE.test(value) || Number.isNaN(Date.parse(value))) {
     return false;
   }
