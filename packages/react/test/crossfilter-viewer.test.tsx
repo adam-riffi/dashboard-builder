@@ -10,6 +10,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DashboardViewer, DashProvider, GatewayError, type Transport } from "../src/index.ts";
+import { shop } from "./shop.ts";
 
 afterEach(cleanup);
 // jsdom has neither; the chart wrapper uses both (charts themselves never draw here).
@@ -73,15 +74,19 @@ const answerTo = (request: QueryRequest): QueryAnswer[] =>
         },
   );
 
-function setup(type: "bar" | "table", answer = async (r: QueryRequest) => answerTo(r)) {
+function setup(
+  type: "bar" | "table",
+  answer = async (r: QueryRequest) => answerTo(r),
+  start = { contract, spec: spec(type) },
+) {
   const query = vi.fn(answer);
-  const transport: Transport = { contract: async () => contract, query };
+  const transport: Transport = { contract: async () => start.contract, query };
   const view = (s: DashboardSpec) => (
     <DashProvider transport={transport}>
       <DashboardViewer spec={s} />
     </DashProvider>
   );
-  const { rerender } = render(view(spec(type)));
+  const { rerender } = render(view(start.spec));
   /** The filters each query of the latest request carried, by whether it groups. */
   const lastFilters = () =>
     query.mock.lastCall?.[0].queries.map((q) => ({
@@ -164,6 +169,38 @@ describe("cross-filtering in the viewer (DESIGN.md §6)", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Clear filter/ })).toBeNull());
     await tick();
     expect(query.mock.lastCall?.[0].queries.flatMap((q) => q.filters)).toEqual([]);
+  });
+
+  it("leaves a visual that can't reach the field unfiltered instead of failing it (ADR 0011)", async () => {
+    const bar = spec("bar");
+    const orders = {
+      id: "orders",
+      type: "kpi",
+      slots: { value: [{ field: "dash_demo.orders.id", aggregation: "COUNT" }] },
+      options: {},
+    };
+    const { query, lastFilters } = setup("bar", undefined, {
+      contract: shop,
+      spec: dashboardSpec.parse({
+        ...bar,
+        layout: [...bar.layout, { i: "orders", x: 0, y: 4, w: 6, h: 2 }],
+        visuals: [...bar.visuals, orders],
+      }),
+    });
+    const pick = await screen.findByRole("combobox", { name: "Filter by Category" });
+    const before = query.mock.calls.length;
+    await userEvent.selectOptions(pick, "Garden");
+    await userEvent.keyboard("{Enter}");
+    // Only the KPI that reaches products asks again; counting orders keeps its answer.
+    await waitFor(() => expect(query.mock.calls.length).toBeGreaterThan(before));
+    expect(lastFilters()).toEqual([{ grouped: false, filters: [garden] }]);
+    const counted = query.mock.calls
+      .flatMap((c) => c[0].queries)
+      .filter((q) => q.measures.some((m) => "field" in m && m.field === "dash_demo.orders.id"));
+    expect(counted.flatMap((q) => q.filters)).toEqual([]);
+    expect(document.querySelector('[data-visual="orders"]')?.getAttribute("data-state")).toBe(
+      "ready",
+    );
   });
 
   it("never brings back a cleared choice when the picker loses focus later", async () => {

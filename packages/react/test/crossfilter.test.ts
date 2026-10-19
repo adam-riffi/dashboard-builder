@@ -1,7 +1,14 @@
-import { type DashboardSpec, dashboardSpec } from "@adam-riffi/dash-core";
+import {
+  type DashboardSpec,
+  dashboardSpec,
+  planJoins,
+  type QuerySpec,
+  validateQuery,
+} from "@adam-riffi/dash-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { dashboardRequest, filtersOf, type Selection } from "../src/index.ts";
+import { shop } from "./shop.ts";
 
 describe("filtersOf (DESIGN.md §6: a selection becomes a filter clause on its field)", () => {
   it("turns a selected value into an equality on its field", () => {
@@ -89,5 +96,90 @@ describe("the coordinator in dashboardRequest", () => {
 
   it("asks what it asked before when nothing is selected", () => {
     expect(dashboardRequest(spec(["a", "b"]), [])).toEqual(dashboardRequest(spec(["a", "b"])));
+  });
+});
+
+describe("which visuals a selection reaches (ADR 0011)", () => {
+  // Revenue reads order items, which reach products and orders; counting orders reaches neither
+  // products (fan-out) nor anything else.
+  const visuals = [
+    {
+      id: "bar",
+      type: "bar",
+      slots: { category: [{ field: "dash_demo.products.category" }], value: [{ name: "Revenue" }] },
+      options: {},
+    },
+    { id: "items", type: "kpi", slots: { value: [{ name: "Revenue" }] }, options: {} },
+    {
+      id: "orders",
+      type: "kpi",
+      slots: { value: [{ field: "dash_demo.orders.id", aggregation: "COUNT" }] },
+      options: {},
+    },
+    {
+      id: "lost",
+      type: "kpi",
+      slots: { value: [{ field: "dash_demo.orders.nope", aggregation: "COUNT" }] },
+      options: {},
+    },
+  ];
+  const dashboard = dashboardSpec.parse({
+    specVersion: 1,
+    contractVersion: "0".repeat(64),
+    title: "Reach",
+    layout: visuals.map((v, k) => ({ i: v.id, x: 0, y: k, w: 12, h: 2 })),
+    visuals,
+  });
+  const garden: Selection = {
+    visualId: "bar",
+    field: "dash_demo.products.category",
+    value: "Garden",
+  };
+  const paid: Selection = { visualId: "orders", field: "dash_demo.orders.status", value: "paid" };
+
+  it("leaves out a visual whose fact table can't reach the selected field", () => {
+    const plan = dashboardRequest(dashboard, [garden], shop);
+    expect(filtersFor(plan, "items")).toEqual(filtersOf(garden));
+    expect(filtersFor(plan, "orders")).toEqual([]);
+  });
+
+  it("filters every visual that reaches the field, whatever its fact table", () => {
+    const plan = dashboardRequest(dashboard, [paid], shop);
+    expect(filtersFor(plan, "bar")).toEqual(filtersOf(paid));
+    expect(filtersFor(plan, "items")).toEqual(filtersOf(paid));
+  });
+
+  it("keeps the filters, as before, without a contract or for a visual the gateway will refuse anyway", () => {
+    expect(filtersFor(dashboardRequest(dashboard, [garden]), "orders")).toEqual(filtersOf(garden));
+    expect(filtersFor(dashboardRequest(dashboard, [garden], shop), "lost")).toEqual(
+      filtersOf(garden),
+    );
+  });
+
+  it("drops a selection exactly when the visual could not be planned with it", () => {
+    const named = new Map(shop.measures.map((m) => [m.name, m.formula]));
+    const plans = (query: QuerySpec) => {
+      const valid = validateQuery(query, shop, named);
+      return valid.ok && planJoins(valid.query, shop).ok;
+    };
+    const selection = fc.record({
+      visualId: fc.constantFrom("bar", "items", "orders"),
+      field: fc.constantFrom("dash_demo.products.category", "dash_demo.orders.status"),
+      value: fc.string({ minLength: 1, maxLength: 8 }),
+    });
+    fc.assert(
+      fc.property(fc.uniqueArray(selection, { selector: (s) => s.visualId }), (selections) => {
+        const plan = dashboardRequest(dashboard, selections, shop);
+        for (const id of ["bar", "items", "orders"]) {
+          const filters = filtersFor(plan, id);
+          const query = plan.request.queries.find((q) => q.filters === filters) as QuerySpec;
+          for (const s of selections.filter((s) => s.visualId !== id)) {
+            const kept = filters.some((f) => f.field === s.field);
+            const alone = { ...query, filters: filtersOf(s) };
+            expect(kept).toBe(plans(alone));
+          }
+        }
+      }),
+    );
   });
 });
