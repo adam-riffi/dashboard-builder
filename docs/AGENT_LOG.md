@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-19 · claude · stack/m8/06-repair-panel · #83
+- Done: `RepairPanel` (`packages/react/src/repair.tsx`), shown by the builder under its toolbar while `lostRefs` finds anything (ADR 0011).
+  - Each row reads "Replace … with [best replacement] Apply", with "Used by …" under it, and "Remove it" when only slots and filters use the field.
+  - Applying goes through `onChange`; the tile previews update, and the panel disappears once nothing is lost.
+  - The demo gains a `lost` fixture (saved before `products.product_category` became `category`, with the answers of its repaired spec) and `/fixtures/builder/<name>`.
+- Tests: written first. Five component tests (rows and suggestions, apply, remove, nothing to show, inside the builder until all is fixed), and the e2e "the builder repairs a field the schema lost" (passes locally against a production build on port 3200).
+- Scope/decisions: the viewer is unchanged; its tiles already show the gateway's error. From the M8 review: a row works out its choice on each render, so after the options change (an aggregation switched, the contract reloaded) Apply uses what the list shows. Each select is described by its "Used by" line, and labels keep the schema when the contract has several. Changeset (react minor); the react README mentions the panel.
+- Next: scatter chart (#84).
+
 ## 2026-10-19 · claude · stack/m8/05-broken-refs · #82
 - Done: `packages/react/src/remap.ts` (ADR 0011):
   - `lostRefs(spec, contract)` lists every table, column or measure the dashboard names and the contract lacks, with each use: slot item, inline formula, filter, dashboard measure.

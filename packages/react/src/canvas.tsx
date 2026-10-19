@@ -17,6 +17,7 @@ import { FieldList } from "./fields.tsx";
 import { FiltersEditor } from "./filters.tsx";
 import { MeasureEditor } from "./measures.tsx";
 import { useContract } from "./provider.tsx";
+import { RepairPanel } from "./repair.tsx";
 import { titleOf } from "./state.ts";
 import { useVisualStates, VisualContent } from "./viewer.tsx";
 import { dropFromEvent, SlotWells } from "./wells.tsx";
@@ -27,6 +28,10 @@ const css = `
 .dash-builder { display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
 .dash-toolbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .dash-toolbar input { font: inherit; min-width: 16rem; }
+.dash-repair { grid-column: 1 / -1; border: 1px solid var(--dash-accent, #e4572e); border-radius: 8px; padding: 8px 12px; }
+.dash-repair h2 { margin: 0; font-size: 1rem; }
+.dash-repair p { margin: 4px 0; }
+.dash-repair ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
 .dash-fields, .dash-props { display: flex; flex-direction: column; gap: 12px; }
 /* The wells stay in view while a field is dragged from far down the list. */
 .dash-props { position: sticky; top: 0; }
@@ -196,6 +201,8 @@ export function DashboardBuilder({
             </ul>
           )}
         </div>
+
+        {contract.data && <RepairPanel spec={spec} contract={contract.data} onChange={onChange} />}
 
         {contract.data ? (
           <div className="dash-fields">

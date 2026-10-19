@@ -69,3 +69,19 @@ test("a visitor builds and saves a dashboard (M5 acceptance)", async ({ page }) 
   await expect(page.locator('[data-visual="bar-1"] [data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Delete dashboard" }).click();
 });
+
+// M8 acceptance (ADR 0011): a dashboard saved before a column was renamed is repaired in the
+// builder, from the replacement it suggests.
+test("the builder repairs a field the schema lost", async ({ page }) => {
+  await page.goto("/fixtures/builder/lost");
+  const panel = page.getByRole("region", { name: "Fields this dashboard lost" });
+  const tile = page.locator('[data-visual="bar-category"]');
+  await expect(tile).toHaveAttribute("data-state", "error");
+  await expect(panel).toContainText("Used by 1 visual.");
+  await expect(
+    panel.getByRole("combobox", { name: "Replace products.product_category with" }),
+  ).toHaveValue("dash_demo.products.category");
+  await panel.getByRole("button", { name: "Apply to products.product_category" }).click();
+  await expect(panel).toBeHidden();
+  await expect(tile).toHaveAttribute("data-state", "ready");
+});

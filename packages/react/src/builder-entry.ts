@@ -6,4 +6,5 @@ export * from "./filters.tsx";
 export * from "./formula.ts";
 export * from "./measures.tsx";
 export * from "./remap.ts";
+export * from "./repair.tsx";
 export * from "./wells.tsx";
