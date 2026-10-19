@@ -229,10 +229,15 @@ export function useDashboardAnswers(
   {
     refresh = false,
     selections = NO_SELECTIONS,
-  }: { refresh?: boolean; selections?: Selection[] } = {},
+    contract,
+  }: { refresh?: boolean; selections?: Selection[]; contract?: DataContract | undefined } = {},
 ) {
   const { ask } = useDash();
-  const plan = useMemo(() => dashboardRequest(spec, selections), [spec, selections]);
+  // The contract tells which visuals each selection can reach (ADR 0011).
+  const plan = useMemo(
+    () => dashboardRequest(spec, selections, contract),
+    [spec, selections, contract],
+  );
   const asked = plan.visuals.flatMap((v) =>
     "query" in v ? [{ id: v.id, query: plan.request.queries[v.query] as QuerySpec }] : [],
   );
