@@ -6,7 +6,7 @@ import {
   type QueryAnswer,
   type QueryRequest,
 } from "@adam-riffi/dash-core";
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardBuilder } from "../src/builder-entry.ts";
 import { DashboardViewer, DashProvider, type Transport } from "../src/index.ts";
@@ -14,6 +14,15 @@ import { DashboardViewer, DashProvider, type Transport } from "../src/index.ts";
 beforeEach(() => {
   vi.useFakeTimers();
 });
+// jsdom has neither; the chart wrapper uses both (charts themselves never draw here).
+vi.stubGlobal(
+  "ResizeObserver",
+  class {
+    observe() {}
+    disconnect() {}
+  },
+);
+vi.stubGlobal("matchMedia", () => ({ addEventListener() {}, removeEventListener() {} }));
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -125,5 +134,56 @@ describe("interval refresh (DESIGN.md §6)", () => {
     expect(query).toHaveBeenCalledTimes(1);
     await advance(1_000);
     expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it("still refreshes in one request after a selection re-asks the other visuals", async () => {
+    const category = "dash_demo.products.category";
+    const { query, transport, answerWith } = counting();
+    answerWith((request) =>
+      Promise.resolve(
+        request.queries.map((q) =>
+          q.dimensions.length > 0
+            ? {
+                columns: [
+                  { key: "d0", kind: "dimension", field: category, type: "string" },
+                  { key: "m0", kind: "measure", name: "Revenue", type: "number" },
+                ],
+                data: [
+                  ["Garden", "Toys"],
+                  [80, 40],
+                ],
+                meta: { cache: "miss", ms: 1, truncated: false },
+              }
+            : answer(120),
+        ),
+      ),
+    );
+    const live = {
+      ...spec(10),
+      visuals: [
+        {
+          id: "revenue",
+          type: "bar",
+          slots: { category: [{ field: category }], value: [{ name: "Revenue" }] },
+          options: {},
+        },
+        { id: "orders", type: "kpi", slots: { value: [{ name: "Orders" }] }, options: {} },
+      ],
+    };
+    render(
+      <DashProvider transport={transport}>
+        <DashboardViewer spec={live} />
+      </DashProvider>,
+    );
+    await advance(3_000);
+    // Selecting Garden re-asks only the KPI, three seconds into the bar's refresh interval.
+    const pick = screen.getByRole("combobox", { name: "Filter by Category" });
+    fireEvent.change(pick, { target: { value: "0" } });
+    fireEvent.blur(pick);
+    await advance(100);
+    const before = query.mock.calls.length;
+    await advance(10_000);
+    expect(query.mock.calls.length - before).toBe(1);
+    expect(query.mock.lastCall?.[0].queries).toHaveLength(2);
   });
 });
