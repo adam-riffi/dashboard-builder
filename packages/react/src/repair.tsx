@@ -4,9 +4,12 @@ import type { DashboardSpec, DataContract } from "@adam-riffi/dash-core";
 import { useId, useMemo, useState } from "react";
 import { type LostRef, lostRefs, remap, replacements, type Usage } from "./remap.ts";
 
-/** A field as people read it, `table.column`, or a measure as formulas write it, `[Name]`. */
-const labelOf = (kind: LostRef["kind"], name: string) =>
-  kind === "measure" ? `[${name}]` : name.split(".").slice(-2).join(".");
+/**
+ * A field as people read it, `table.column` (with its schema when the contract has several, so
+ * two labels never look alike), or a measure as formulas write it, `[Name]`.
+ */
+const labelOf = (kind: LostRef["kind"], name: string, schemas: boolean) =>
+  kind === "measure" ? `[${name}]` : schemas ? name : name.split(".").slice(-2).join(".");
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -31,17 +34,25 @@ function LostRow({
   lost,
   spec,
   contract,
+  schemas,
   onChange,
 }: {
   lost: LostRef;
   spec: DashboardSpec;
   contract: DataContract;
+  schemas: boolean;
   onChange: (spec: DashboardSpec) => void;
 }) {
   const id = useId();
+  const uses = useId();
   const options = replacements(lost, spec, contract);
-  const [choice, setChoice] = useState(options[0] ?? REMOVE);
-  const label = labelOf(lost.kind, lost.name);
+  const [picked, setPicked] = useState<string>();
+  // What the list shows: the user's pick while it is still offered, else the best one. The
+  // options change when the dashboard or the contract does.
+  const offered =
+    picked !== undefined && (options.includes(picked) || (picked === REMOVE && lost.removable));
+  const choice = offered ? picked : (options[0] ?? REMOVE);
+  const label = labelOf(lost.kind, lost.name, schemas);
   const none = options.length === 0 && !lost.removable;
   return (
     <li>
@@ -50,10 +61,15 @@ function LostRow({
       ) : (
         <>
           <label htmlFor={id}>Replace {label} with</label>{" "}
-          <select id={id} value={choice} onChange={(e) => setChoice(e.target.value)}>
+          <select
+            id={id}
+            aria-describedby={uses}
+            value={choice}
+            onChange={(e) => setPicked(e.target.value)}
+          >
             {options.map((o) => (
               <option key={o} value={o}>
-                {labelOf(lost.kind, o)}
+                {labelOf(lost.kind, o, schemas)}
               </option>
             ))}
             {lost.removable && <option value={REMOVE}>Remove it</option>}
@@ -68,7 +84,7 @@ function LostRow({
         </>
       )}
       <br />
-      <small>{usedBy(lost.usages)}</small>
+      <small id={uses}>{usedBy(lost.usages)}</small>
     </li>
   );
 }
@@ -89,6 +105,8 @@ export function RepairPanel({
 }) {
   const titleId = useId();
   const lost = useMemo(() => lostRefs(spec, contract), [spec, contract]);
+  const schemas =
+    new Set(contract.tables.map((t) => t.name.slice(0, t.name.indexOf(".")))).size > 1;
   if (lost.length === 0) return null;
   return (
     <section className="dash-repair" aria-labelledby={titleId}>
@@ -101,6 +119,7 @@ export function RepairPanel({
             lost={l}
             spec={spec}
             contract={contract}
+            schemas={schemas}
             onChange={onChange}
           />
         ))}
