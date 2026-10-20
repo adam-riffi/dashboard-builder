@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m9/01-roadmap · #86
+- Done: ADR 0012 and DESIGN.md §9 lay out the roadmap to the first npm release (M9 hardening, M10 formula power, M11 map and multi-fact, M12 your own data, M13 shared cache and push, M14 release 1.0). §14's guest cleanup is now this app's data only.
+- Tests: none (docs).
+- Scope/decisions: Georges holds npm publishing until a working prototype, and chose to delete only this app's data for inactive guests.
+- Next: rows without a value sort last (#87).
+
 ## 2026-10-19 · claude · docs/handoff-m8 · #85
 - Done: HANDOFF.md rewritten after M8 (#78–#84 merged; production checked: one request per refresh after a selection, the scatter built, cross-filtered and deleted). The 48 oldest log entries move to `docs/agent-log/2026-10.md` (ENGINEERING.md §5: at most 40 here).
 - Tests: none (docs).
@@ -385,15 +391,3 @@ Entry format:
 - Tests: `packages/react/test/fields.test.tsx`: groups and order, labels, picks as a column or a measure.
 - Scope/decisions: none.
 - Next: stack/m5/03-field-wells.
-
-## 2026-10-08 · claude · stack/m5/01-builder-model · #44
-- Done: M5 starts (plan approved; Georges chose host-side storage: `<DashboardBuilder onSave>`, with the demo storing dashboards). Pure builder operations in `packages/react/src/builder.ts`:
-  - `accepts`: measure slots take named measures and measure columns, time slots take dates, other slots take non-measure columns under the high-cardinality mark;
-  - `addVisual` (unique id, placed below, sized by type, capped at 20) and `removeVisual`;
-  - `setVisualTitle`, `setVisualOptions`, and `setLayout` (clamped to 12 columns);
-  - `dropItem` (refusals and duplicates change nothing; single-item slots replace; others stop at their max) and `removeItem`;
-  - `addFilter`, `setFilter` and `removeFilter`;
-  - `upsertMeasure` (renames rewrite slots and other formulas) and `removeMeasure` (drops its slot items).
-- Tests: `packages/react/test/builder.test.ts`: 10 acceptance cases, and every operation keeps a spec `dashboardSpec` accepts. 98% lines.
-- Scope/decisions: high-cardinality columns are kept out of every field slot (DESIGN §6 says axis slots; tables included for now).
-- Next: stack/m5/02-component-tests.
