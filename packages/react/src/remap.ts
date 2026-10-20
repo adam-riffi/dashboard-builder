@@ -48,13 +48,15 @@ function refsIn(formula: string): FormulaRef[] {
 }
 
 /**
- * A field's name if the contract lacks it; undefined when it resolves (or is ambiguous). A
- * dropped table's `table.column` takes the contract's schema when there is only one, so both
- * spellings of the field are one lost reference.
+ * A field's name if the contract lacks it, or if it became ambiguous (a `table.column` whose
+ * table another schema also has, named as written); undefined when it resolves. A dropped
+ * table's `table.column` takes the contract's schema when there is only one, so both spellings of
+ * the field are one lost reference.
  */
 function lostField(path: string[], contract: DataContract): string | undefined {
   const r = resolveField(path, contract);
-  if (r.ok || r.reason !== "missing") return undefined;
+  if (r.ok) return undefined;
+  if (r.reason === "ambiguous") return path.join(".");
   if (r.table) return `${r.table.name}.${path.at(-1)}`;
   const schemas = new Set(contract.tables.map((t) => t.name.slice(0, t.name.indexOf("."))));
   const [schema] = schemas;
@@ -191,10 +193,13 @@ export function replacements(lost: LostRef, spec: DashboardSpec, contract: DataC
   const table = lost.name.slice(0, dot);
   const column = lost.name.slice(dot + 1);
   const role = roleFor(lost.usages[0], spec);
+  // A field that became ambiguous is most likely one schema's column of the same name.
+  const resolved = resolveField(lost.name.split("."), contract);
+  const first = !resolved.ok && resolved.reason === "ambiguous" ? resolved.choices : [];
   const columns = contract.tables
     .flatMap((t) => t.columns.map((c) => ({ table: t.name, column: c })))
     .filter((c) => lost.usages.every((u) => fits(u, c.table, c.column, spec)));
-  return ranked(
+  const rest = ranked(
     columns.map((c, order) => ({
       name: `${c.table}.${c.column.name}`,
       order,
@@ -205,6 +210,7 @@ export function replacements(lost: LostRef, spec: DashboardSpec, contract: DataC
       ],
     })),
   ).map((c) => c.name);
+  return [...first, ...rest.filter((name) => !first.includes(name))];
 }
 
 /** A formula with each reference to the lost field or measure written as `to`. */

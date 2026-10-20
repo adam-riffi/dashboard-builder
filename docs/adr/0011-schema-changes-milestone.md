@@ -22,7 +22,7 @@ DESIGN.md §4 lists v1.1 but §9 plans no milestone for it. The first slice cove
 - **One refresh timer:** the viewer refreshes all of a dashboard's queries on one interval per dashboard, paused while the page is hidden, so a refresh is one request.
 - **Broken references:**
   - **What counts:** a slot field, a `{ name }` slot item, a field or `[Name]` inside a formula (inline or a dashboard measure), or a dashboard filter field that names a table, column or measure the current contract lacks.
-  - **Not covered:** a column whose type changed, and a `table.column` that became ambiguous because another schema gained a table of that name. The gateway already reports both per visual.
+  - **Not covered:** a column whose type changed. The gateway already reports it per visual. A `table.column` that became ambiguous, because another schema gained a table of that name, is covered since M9 ([ADR 0012](0012-roadmap-to-1-0.md)): it is listed as written, with each schema's column offered first.
   - **Fields in formulas:** they resolve the way the formula checker resolves them, as `table.column` or `schema.table.column`.
 - **Remapping:**
   - The candidates for a lost field are the columns that fit every place it is used:
