@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m10/03-time-axis-rule · #94
+- Done: `validateQuery` refuses a measure that uses `PREVIOUSPERIOD` or `RUNNINGSUM` unless the query has exactly one dimension with a time grain: "measures[i]: PREVIOUSPERIOD needs one time axis: a date field grouped by day, week, month, quarter or year" (ADR 0013). It runs in core, so the builder's tiles and the browser's cross-filter reach check see it too.
+- Tests: written first in `validate.test.ts`: one axis beside another dimension is accepted; no dimension, a dimension without a grain, or two time axes are refused; a named measure names its function.
+- Scope/decisions: the error carries the request's measure index (a measure that failed earlier doesn't shift it). Changeset (core patch).
+- Next: `CALCULATE` compiles to `FILTER (WHERE …)` (#95).
+
 ## 2026-10-20 · claude · stack/m10/02-checker · #93
 - Done: `check.ts` types the M10 functions (ADR 0013):
   - `CALCULATE(m, condition, …)`: aggregate `m`; row-level true/false conditions, or `ALL(field)`, which is allowed only there;
@@ -361,22 +367,3 @@ Entry format:
 - Tests: unit and component tests for each finding (`builder`, `fields`, `measures`, `canvas`); the fixture builder e2e passes locally.
 - Scope/decisions: none.
 - Next: #54, builder previews per visual and a separate builder entry point (review findings 2 and 9).
-
-## 2026-10-08 · claude · stack/m5/09-builder-e2e · #52
-- Done: the M5 acceptance test and the builder fixture.
-  - `/fixtures/builder`: the builder on the overview fixture with recorded answers (no database, no sign-in). Answers are matched by query (`fixture-transport.ts`), so visuals the builder keeps still find theirs.
-  - `fixtureContract` now lists the demo's tables and relationships, so the field list has columns to drag.
-  - The "Throws" test plugin is registered only by the gallery page, so the builder's picker doesn't offer it.
-  - Fixes found by the first CI run:
-    - the properties panel is sticky, so wells stay in reach when the field is far down the list (the acceptance drop missed);
-    - KPI values shrink with narrow tiles (`clamp(1rem, 14cqi, 2.25rem)`, unchanged at viewer widths);
-    - bar value labels hide overlaps;
-    - an unset Rows option is empty, not 0.
-- Tests: Playwright `e2e/builder.spec.ts`:
-  - fixture: drag Category and Revenue into a new bar's wells; write `SUM(order_items.quantity)` with a completion and drag it in; a measure is refused by the Category well;
-  - acceptance (CI, with Supabase): new dashboard, build the bar, save, reload, reopen, delete.
-
-  The visual test adds `builder.png` (CI baseline).
-- Scope/decisions: the drag helper scrolls the source into view and waits 100 ms after a drop (dnd-kit ignores clicks for 50 ms after one). The test clicks the completion because CodeMirror ignores Enter for 75 ms after the list opens.
-- Next: an independent review of M5 (#44–#52), then the merge loop and a production check.
-  - Known issue (pre-M5, task suggested): gateway requests on a fresh deployment can hang to the 300 s function limit. The 2026-10-08 production smoke failed that way; production itself is fine once warm.
