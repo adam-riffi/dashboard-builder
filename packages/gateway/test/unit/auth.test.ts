@@ -19,6 +19,12 @@ describe("jwtAuth", () => {
   it("does not read the JWKS URL until a token arrives", () => {
     expect(() => jwtAuth({ jwksUrl: "", issuer: "i", audience: "a" })).not.toThrow();
   });
+
+  it("rejects a malformed token before fetching any key", async () => {
+    // Nothing listens on port 1: a key fetch would fail differently.
+    const verify = jwtAuth({ jwksUrl: "http://127.0.0.1:1/jwks", issuer: "i", audience: "a" });
+    await expect(verify("not.a.token")).rejects.toThrow(/JWS|JWT|token/i);
+  });
 });
 
 describe("authenticate", () => {

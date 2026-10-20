@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     setupFiles: ["./vitest.setup.ts"],
+    // A file's first jsdom test also loads the environment and the chart chunk; under the
+    // parallel load of `pnpm check` that went past the 5 s default.
+    testTimeout: 15_000,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

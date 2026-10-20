@@ -1,7 +1,8 @@
 import { defineConfig } from "vitest/config";
 
-// DESIGN.md §10: gateway keeps at least 90% line coverage from unit tests. I/O shells are
-// covered by the integration suite instead and are excluded here.
+// DESIGN.md §10 asks for 90% line coverage from unit tests; M9 holds the gateway at 93%, where it
+// stood before the planner moved to core. I/O shells are covered by the integration suite
+// instead and are excluded here.
 export default defineConfig({
   test: {
     setupFiles: ["./vitest.setup.ts"],
@@ -14,7 +15,7 @@ export default defineConfig({
         "src/contract/introspect.ts",
         "src/query/execute.ts",
       ],
-      thresholds: { lines: 90 },
+      thresholds: { lines: 93 },
     },
   },
 });
