@@ -85,7 +85,7 @@ describe("compileQuery", () => {
           'left join "dash_demo"."customers" as "t2" on "t2"."id" = "t1"."customer_id"',
           'where "t0"."tenant_id" = any($1) and "t1"."tenant_id" = any($2) and "t2"."tenant_id" = any($3) and "t1"."status" = any($4) and "t0"."quantity" >= $5',
           "group by 1, 2",
-          'order by "m0" desc, 1, 2',
+          'order by "m0" desc nulls last, 1, 2',
           "limit $6",
         ].join("\n"),
         params: [[1, 2], [1, 2], [1, 2], ["paid"], 2, 11],
@@ -212,7 +212,18 @@ describe("compileQuery", () => {
       measures: [units],
       sort: [{ by: "measure", index: 0, dir: "desc" }],
     });
-    expect(result.ok && result.query.text.split("\n")).toContain('order by "m0" desc, 1');
+    expect(result.ok && result.query.text.split("\n")).toContain(
+      'order by "m0" desc nulls last, 1',
+    );
+  });
+
+  it("sorts rows without a value last in either direction, so a limit keeps values", () => {
+    const result = compile({
+      dimensions: [{ field: "dash_demo.products.category" }],
+      measures: [units],
+      sort: [{ by: "dimension", index: 0, dir: "asc" }],
+    });
+    expect(result.ok && result.query.text.split("\n")).toContain('order by "d0" asc nulls last, 1');
   });
 
   it("escapes double quotes in identifiers", () => {

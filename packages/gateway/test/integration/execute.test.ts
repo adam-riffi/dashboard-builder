@@ -91,6 +91,24 @@ describe("executeQuery", () => {
     expect(unscoped.data).toEqual([[null]]);
   });
 
+  it("keeps the rows with a value under a limit, the largest first", async () => {
+    // Only south has a refund: north and east sum nothing, which Postgres would sort first.
+    const { query, limit } = compiled(
+      {
+        dimensions: [region],
+        measures: [{ formula: "SUM(IF(sales.refunded, sales.amount))" }],
+        sort: [{ by: "measure", index: 0, dir: "desc" }],
+        limit: 1,
+      },
+      { tenantIds: [1, 2, 3] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2,3" },
+    });
+    expect(result.data).toEqual([["south"], [20]]);
+  });
+
   it("caps rows at the limit and reports truncation", async () => {
     const { query, limit } = compiled(
       {
