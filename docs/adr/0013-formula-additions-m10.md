@@ -24,14 +24,14 @@ The v1 compiler renders one flat statement: select, joins, where, group by, orde
 - **Conditions:** a `CALCULATE` condition is a row-level or constant true/false value, or `ALL(field)`. `ALL` takes one field and is only allowed as a `CALCULATE` condition.
 - **Nesting:**
   - `PREVIOUSPERIOD` and `RUNNINGSUM` don't nest inside each other.
-  - `CALCULATE` nests with anything, and nested conditions are ANDed.
+  - `CALCULATE` nests with anything, and nested conditions are ANDed. The one exception: `ALL` and `PREVIOUSPERIOD` can't be in the same measure yet, because a previous period of a total would need the total over the previous window too.
   - An aggregate can't contain one of the four (the existing nesting rule).
 
 **The time axis:** a query whose measures use `PREVIOUSPERIOD` or `RUNNINGSUM` needs exactly one dimension with a time grain. The check is in core's `validateQuery`, so the builder's tiles and the gateway report it the same way. A KPI can't use them.
 
 **Filters:**
 - **Conditions:** `CALCULATE`'s conditions add to the query's filters, and its row policies always apply.
-- **`ALL(field)`:** removes the grouping and filters on that field only. Policies are never removed.
+- **`ALL(field)`:** removes the grouping and the query's filters on that field only. Policies are never removed, and neither are the conditions of an outer `CALCULATE` on the same field, which still filter the total. (Power BI's DAX would lift those too.)
 - **`PREVIOUSPERIOD`:** reads the previous bucket even when a filter on the time axis's column cuts it off. Those filters are applied to the column moved one grain later, so they select the previous window.
 - **`RUNNINGSUM`:** starts at the first bucket inside the filters.
 
