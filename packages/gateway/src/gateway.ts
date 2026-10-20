@@ -15,6 +15,7 @@ import type { GatewayConfig } from "./config.ts";
 import { cachedContract } from "./contract/cache.ts";
 import { inferContract } from "./contract/index.ts";
 import { introspect } from "./contract/introspect.ts";
+import { withDeadline } from "./deadline.ts";
 import { health } from "./health.ts";
 import { policyConfigErrors, policyContractErrors } from "./policies.ts";
 import { compileQuery } from "./query/compile.ts";
@@ -36,15 +37,6 @@ interface Route {
 
 /** A request still running after this long is logged with the stage it is in. */
 const SLOW_MS = 10_000;
-
-/**
- * A database read still unanswered after this long is abandoned. On fresh deployments a first
- * query through the pooler sometimes never answers (the pooler sees the connection idle), and
- * with one connection per instance every later read would wait behind it.
- */
-const DB_DEADLINE_MS = 5_000;
-
-class DatabaseTimeout extends Error {}
 
 /** A request without `maxAgeSec` accepts results this old: a dashboard's default refresh. */
 const DEFAULT_MAX_AGE_SEC = 60;
@@ -120,33 +112,9 @@ export function createGateway(config: GatewayConfig): Handler {
   if (host.size !== hostMeasures.length) throw new Error("host measure names must be unique");
   const limiter = createRateLimiter({ limit: QUERIES_PER_MINUTE, windowMs: 60_000 });
 
-  /**
-   * Runs a read with a deadline. A read that misses it gets a new connection and one more try;
-   * reads are idempotent, so trying again is safe.
-   */
-  async function read<T>(stage: string, run: (sql: postgres.Sql) => Promise<T>): Promise<T> {
-    for (let attempt = 1; ; attempt++) {
-      const pending = run(config.source());
-      // A read abandoned below rejects when its connection closes: nobody is waiting for it.
-      pending.catch(() => {});
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const deadline = new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new DatabaseTimeout(`${stage} took over 5 s`)),
-          DB_DEADLINE_MS,
-        );
-      });
-      try {
-        return await Promise.race([pending, deadline]);
-      } catch (error) {
-        if (!(error instanceof DatabaseTimeout) || attempt > 1 || !config.source.reset) throw error;
-        console.warn(JSON.stringify({ level: "warn", msg: "database connection replaced", stage }));
-        config.source.reset();
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-  }
+  /** Reads are idempotent, so each runs with the deadline and its one retry. */
+  const read = <T>(stage: string, run: (sql: postgres.Sql) => Promise<T>) =>
+    withDeadline(config.source, stage, run);
 
   // One contract per instance, checked again every minute (DESIGN.md §6).
   const contract = cachedContract(async () =>

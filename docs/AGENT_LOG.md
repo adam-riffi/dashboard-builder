@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m9/05-demo-deadline · #90
+- Done: the gateway's read deadline moves to `packages/gateway/src/deadline.ts` as the exported `withDeadline(source, stage, run)`: 5 s, then a fresh connection and one retry. The gateway's own reads use it unchanged. The demo wraps its scope lookup (`tenantsOf` in `resolveScope`) and its dashboard storage route with it, so a lost connection no longer hangs them until `maxDuration`.
+- Tests: written first. `deadline.test.ts` covers answering in time, replacing a stuck connection and retrying once, and giving up after the second try or without a reset (a branch that wasn't tested before). The gateway's existing deadline tests pass.
+- Scope/decisions: a retry is safe for the demo's calls (the first sign-in's insert ignores conflicts, saving is an upsert, deleting is by key). Gateway README note; changeset (gateway minor).
+- Next: weekly cleanup of inactive guests' data (#91).
+
 ## 2026-10-20 · claude · stack/m9/04-ambiguous-refs · #89
 - Done: `resolveField` returns `choices` (each schema's column that exists) for an ambiguous `table.column`. `lostRefs` reports such a reference as written, and `replacements` puts the choices first, ranked by the schema the dashboard already reads most (alphabetical when nothing tells them apart, M9 review), so the repair panel usually fixes it with one Apply (M8 review, N3).
 - Tests: written first: `check.test.ts` (choices) and `remap.test.ts` (an `archive.orders` table makes `orders.id` ambiguous; it is reported, offered both schemas, and rewritten to `dash_demo.orders.id`).
@@ -382,9 +388,3 @@ Entry format:
 - Tests: `packages/react/test/formula-editor.test.ts`: completion contexts (columns after a dot, names in brackets, functions/tables/keywords, nothing in strings or after numbers) and diagnostics at spans. `packages/react/test/measures.test.tsx`: apply gating, rename with format, errors shown, name rules, removal. CodeMirror runs in jsdom.
 - Scope/decisions: CodeMirror 6 (state, view, autocomplete, lint) added (DESIGN §6). The completion implementation landed in the same commit as the editor tests, after its own failing test commit.
 - Next: stack/m5/07-dashboard-store.
-
-## 2026-10-08 · claude · stack/m5/05-filters · #48
-- Done: `<FiltersEditor spec contract onChange>` in the builder's side panel: the dashboard's filters listed in words ("Status is one of paid, shipped") with "×" to remove; a new filter is drafted (field, operator, typed inputs: number, date, or a comma-separated list) and enters the spec only once complete. `filterFrom` builds a filter from the inputs (calendar-valid dates, finite numbers, true/false, lists only for true/false columns); `inputsOf` turns one back into inputs.
-- Tests: `packages/react/test/filters.test.tsx`: 5 built and 5 refused inputs, inputs from a filter, the draft-then-add flow and removal.
-- Scope/decisions: filters are added and removed, not edited in place (ponytail); values are typed, not picked from distinct values (planned skip).
-- Next: stack/m5/06-formula-editor.

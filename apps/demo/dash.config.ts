@@ -1,4 +1,10 @@
-import { defineGateway, jwtAuth, memoryCache, postgresSource } from "@adam-riffi/dash-gateway";
+import {
+  defineGateway,
+  jwtAuth,
+  memoryCache,
+  postgresSource,
+  withDeadline,
+} from "@adam-riffi/dash-gateway";
 import { tenantsOf } from "./lib/tenants";
 
 const tables = [
@@ -23,7 +29,9 @@ export default defineGateway({
   policies: tables.map((table) => ({ table, column: "tenant_id", in: "tenantIds" })),
   resolveScope: async (claims) => {
     const userId = String(claims.sub);
-    return { userId, tenantIds: await tenantsOf(appDb(), userId) };
+    // The gateway's own deadline and one retry: a first sign-in's insert is safe to repeat.
+    const tenantIds = await withDeadline(appDb, "scope", (sql) => tenantsOf(sql, userId));
+    return { userId, tenantIds };
   },
   // Every dashboard can use these (ADR 0007); all three share order_items as their fact table.
   measures: [
