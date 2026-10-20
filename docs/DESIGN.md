@@ -146,7 +146,7 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 | Table | Columns (main) | Notes |
 | --- | --- | --- |
 | `dash.dashboards` | `id uuid`, `owner_id uuid`, `title`, `spec jsonb`, `contract_version`, `created_at`, `updated_at` | RLS: owner only, through `app.user_id` set by the host's store, in the demo `apps/demo/lib/dashboards.ts` ([ADR 0001](adr/0001-dashboard-owner-via-app-user-id.md), [ADR 0009](adr/0009-the-host-stores-dashboards.md)); at most 20 per user and 256 KB each |
-| `dash.memberships` | `user_id uuid`, `tenant_id int` | Two demo tenants assigned at first sign-in |
+| `dash.memberships` | `user_id uuid`, `tenant_id int`, `last_seen_at` | Two demo tenants assigned at first sign-in; `last_seen_at` refreshed at most daily, and a weekly pg_cron job deletes the memberships and dashboards of guests unseen for 30 days, plus dashboards with no membership not updated for 30 days ([ADR 0012](adr/0012-roadmap-to-1-0.md)) |
 | `dash_demo.tenants` | `id`, `name`, `region` | 5 tenants |
 | `dash_demo.customers` | `id`, `tenant_id`, `name`, `country`, `segment`, `created_at` | |
 | `dash_demo.products` | `id`, `tenant_id`, `name`, `category`, `unit_price` | |
