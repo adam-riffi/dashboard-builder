@@ -174,8 +174,10 @@ export function compileQuery(
     lines.push(`group by ${query.dimensions.map((_, i) => i + 1).join(", ")}`);
   }
   if (query.sort.length > 0) {
+    // Rows without a value go last in either direction, so a limit keeps the rows that have one
+    // (Postgres puts nulls first when descending).
     const keys = query.sort.map(
-      (s) => `${quote(`${s.by === "dimension" ? "d" : "m"}${s.index}`)} ${s.dir}`,
+      (s) => `${quote(`${s.by === "dimension" ? "d" : "m"}${s.index}`)} ${s.dir} nulls last`,
     );
     // Ties fall back to the dimensions, so the rows kept at the limit are always the same.
     const tiebreak = query.dimensions.map((_, i) => String(i + 1));

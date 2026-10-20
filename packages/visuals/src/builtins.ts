@@ -93,8 +93,7 @@ const scatterOptions = z
 
 /**
  * One point per category, placed by two measures (ADR 0011), sorted by x, largest first, so a
- * limit keeps the biggest. ponytail: Postgres sorts nulls first when descending, so categories
- * without an x come first, as in bars and tables; `NULLS LAST` in the compiler would fix all three.
+ * limit keeps the biggest (categories without an x come last).
  */
 export const scatter: VisualDefinition<z.infer<typeof scatterOptions>> = {
   type: "scatter",

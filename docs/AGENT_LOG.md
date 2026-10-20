@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m9/02-nulls-last · #87
+- Done: the compiler writes `nulls last` on every sort key, so a limit keeps the rows that have a value; Postgres put nulls first when descending (found in the M8 review). The scatter's comment loses its note.
+- Tests: written first. `compile.test.ts` (both directions); an integration test where only one region has refunds and a limit of 1 keeps it (CI).
+- Scope/decisions: positional tie-breaks are unchanged (ascending already puts nulls last). Changeset (gateway patch).
+- Next: gateway unit tests for queries, 304s and health (#88).
+
 ## 2026-10-20 · claude · stack/m9/01-roadmap · #86
 - Done: ADR 0012 and DESIGN.md §9 lay out the roadmap to the first npm release (M9 hardening, M10 formula power, M11 map and multi-fact, M12 your own data, M13 shared cache and push, M14 release 1.0). §14's guest cleanup is now this app's data only.
 - Tests: none (docs).
@@ -385,9 +391,3 @@ Entry format:
 - Tests: `packages/react/test/wells.test.tsx` (DESIGN §10): wells per slot; a picked field updates the spec; refused fields cannot be added; removal; drops from drag events, outside a well, and on a refusing well.
 - Scope/decisions: jsdom has no layout for dnd-kit's collision detection, so real dragging is tested by the M5 Playwright test (PR 9); both paths go through `dropItem`.
 - Next: stack/m5/04-builder-canvas.
-
-## 2026-10-08 · claude · stack/m5/02-component-tests · #45
-- Done: component tests for the react package: jsdom and Testing Library (react, dom, user-event) as dev dependencies, opted into per file (`@vitest-environment jsdom`), so pure tests stay on Node. `<FieldList contract measures onPick>`: a "Measures" group (the host's, then the dashboard's own), then one group per table with its columns as buttons labelled by name and role ("Status, dimension"). Picking hands a `Draggable` to the builder; drag sources come with PR 3.
-- Tests: `packages/react/test/fields.test.tsx`: groups and order, labels, picks as a column or a measure.
-- Scope/decisions: none.
-- Next: stack/m5/03-field-wells.
