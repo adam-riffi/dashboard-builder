@@ -17,7 +17,7 @@ Entry format:
 ## 2026-10-20 · claude · stack/m9/05-demo-deadline · #90
 - Done: the gateway's read deadline moves to `packages/gateway/src/deadline.ts` as the exported `withDeadline(source, stage, run)`: 5 s, then a fresh connection and one retry. The gateway's own reads use it unchanged. The demo wraps its scope lookup (`tenantsOf` in `resolveScope`) and its dashboard storage route with it, so a lost connection no longer hangs them until `maxDuration`.
 - Tests: written first. `deadline.test.ts` covers answering in time, replacing a stuck connection and retrying once, and giving up after the second try or without a reset (a branch that wasn't tested before). The gateway's existing deadline tests pass.
-- Scope/decisions: a retry is safe for the demo's calls (the first sign-in's insert ignores conflicts, saving is an upsert, deleting is by key). Gateway README note; changeset (gateway minor).
+- Scope/decisions: a retry is safe for the demo's calls (the first sign-in's insert ignores conflicts, saving is an upsert, deleting is by key). DELETE now answers 204 whether or not a row was left to delete, so a retried delete never answers 404 (M9 review). Gateway README note; changeset (gateway minor).
 - Next: weekly cleanup of inactive guests' data (#91).
 
 ## 2026-10-20 · claude · stack/m9/04-ambiguous-refs · #89

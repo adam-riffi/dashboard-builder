@@ -87,7 +87,8 @@ export const PUT = async (request: Request, context: Context) => {
 export const DELETE = (request: Request, context: Context) =>
   handle(request, context, async (user, id) => {
     if (id === undefined) return json({ error: "Not found" }, 404);
-    return (await db((sql) => deleteDashboard(sql, user, id)))
-      ? new Response(null, { status: 204 })
-      : json({ error: "Not found" }, 404);
+    // Gone either way: a retry after a slow first attempt finds nothing left to delete, and
+    // row-level security hides other visitors' dashboards, so nothing leaks.
+    await db((sql) => deleteDashboard(sql, user, id));
+    return new Response(null, { status: 204 });
   });
