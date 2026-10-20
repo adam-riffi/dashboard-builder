@@ -21,6 +21,13 @@ Entry format:
   - The checker refuses `ALL` with `PREVIOUSPERIOD` in one measure.
 - Tests: written first. Golden SQL: a share by status with a lifted status filter; a total joined back by month. Integration (CI): shares by region are 0.4/0.4/0.2, a web-only filter still applies (0.5/0.5), and a filter on region itself is lifted for the total (0.4/0.2). Two checker errors.
 - Scope/decisions: a previous period of a total would need a total CTE over the previous window; deferred, with a clear error (`ponytail:` note). Changeset (core patch, gateway minor).
+- M10 review fixes (tests first):
+  - **Blocker:** a measure that is only `ALL`'s total answered one row per fact row. Grouped CTEs without dimensions now get `group by ()`.
+  - **Joins:** CTEs join on the other dimensions with `coalesce(x::text, '') = … and (x is null) = (y is null)`, which Postgres can hash; `is not distinct from` forced nested loops (2.4 s against 49 ms in the reviewer's run).
+  - **Fact table:** `ALL`'s field no longer counts toward it.
+  - **Dates:** a `date` column's shifted filter is cast back to date (#96).
+  - **Properties:** `CALCULATE` equals its condition as a query filter; `ALL`'s total equals the measure without that dimension; with a policy narrower than the data, the previous window and the total stay within it.
+  - **ADR 0013:** amended (`ALL` with `PREVIOUSPERIOD`, and what `ALL` lifts).
 - Next: demo measures and docs (#98).
 
 ## 2026-10-20 · claude · stack/m10/05-two-stage · #96
