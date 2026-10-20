@@ -1,5 +1,12 @@
 import type { ContractColumn, DataContract } from "../contract.ts";
-import { type Checking, check, children, type Typed } from "../formula/check.ts";
+import {
+  type Checking,
+  calls,
+  check,
+  children,
+  TIME_FUNCTIONS,
+  type Typed,
+} from "../formula/check.ts";
 import {
   type FilterOp,
   MAX_ROWS,
@@ -115,6 +122,11 @@ export function validateQuery(
     return [d.timeGrain ? { ...r, timeGrain: d.timeGrain } : r];
   });
 
+  // PREVIOUSPERIOD and RUNNINGSUM read the query's one time axis (ADR 0013).
+  const axes = spec.dimensions.filter((d) => d.timeGrain !== undefined).length;
+  const timeFunction = (expr: Typed) =>
+    [...TIME_FUNCTIONS].find((name) => calls(expr, new Set([name])));
+
   const measures = spec.measures.flatMap((m, i): ValidMeasure[] => {
     if (!("field" in m)) {
       const formula = "formula" in m ? m.formula : `[${m.name}]`;
@@ -130,6 +142,11 @@ export function validateQuery(
         const more = checked.errors.length - MAX_MEASURE_ERRORS;
         if (more > 0) errors.push(`measures[${i}]: and ${more} more error${more === 1 ? "" : "s"}`);
         return [];
+      }
+      const fn = axes === 1 ? undefined : timeFunction(checked.expr);
+      if (fn) {
+        const axis = "a date field grouped by day, week, month, quarter or year";
+        errors.push(`measures[${i}]: ${fn} needs one time axis: ${axis}`);
       }
       const done = { expr: checked.expr, tables: tablesOf(checked.expr) };
       return ["formula" in m ? { formula: m.formula, ...done } : { name: m.name, ...done }];
