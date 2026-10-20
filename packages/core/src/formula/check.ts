@@ -29,11 +29,12 @@ export type Checking = { ok: true; expr: Typed } | { ok: false; errors: FormulaE
 /**
  * A field as written, resolved: its table and column, or why not. A field whose table or column
  * the contract lacks is `missing` (with its table when only the column is); one whose bare table
- * name is in two schemas is `ambiguous`.
+ * name is in two schemas is `ambiguous`, with each schema's column that exists as `choices`.
  */
 export type FieldResolution =
   | { ok: true; table: ContractTable; column: ContractColumn }
-  | { ok: false; reason: "missing" | "ambiguous"; message: string; table?: ContractTable };
+  | { ok: false; reason: "missing"; message: string; table?: ContractTable }
+  | { ok: false; reason: "ambiguous"; message: string; choices: string[] };
 
 /**
  * Resolves a field written `table.column` or `schema.table.column` (DESIGN.md §6): a bare table
@@ -49,11 +50,15 @@ export function resolveField(path: string[], contract: DataContract): FieldResol
       .sort();
     if (found.length > 1) {
       const schemas = found.map((name) => name.slice(0, name.indexOf(".")));
-      const choices = found.map((name) => `${name}.${column}`).join(" or ");
+      const written = found.map((name) => `${name}.${column}`);
+      const choices = written.filter((_, i) =>
+        contract.tables.find((t) => t.name === found[i])?.columns.some((c) => c.name === column),
+      );
       return {
         ok: false,
         reason: "ambiguous",
-        message: `${tableName} is in ${schemas.join(" and ")}; write ${choices}`,
+        message: `${tableName} is in ${schemas.join(" and ")}; write ${written.join(" or ")}`,
+        choices,
       };
     }
     tableName = found[0] ?? tableName;

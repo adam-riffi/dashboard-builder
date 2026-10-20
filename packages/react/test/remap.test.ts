@@ -1,4 +1,4 @@
-import { type DashboardSpec, dashboardSpec } from "@adam-riffi/dash-core";
+import { type DashboardSpec, type DataContract, dashboardSpec } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
 import { type LostRef, lostRefs, remap, replacements } from "../src/builder-entry.ts";
 import { shop } from "./shop.ts";
@@ -237,5 +237,60 @@ describe("remap (ADR 0011)", () => {
     }
     expect(lostRefs(fixed, shop)).toEqual([]);
     expect(dashboardSpec.safeParse(fixed).success).toBe(true);
+  });
+});
+
+describe("ambiguous references (M9)", () => {
+  // Another schema gains an `orders` table: `orders.id` in a formula no longer names one table.
+  const orders = shop.tables.find(
+    (t) => t.name === "dash_demo.orders",
+  ) as DataContract["tables"][number];
+  const twoSchemas: DataContract = {
+    ...shop,
+    tables: [...shop.tables, { ...orders, name: "archive.orders" }],
+  };
+  const counted = dashboard({
+    measures: [{ name: "Count", formula: "COUNT(orders.id)" }],
+    visuals: [visual("kpi", "kpi", { value: [{ name: "Count" }] })],
+  });
+
+  // With nothing else in the dashboard to tell the schemas apart, they come alphabetically.
+  it("reports a table.column that became ambiguous, each schema's column first", () => {
+    const [ref] = lostRefs(counted, twoSchemas);
+    expect(ref).toEqual({
+      kind: "field",
+      name: "orders.id",
+      usages: [{ kind: "measure", name: "Count" }],
+      removable: false,
+    });
+    expect(replacements(ref as LostRef, counted, twoSchemas).slice(0, 2)).toEqual([
+      "archive.orders.id",
+      "dash_demo.orders.id",
+    ]);
+  });
+
+  it("offers first the schema the dashboard already reads", () => {
+    const withBar = dashboard({
+      measures: counted.measures,
+      visuals: [
+        ...counted.visuals,
+        visual("bar", "bar", {
+          category: [{ field: "dash_demo.products.category" }],
+          value: [{ name: "Count" }],
+        }),
+      ],
+    });
+    const [ref] = lostRefs(withBar, twoSchemas);
+    expect(replacements(ref as LostRef, withBar, twoSchemas).slice(0, 2)).toEqual([
+      "dash_demo.orders.id",
+      "archive.orders.id",
+    ]);
+  });
+
+  it("rewrites it to the chosen schema's column", () => {
+    const [ref] = lostRefs(counted, twoSchemas);
+    const fixed = remap(counted, ref as LostRef, "dash_demo.orders.id", twoSchemas);
+    expect(fixed.measures[0]?.formula).toBe("COUNT(dash_demo.orders.id)");
+    expect(lostRefs(fixed, twoSchemas)).toEqual([]);
   });
 });

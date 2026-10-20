@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m9/04-ambiguous-refs · #89
+- Done: `resolveField` returns `choices` (each schema's column that exists) for an ambiguous `table.column`. `lostRefs` reports such a reference as written, and `replacements` puts the choices first, ranked by the schema the dashboard already reads most (alphabetical when nothing tells them apart, M9 review), so the repair panel usually fixes it with one Apply (M8 review, N3).
+- Tests: written first: `check.test.ts` (choices) and `remap.test.ts` (an `archive.orders` table makes `orders.id` ambiguous; it is reported, offered both schemas, and rewritten to `dash_demo.orders.id`).
+- Scope/decisions: ADR 0011's "not covered" line is updated. Changeset (core and react patch).
+- Next: the demo's own reads give up after 5 s (#90).
+
 ## 2026-10-20 · claude · stack/m9/03-gateway-coverage · #88
 - Done: `packages/gateway/test/unit/queries.test.ts`:
   - a fake client answers introspection and runs compiled queries, so the query path, the cache hit, explain, a failed query, POST /query's and the contract's 304s, and health run without a database;
@@ -382,15 +388,3 @@ Entry format:
 - Tests: `packages/react/test/filters.test.tsx`: 5 built and 5 refused inputs, inputs from a filter, the draft-then-add flow and removal.
 - Scope/decisions: filters are added and removed, not edited in place (ponytail); values are typed, not picked from distinct values (planned skip).
 - Next: stack/m5/06-formula-editor.
-
-## 2026-10-08 · claude · stack/m5/04-builder-canvas · #47
-- Done: `<DashboardBuilder spec onChange onSave>`:
-  - a toolbar with the dashboard title (a draft, never blank), "Add" per registered visual, and Save;
-  - the field list, with the picked field pressed;
-  - a react-grid-layout canvas on the 12-column grid, with drag by the tile header and resize writing `spec.layout`; each tile previews through the viewer's states and has "×" to remove it;
-  - a properties panel for the selected visual: title, wells, and the built-in options (bar sort and rows, line grain, table rows).
-
-  Drag ends with dnd-kit's pointer sensor (a 6 px threshold, so clicks still pick). The viewer now shares `useVisualStates` and `VisualContent` with the builder. DESIGN §7 notes the controlled API and the grid stylesheet hosts import.
-- Tests: `packages/react/test/canvas.test.tsx`: build a bar from picked fields and save it; title, sort and remove a visual; rename the dashboard.
-- Scope/decisions: the options panel knows the built-in visuals only (ponytail; host plugins could describe their options later); `react-grid-layout` 2.3.0 added (DESIGN §6).
-- Next: stack/m5/05-filters.
