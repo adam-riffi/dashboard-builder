@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · docs/handoff-m10 · #99
+- Done: HANDOFF.md rewritten after M9 and M10 (#86–#98 merged; production checked: the cleanup job scheduled, growth equal to revenue minus the day before, shares summing to 100%).
+- Tests: none (docs).
+- Scope/decisions: next is M11 (map and multi-fact) in plan mode; M13 and M14 wait on Georges' Upstash and npm accounts.
+- Next: M11.
+
 ## 2026-10-20 · claude · stack/m10/07-demo-and-docs · #98
 - Done: the demo offers four host measures built on M10:
   - "Revenue, previous period" (`PREVIOUSPERIOD([Revenue])`);
@@ -353,14 +359,3 @@ Entry format:
 - Tests: `test/unit/contract-cache.test.ts` (written first): concurrent first requests share one load; nothing reloads within 60 s; the stale contract serves while one check runs; a failed first load is retried; a failed later check keeps the last contract and is retried on the next request.
 - Scope/decisions: the cache is per function instance (memory), as planned; the fresh-deployment hang (#59) loses its per-request introspection.
 - Next: #61, the result cache scoped by security context.
-
-## 2026-10-17 · claude · fix/gateway-hang · #59
-- Done: the first step on the hang on fresh deployments.
-  - The gateway logs "request slow" with the request's stage (`auth`, `contract`, `scope`, `query`) after 10 s.
-  - The demo's API routes stop at 30 s (`maxDuration`) instead of Vercel's 300 s, and the client retries once.
-- Tests: unit tests for the slow log by stage, and for no log on requests that finish (fake timers).
-- Scope/decisions:
-  - Reproduced on the 2026-10-17 production deploy (#58): the smoke run's 3 `contract` requests and 1 `query` hung to 300 s on the fresh deployment.
-  - Supavisor saw the killed instance's only connection idle, so they waited outside the database.
-  - Locally, a cold postgres.js client (gateway options) under concurrent first queries never hung against PGlite, with or without 70 ms latency.
-- Next: read the stage from the next fresh deployment's logs (within an hour; Hobby keeps one), then fix the cause.

@@ -1,51 +1,64 @@
-# Handoff — 2026-10-19 · claude
+# Handoff — 2026-10-20 · claude
 
 ## State
-- `main` at the merge of this PR, on top of `f0eb416` (#84, the scatter chart). M8 (schema changes), the first v1.1 milestone, is merged; CI is green; production runs it (migrate, deploy and smoke green).
-- Open PRs: #77 (Dependabot, 15 updates including Vercel CLI 64) once this one merges.
+- `main` at the merge of this PR, on top of `1a03de3` (#98). M9 (hardening) and M10 (formula power) of the roadmap to 1.0 ([ADR 0012](docs/adr/0012-roadmap-to-1-0.md)) are merged. CI is green, and production runs both (migrate, deploy and smoke green).
+- Open PRs: none once this one merges.
 
 ## Done this session
-- **The M7 handoff** (#76).
-- **M8, #78–#84 ([ADR 0011](docs/adr/0011-schema-changes-milestone.md)):**
-  - query validation and join planning moved to core (#79);
-  - a selection skips the visuals that can't reach its field (#80);
-  - one refresh timer per dashboard, so one request per refresh after a selection (#81);
-  - lost fields and measures found, with ranked replacements and a rewrite (#82);
-  - the builder's "Fields this dashboard lost" panel (#83);
-  - a scatter visual (#84).
-- **An independent review of M8** (posted on #84): 1 blocker (missing Linux baselines), 4 should-fixes (indirect measure cycles, date columns offered to text filters, a stale repair choice, a null-sorting comment) and 10 nits. All were fixed or documented before the merges.
+- **#77:** Dependabot's 15 updates, including Vercel CLI 64, merged with Georges' go-ahead. The deploy's flags are unchanged.
+- **The roadmap to the first npm release** (#86, ADR 0012):
 
-## Verified
-- **Production:**
-  - after choosing a category, 125 s brought two `POST /query` requests, one per 60 s interval (at 55 s and 115 s);
-  - selecting a product in the table filters the bar to its category;
-  - a scatter of Revenue against Orders by Category was built in the builder, saved, reopened and cross-filtered ("Category: Garden"), then deleted.
-- **CI:** the repair e2e (`/fixtures/builder/lost`) and the scatter screenshot pass.
+  | Milestone | What |
+  | --- | --- |
+  | M9 | Hardening |
+  | M10 | Formula power |
+  | M11 | Map and multi-fact |
+  | M12 | Your own data |
+  | M13 | Shared cache and push |
+  | M14 | Release 1.0 |
+
+  The packages stay unpublished at 0.x until M14, as Georges wants a working prototype first.
+- **M9, #87–#91:**
+  - a limited bar, table or scatter keeps rows that have values (`nulls last`);
+  - the gateway's unit coverage is back to 98.89%, with a 93% floor;
+  - the repair panel fixes a field that became ambiguous and prefers the schema the dashboard uses;
+  - `withDeadline` is exported, so the demo's own reads give up after 5 s;
+  - a weekly pg_cron job deletes the memberships and dashboards of guests unseen for 30 days. Only this app's data; the anonymous auth users stay with `portfolio-infra` (Georges' choice).
+- **M10, #92–#98 ([ADR 0013](docs/adr/0013-formula-additions-m10.md)):**
+  - **`CALCULATE(m, condition)`** compiles to `FILTER (WHERE …)`.
+  - **`PREVIOUSPERIOD(m)` and `RUNNINGSUM(m)`** use a two-stage compile. It is right across buckets without data, and reads the window before a date filter. Both need one time axis.
+  - **`CALCULATE(m, ALL(field))`** gives a total, for shares.
+  - **New demo host measures:** "Revenue, previous period", "Revenue growth", "Running orders" and "Share of revenue".
+- **Independent reviews** were posted on #84, #91 and #98, and all their findings were fixed or documented before merging. M10's blocker was that a measure that is only `ALL`'s total answered one row per fact row. M10's should-fixes included the null-safe joins, which forced nested loops, now hashable.
+
+## Verified on production
+- **M9:**
+  - the cleanup job is scheduled for Mondays at 04:00 UTC;
+  - `last_seen_at` exists;
+  - `dash_app` can't run the cleanup function;
+  - the demo loads, filters, saves and deletes.
+- **M10:** a line of Revenue and Revenue growth by day, built in the builder. Growth equals revenue minus the day before on all 11 days shown, and the share-of-revenue table sums to 100.0%. The check dashboard was deleted. A first run, which failed on my own number parsing, may have left one guest's "M10 check" dashboard; the weekly cleanup removes it after 30 days.
 
 ## Next
-1. **#77 (Dependabot):** Vercel CLI 64 keeps every flag the deploy uses, and the required checks are green. Its `deploy` check fails only because Dependabot runs without the deploy secrets, as on #58. The app blocked my merge without review, so it needs Georges' merge or an explicit "merge #77".
-2. **Follow-ups found in M8:**
-   - `NULLS LAST` in the compiler, so a limit on a bar, table or scatter keeps rows with values first;
-   - the gateway's unit-test line coverage is 90.02% (it was 93.15% before the planner moved to core); `gateway.ts` is 75% covered by unit tests and relies on integration tests;
-   - the repair panel doesn't report a `table.column` that became ambiguous.
-3. **Known limitations:** the result cache is per instance, and the demo's own `appDb` (memberships, dashboards) has no read deadline.
-4. **The next v1.1 milestone, in plan mode.** Georges picks among:
-   - formula power (time intelligence, `CALCULATE`);
-   - bring your own data (CSV, REST/JSON with DuckDB-WASM, Arrow);
-   - infra (Redis cache, server-sent events);
-   - the map visual.
-5. **npm publishing:** when Georges wants it. The steps are unchanged: an npm account or org, then trusted publishing or an `NPM_TOKEN` secret, then a `changesets/action` release workflow. The changesets for M8 are waiting in `.changeset/`.
+1. **M11, map and multi-fact (DESIGN.md §9), in plan mode:**
+   - the map visual: ECharts map, GeoJSON loaded lazily, ISO country codes from `customers.country`;
+   - chasm traps through per-fact pre-aggregation, reusing the two-stage compile, with a second fact table in the demo.
+2. **Follow-ups:**
+   - a two-stage query in `pnpm bench`;
+   - `ALL` together with `PREVIOUSPERIOD` in one measure (refused for now, ADR 0013);
+   - more time functions (`SAMEPERIODLASTYEAR`, `YTD`) if asked for.
+3. **Then:** M12 (your own data), M13 (needs an Upstash Redis database from Georges), and M14 (release 1.0, needs an npm account).
 
 ## Needs from Georges
-- #77: merge it, or tell me to.
-- Which v1.1 milestone comes next.
-- npm, the social preview image and the profile pin (GitHub web UI), when wanted.
+- **M13:** an Upstash Redis database, with its keys in Vercel (web UI).
+- **M14:** an npm account or org; the social preview image and the profile pin (web UI).
 
 ## Notes
 - **Merging a stack:**
-  - `gh pr merge N --squash` without `--delete-branch`: the repository deletes merged branches and retargets the PRs stacked on them, while `--delete-branch` makes GitHub close them;
+  - `gh pr merge N --squash` without `--delete-branch`, because the repository deletes merged branches and retargets the PRs stacked on them;
   - restack each branch from the previous branch's tip before that branch was restacked;
-  - wait until `gh pr checks --required` reports checks before watching them.
-- **Switching branches locally:** remove `apps/demo/.next/types` first, because route types from another branch's build fail `typecheck`.
-- **No local Docker:** integration and e2e run in CI. The fixture pages (`/fixtures/*`, `/fixtures/builder/<name>`) run locally against a production build on port 3200 (`BASE_URL`); ports 3000 and 3100 belong to another project.
-- **Visual baselines:** they come from CI's `screenshot-baselines` artifact (ADR 0008). A new or changed baseline fails CI once, then gets committed from the artifact.
+  - wait until required checks are reported before watching them.
+- **Before Check all after switching branches:** remove `apps/demo/.next/types`.
+- **Agent log:** at most 40 entries. Older ones move to `docs/agent-log/YYYY-MM.md` (ENGINEERING.md §5).
+- **No local Docker:** integration tests and e2e run in CI. The fixture pages run locally against a production build on port 3200 (`BASE_URL`); ports 3000 and 3100 belong to another project.
+- **Visual baselines:** they come from CI's `screenshot-baselines` artifact (ADR 0008).
