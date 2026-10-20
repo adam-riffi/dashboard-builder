@@ -90,6 +90,10 @@ test("a line of revenue growth by day draws from PREVIOUSPERIOD", async ({ page 
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Growth" })).toBeVisible();
   await expect(page.locator('[data-visual="line-1"] [data-ready="true"]')).toBeVisible();
+  // The chart's text alternative lists the days' growth: some are amounts, not all empty.
+  await expect(
+    page.locator('[data-visual="line-1"] [aria-label^="Revenue growth by"]').first(),
+  ).toHaveAttribute("aria-label", /\$\d/);
   await page.getByRole("button", { name: "Delete dashboard" }).click();
 });
 
