@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m10/01-adr · #92
+- Done: ADR 0013 adds `CALCULATE` (with `ALL`), `PREVIOUSPERIOD` and `RUNNINGSUM` to the formula language: their typing, the time-axis rule, how filters apply, and the SQL (FILTER clauses in one statement; a two-stage compile for time functions and `ALL`). DESIGN.md §6 names them.
+- Tests: none (docs).
+- Scope/decisions: `lag()` and window-based shares rejected for correctness; queries without the new functions compile as before.
+- Next: the checker (#93).
+
 ## 2026-10-20 · claude · stack/m9/06-guest-cleanup · #91
 - Done: migration `0004_forget_inactive_guests` (DESIGN.md §14, ADR 0012):
   - adds `dash.memberships.last_seen_at`;
@@ -377,11 +383,3 @@ Entry format:
 - Tests: Playwright `e2e/dashboards.spec.ts` (CI, with Supabase): create, rename, save, reload, reopen with live data, delete, gone after reload.
 - Scope/decisions: no deep links (state only); the sample stays the default view, so the smoke test still holds.
 - Next: stack/m5/09-builder-e2e (M5 acceptance: drag and drop, the formula editor, builder screenshots).
-
-## 2026-10-08 · claude · stack/m5/07-dashboard-store · #50
-- Done: the demo stores dashboards (Georges' choice: the host stores them).
-  - `apps/demo/lib/dashboards.ts`: `listDashboards`, `getDashboard`, `saveDashboard` (an upsert; another user's id is "forbidden", from the RLS error 42501), `deleteDashboard`, each as `dash_app` in a transaction with `app.user_id` (ADR 0001). `parseSave` returns 413 above 256 KB, 400 for bad JSON or an invalid spec.
-  - Route `/api/dashboards[/id]` (GET list or one, PUT, DELETE): the gateway's own `authenticate` (now exported) and the demo's auth config; ids must be UUIDs; `private, no-store`.
-- Tests: `db/test/dashboards.test.ts` in the CI integration suite: the owner saves, updates, lists, reads and deletes; another user sees nothing and changes nothing; request parsing. A Playwright `@smoke` test: the route answers 401 without a token.
-- Scope/decisions: the route lives in the demo, not the gateway (DESIGN §7). `@adam-riffi/dash-core` is now a dev dependency of `db` for its test.
-- Next: stack/m5/08-demo-builder.
