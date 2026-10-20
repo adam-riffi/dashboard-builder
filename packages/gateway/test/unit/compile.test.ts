@@ -405,3 +405,124 @@ describe("compileQuery with formulas", () => {
     );
   });
 });
+
+describe("compileQuery in two stages (ADR 0013)", () => {
+  const month = { field: "dash_demo.orders.ordered_at", timeGrain: "month" as const };
+  const from = [
+    'from "dash_demo"."order_items" as "t0"',
+    'left join "dash_demo"."orders" as "t1" on "t1"."id" = "t0"."order_id"',
+  ];
+
+  it("reads PREVIOUSPERIOD from a CTE over the window one grain earlier", () => {
+    const result = compile({
+      dimensions: [month],
+      measures: [{ formula: "PREVIOUSPERIOD(SUM(order_items.quantity))" }],
+      filters: [{ field: month.field, op: "gte", values: ["2026-01-01"] }],
+    });
+    expect(result.ok && result.query.text).toBe(
+      [
+        'with "g" as (',
+        `select date_trunc('month', "t1"."ordered_at") as "d0"`,
+        ...from,
+        'where "t0"."tenant_id" = any($1) and "t1"."tenant_id" = any($2) and "t1"."ordered_at" >= $3',
+        "group by 1",
+        '), "p" as (',
+        `select date_trunc('month', "t1"."ordered_at") as "d0", sum("t0"."quantity") as "b0"`,
+        ...from,
+        `where "t0"."tenant_id" = any($4) and "t1"."tenant_id" = any($5) and ("t1"."ordered_at" + interval '1 month') >= $6`,
+        "group by 1",
+        ")",
+        'select "g"."d0" as "d0", "p"."b0" as "m0"',
+        'from "g"',
+        `left join "p" on ("p"."d0" + interval '1 month') = "g"."d0"`,
+        "order by 1",
+        "limit $7",
+      ].join("\n"),
+    );
+    expect(result.ok && result.query.params).toEqual([
+      [1, 2],
+      [1, 2],
+      "2026-01-01",
+      [1, 2],
+      [1, 2],
+      "2026-01-01",
+      10_001,
+    ]);
+  });
+
+  it("sums RUNNINGSUM along the time axis per combination of the other dimensions", () => {
+    const result = compile({
+      dimensions: [{ field: "dash_demo.orders.status" }, month],
+      measures: [{ formula: "RUNNINGSUM(SUM(order_items.quantity))" }],
+      sort: [{ by: "measure", index: 0, dir: "desc" }],
+    });
+    expect(result.ok && result.query.text).toBe(
+      [
+        'with "g" as (',
+        `select "t1"."status" as "d0", date_trunc('month', "t1"."ordered_at") as "d1", sum("t0"."quantity") as "a0"`,
+        ...from,
+        'where "t0"."tenant_id" = any($1) and "t1"."tenant_id" = any($2)',
+        "group by 1, 2",
+        ")",
+        'select "g"."d0" as "d0", "g"."d1" as "d1", sum("g"."a0") over (partition by "g"."d0" order by "g"."d1" rows between unbounded preceding and current row) as "m0"',
+        'from "g"',
+        'order by "m0" desc nulls last, 1, 2',
+        "limit $3",
+      ].join("\n"),
+    );
+  });
+
+  it("joins the previous period on the other dimensions too, nulls included", () => {
+    const result = compile({
+      dimensions: [{ field: "dash_demo.orders.status" }, month],
+      measures: [
+        { formula: "SUM(order_items.quantity) - PREVIOUSPERIOD(SUM(order_items.quantity))" },
+      ],
+    });
+    const lines = result.ok ? result.query.text.split("\n") : [];
+    expect(lines).toContain(
+      'select "g"."d0" as "d0", "g"."d1" as "d1", ("g"."a0" - "p"."b0") as "m0"',
+    );
+    expect(lines).toContain(
+      // Null-safe and hashable: `is not distinct from` would force a nested loop (M10 review).
+      `left join "p" on ("p"."d1" + interval '1 month') = "g"."d1" and coalesce("p"."d0"::text, '') = coalesce("g"."d0"::text, '') and ("p"."d0" is null) = ("g"."d0" is null)`,
+    );
+  });
+
+  it("keeps a date column's shifted filter a date, so a timestamp value compares as before", () => {
+    // A Postgres `date` column: plus an interval it becomes a timestamp, so it is cast back.
+    const dated = dataContract.parse({
+      ...demo,
+      tables: demo.tables.map((t) =>
+        t.name !== "dash_demo.orders"
+          ? t
+          : {
+              ...t,
+              columns: t.columns.map((c) =>
+                c.name === "ordered_at" ? { ...c, pgType: "date" } : c,
+              ),
+            },
+      ),
+    });
+    const valid = validateQuery(
+      querySpec.parse({
+        dimensions: [month],
+        measures: [{ formula: "PREVIOUSPERIOD(SUM(order_items.quantity))" }],
+        filters: [{ field: month.field, op: "gte", values: ["2026-01-01"] }],
+      }),
+      dated,
+    );
+    if (!valid.ok) throw new Error(valid.errors.join("; "));
+    const planned = planJoins(valid.query, dated);
+    if (!planned.ok) throw new Error(planned.errors.join("; "));
+    const result = compileQuery(valid.query, planned.plan, tenantPolicies, { tenantIds: [1, 2] });
+    expect(result.ok && result.query.text).toContain(
+      `(("t1"."ordered_at" + interval '1 month'))::date >= $6`,
+    );
+  });
+
+  it("compiles queries without time functions in one statement, as before", () => {
+    const result = compile({ dimensions: [month], measures: [units] });
+    expect(result.ok && result.query.text.startsWith("select ")).toBe(true);
+  });
+});
