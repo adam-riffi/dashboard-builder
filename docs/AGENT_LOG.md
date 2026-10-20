@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m9/03-gateway-coverage · #88
+- Done: `packages/gateway/test/unit/queries.test.ts`:
+  - a fake client answers introspection and runs compiled queries, so the query path, the cache hit, explain, a failed query, POST /query's and the contract's 304s, and health run without a database;
+  - `jwtAuth` rejects a malformed token before fetching keys.
+  - The react tests get a 15 s timeout: a file's first jsdom test went past 5 s under `pnpm check`'s parallel load.
+- Tests: gateway unit lines 90.02% → 98.89% (`gateway.ts` 75% → 97.7%), above main's 93.15%.
+- Scope/decisions: tests only; no changeset.
+- Next: repair a field that became ambiguous (#89).
+
 ## 2026-10-20 · claude · stack/m9/02-nulls-last · #87
 - Done: the compiler writes `nulls last` on every sort key, so a limit keeps the rows that have a value; Postgres put nulls first when descending (found in the M8 review). The scatter's comment loses its note.
 - Tests: written first. `compile.test.ts` (both directions); an integration test where only one region has refunds and a limit of 1 keeps it (CI).
@@ -385,9 +394,3 @@ Entry format:
 - Tests: `packages/react/test/canvas.test.tsx`: build a bar from picked fields and save it; title, sort and remove a visual; rename the dashboard.
 - Scope/decisions: the options panel knows the built-in visuals only (ponytail; host plugins could describe their options later); `react-grid-layout` 2.3.0 added (DESIGN §6).
 - Next: stack/m5/05-filters.
-
-## 2026-10-08 · claude · stack/m5/03-field-wells · #46
-- Done: `<SlotWells spec visualId picked onChange>`: one well per slot of the visual's plugin (dnd-kit droppables), listing items with "×" to remove. While a field is dragged, a well is marked `accepts` or `refuses`. A picked field shows "Add … to …", disabled where the well refuses it. `dropFromEvent` turns a drag end into the spec change. Fields in the list are drag sources (pointer only), so Enter and Space stay a pick for keyboard users.
-- Tests: `packages/react/test/wells.test.tsx` (DESIGN §10): wells per slot; a picked field updates the spec; refused fields cannot be added; removal; drops from drag events, outside a well, and on a refusing well.
-- Scope/decisions: jsdom has no layout for dnd-kit's collision detection, so real dragging is tested by the M5 Playwright test (PR 9); both paths go through `dropItem`.
-- Next: stack/m5/04-builder-canvas.
