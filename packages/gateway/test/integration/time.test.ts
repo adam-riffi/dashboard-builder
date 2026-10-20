@@ -18,7 +18,8 @@ const tables = ["fx_time.sales"];
 let contract: ReturnType<typeof inferContract>;
 
 beforeAll(async () => {
-  // 300 sales over half a year, spread unevenly so that many days and some weeks have none.
+  // 300 sales over half a year on about half of its days (squares modulo 181), so that
+  // daily buckets have gaps.
   await admin.unsafe(`
     drop schema if exists fx_time cascade;
     create schema fx_time;
@@ -28,7 +29,7 @@ beforeAll(async () => {
     );
     insert into fx_time.sales
     select g, (array['north', 'south', 'east'])[1 + g % 3], (g * 37) % 100,
-      timestamptz '2026-01-01' + ((g * 7919) % 180) * interval '1 day' + (g % 24) * interval '1 hour'
+      timestamptz '2026-01-01' + ((g * g) % 181) * interval '1 day' + (g % 24) * interval '1 hour'
     from generate_series(1, 300) g;
   `);
   contract = inferContract(await introspect(admin, tables), { tables });
