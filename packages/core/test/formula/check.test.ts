@@ -110,8 +110,33 @@ describe("check", () => {
     ['SUM(order_items.quantity) > 10 AND NOT MAX(orders.status) = "x"', "boolean"],
     ["COUNT(1)", "number"],
     ["[Revenue] / [Orders]", "number"],
+    // M10 (ADR 0013)
+    ['CALCULATE([Revenue], orders.status = "paid")', "number"],
+    ["CALCULATE(MAX(orders.status), orders.refunded, orders.id > 10)", "string"],
+    ["CALCULATE([Revenue], ALL(orders.status))", "number"],
+    ["DIVIDE([Revenue], CALCULATE([Revenue], ALL(orders.status)))", "number"],
+    ["[Revenue] - PREVIOUSPERIOD([Revenue])", "number"],
+    ["PREVIOUSPERIOD(MAX(orders.status))", "string"],
+    ["RUNNINGSUM([Orders])", "number"],
+    ['PREVIOUSPERIOD(CALCULATE([Revenue], orders.status = "paid"))', "number"],
+    ['CALCULATE(RUNNINGSUM([Revenue]), orders.status = "paid")', "number"],
   ])("accepts %s as an aggregate %s", (source, type) => {
     expect(typed(source)).toMatchObject({ type, level: "aggregate" });
+  });
+
+  it("keeps ALL's field as a CALCULATE condition (ADR 0013)", () => {
+    expect(typed("CALCULATE([Orders], ALL(orders.status))")).toMatchObject({
+      kind: "call",
+      name: "CALCULATE",
+      args: [
+        { kind: "call", name: "COUNTDISTINCT" },
+        {
+          kind: "call",
+          name: "ALL",
+          args: [{ kind: "column", table: "shop.orders", column: "status" }],
+        },
+      ],
+    });
   });
 
   it("inlines measure references", () => {
@@ -233,6 +258,45 @@ describe("check", () => {
     ["[Broken]", "in [Broken]: unknown table nope", "[Broken]"],
     ["[Row]", "in [Row]: a measure must aggregate its rows, e.g. SUM(table.column)", "[Row]"],
     ["SUM(", "unexpected end of formula", ""],
+    // M10 (ADR 0013)
+    [
+      'CALCULATE(orders.id, orders.status = "paid")',
+      "CALCULATE needs a measure, e.g. CALCULATE(SUM(table.column), condition)",
+      "orders.id",
+    ],
+    [
+      "CALCULATE([Revenue], [Orders] > 1)",
+      "CALCULATE's conditions are about each row, not aggregates",
+      "[Orders] > 1",
+    ],
+    [
+      "CALCULATE([Revenue], orders.status)",
+      "CALCULATE's conditions are true/false values, not a string",
+      "orders.status",
+    ],
+    ["CALCULATE([Revenue])", "CALCULATE takes at least 2 arguments", "CALCULATE([Revenue])"],
+    [
+      "ALL(orders.status)",
+      "ALL only works as a CALCULATE condition, e.g. CALCULATE([Revenue], ALL(table.column))",
+      "ALL(orders.status)",
+    ],
+    ["CALCULATE([Revenue], ALL(1))", "ALL takes a field, e.g. ALL(table.column)", "1"],
+    [
+      "PREVIOUSPERIOD(order_items.quantity)",
+      "PREVIOUSPERIOD needs a measure, e.g. PREVIOUSPERIOD([Revenue])",
+      "order_items.quantity",
+    ],
+    [
+      "RUNNINGSUM(MAX(orders.ordered_at))",
+      "RUNNINGSUM needs a number, not a date",
+      "MAX(orders.ordered_at)",
+    ],
+    [
+      "PREVIOUSPERIOD(RUNNINGSUM([Orders]))",
+      "PREVIOUSPERIOD and RUNNINGSUM cannot be nested",
+      "RUNNINGSUM([Orders])",
+    ],
+    ["SUM(PREVIOUSPERIOD([Orders]))", "aggregates cannot be nested", "PREVIOUSPERIOD([Orders])"],
   ])("rejects %s: %s", (source, message, fragment) => {
     const start = source.lastIndexOf(fragment);
     expect(check(source, env)).toEqual({
