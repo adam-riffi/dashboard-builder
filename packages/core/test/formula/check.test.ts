@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type CheckEnv, check, type DataContract, type FieldType } from "../../src/index.ts";
+import {
+  type CheckEnv,
+  check,
+  type DataContract,
+  type FieldType,
+  resolveField,
+} from "../../src/index.ts";
 
 const col = (name: string, type: FieldType, role: "id" | "time" | "measure" | "dimension") => ({
   name,
@@ -262,5 +268,15 @@ describe("check", () => {
     const deep = chain(17);
     expect(deep.ok).toBe(false);
     if (!deep.ok) expect(deep.errors[0]?.message).toContain("references nest more than 16 levels");
+  });
+});
+
+describe("resolveField", () => {
+  it("lists every schema's column for a bare table name that is in several", () => {
+    expect(resolveField(["customers", "id"], contract)).toMatchObject({
+      ok: false,
+      reason: "ambiguous",
+      choices: ["archive.customers.id", "shop.customers.id"],
+    });
   });
 });
