@@ -318,6 +318,8 @@ export function compileQuery(
   const g = (i: number) => `"g".${quote(`d${i}`)}`;
   const stage: Stage = {
     column: (sql, earlier, lifted) => {
+      // The checker refuses ALL with PREVIOUSPERIOD; a total of the previous window has no CTE.
+      if (earlier && lifted.length > 0) throw new Error("ALL and PREVIOUSPERIOD don't combine");
       if (lifted.length > 0) {
         const key = lifted
           .map((f) => `${f.table}.${f.column}`)
@@ -349,12 +351,20 @@ export function compileQuery(
     prefix: string,
     predicates: string[],
     kept = query.dimensions.map((_, i) => i),
-  ) => [
-    `select ${[...kept.map((i) => dimensions[i]), ...aggregates.map((sql, k) => `${sql} as ${quote(`${prefix}${k}`)}`)].join(", ")}`,
-    ...from,
-    ...where(predicates),
-    ...(kept.length > 0 ? [`group by ${kept.map((_, j) => j + 1).join(", ")}`] : []),
-  ];
+  ) => {
+    const select = [
+      ...kept.map((i) => dimensions[i]),
+      ...aggregates.map((sql, k) => `${sql} as ${quote(`${prefix}${k}`)}`),
+    ];
+    return [
+      select.length > 0 ? `select ${select.join(", ")}` : "select",
+      ...from,
+      ...where(predicates),
+      // Without dimensions, `group by ()` still makes one row: one per fact row otherwise, and
+      // none when the filters match nothing (M10 review).
+      `group by ${kept.length > 0 ? kept.map((_, j) => j + 1).join(", ") : "()"}`,
+    ];
+  };
   const usesPrevious = query.measures.some((m) => calls(m.expr, PREVIOUS));
   const previousCte = (): string[] => {
     if (!usesPrevious || !axis) return [];
@@ -386,7 +396,7 @@ export function compileQuery(
   const totalJoins = [...totals.values()].map(({ lifted }, k) => {
     const w = quote(`w${k}`);
     const kept = keptBy(lifted);
-    const on = kept.map((i) => `${w}.${quote(`d${i}`)} is not distinct from ${g(i)}`);
+    const on = kept.map((i) => sameKey(`${w}.${quote(`d${i}`)}`, g(i)));
     return `left join ${w} on ${on.length > 0 ? on.join(" and ") : "true"}`;
   });
   const lines = [

@@ -50,7 +50,8 @@ export function tablesOf(expr: Typed): string[] {
   const found = new Set<string>();
   const walk = (t: Typed): void => {
     if (t.kind === "column") found.add(t.table);
-    else children(t).forEach(walk);
+    // ALL only names the field it lifts (ADR 0013): the measure doesn't read its table.
+    else if (!(t.kind === "call" && t.name === "ALL")) children(t).forEach(walk);
   };
   walk(expr);
   return [...found].sort();

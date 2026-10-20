@@ -544,6 +544,7 @@ describe("compileQuery in two stages (ADR 0013)", () => {
         ...from,
         // ALL lifts the filter on its own field, never a policy.
         'where "t0"."tenant_id" = any($4) and "t1"."tenant_id" = any($5)',
+        "group by ()",
         ")",
         'select "g"."d0" as "d0", (("g"."a0")::numeric / nullif("w0"."c0", 0)) as "m0"',
         'from "g"',
