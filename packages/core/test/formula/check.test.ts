@@ -297,6 +297,16 @@ describe("check", () => {
       "RUNNINGSUM([Orders])",
     ],
     ["SUM(PREVIOUSPERIOD([Orders]))", "aggregates cannot be nested", "PREVIOUSPERIOD([Orders])"],
+    [
+      "PREVIOUSPERIOD(CALCULATE([Revenue], ALL(orders.status)))",
+      "ALL and PREVIOUSPERIOD don't combine in one measure yet",
+      "CALCULATE([Revenue], ALL(orders.status))",
+    ],
+    [
+      "CALCULATE(PREVIOUSPERIOD([Revenue]), ALL(orders.status))",
+      "ALL and PREVIOUSPERIOD don't combine in one measure yet",
+      "PREVIOUSPERIOD([Revenue])",
+    ],
   ])("rejects %s: %s", (source, message, fragment) => {
     const start = source.lastIndexOf(fragment);
     expect(check(source, env)).toEqual({

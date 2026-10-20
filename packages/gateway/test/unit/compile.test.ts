@@ -521,6 +521,52 @@ describe("compileQuery in two stages (ADR 0013)", () => {
     );
   });
 
+  it("computes ALL's total in its own CTE, grouped by the other dimensions", () => {
+    const result = compile({
+      dimensions: [{ field: "dash_demo.orders.status" }],
+      measures: [
+        {
+          formula:
+            "DIVIDE(SUM(order_items.quantity), CALCULATE(SUM(order_items.quantity), ALL(orders.status)))",
+        },
+      ],
+      filters: [{ field: "dash_demo.orders.status", op: "in", values: ["paid", "shipped"] }],
+    });
+    expect(result.ok && result.query.text).toBe(
+      [
+        'with "g" as (',
+        'select "t1"."status" as "d0", sum("t0"."quantity") as "a0"',
+        ...from,
+        'where "t0"."tenant_id" = any($1) and "t1"."tenant_id" = any($2) and "t1"."status" = any($3)',
+        "group by 1",
+        '), "w0" as (',
+        'select sum("t0"."quantity") as "c0"',
+        ...from,
+        // ALL lifts the filter on its own field, never a policy.
+        'where "t0"."tenant_id" = any($4) and "t1"."tenant_id" = any($5)',
+        ")",
+        'select "g"."d0" as "d0", (("g"."a0")::numeric / nullif("w0"."c0", 0)) as "m0"',
+        'from "g"',
+        'left join "w0" on true',
+        "order by 1",
+        "limit $6",
+      ].join("\n"),
+    );
+  });
+
+  it("joins ALL's total back on the dimensions it keeps", () => {
+    const result = compile({
+      dimensions: [month, { field: "dash_demo.orders.status" }],
+      measures: [{ formula: "CALCULATE(SUM(order_items.quantity), ALL(orders.status))" }],
+    });
+    const lines = result.ok ? result.query.text.split("\n") : [];
+    expect(lines).toContain(
+      `select date_trunc('month', "t1"."ordered_at") as "d0", sum("t0"."quantity") as "c0"`,
+    );
+    expect(lines).toContain('left join "w0" on "w0"."d0" is not distinct from "g"."d0"');
+    expect(lines).toContain('select "g"."d0" as "d0", "g"."d1" as "d1", "w0"."c0" as "m0"');
+  });
+
   it("compiles queries without time functions in one statement, as before", () => {
     const result = compile({ dimensions: [month], measures: [units] });
     expect(result.ok && result.query.text.startsWith("select ")).toBe(true);
