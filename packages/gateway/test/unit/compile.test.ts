@@ -484,7 +484,40 @@ describe("compileQuery in two stages (ADR 0013)", () => {
       'select "g"."d0" as "d0", "g"."d1" as "d1", ("g"."a0" - "p"."b0") as "m0"',
     );
     expect(lines).toContain(
-      `left join "p" on ("p"."d1" + interval '1 month') = "g"."d1" and "p"."d0" is not distinct from "g"."d0"`,
+      // Null-safe and hashable: `is not distinct from` would force a nested loop (M10 review).
+      `left join "p" on ("p"."d1" + interval '1 month') = "g"."d1" and coalesce("p"."d0"::text, '') = coalesce("g"."d0"::text, '') and ("p"."d0" is null) = ("g"."d0" is null)`,
+    );
+  });
+
+  it("keeps a date column's shifted filter a date, so a timestamp value compares as before", () => {
+    // A Postgres `date` column: plus an interval it becomes a timestamp, so it is cast back.
+    const dated = dataContract.parse({
+      ...demo,
+      tables: demo.tables.map((t) =>
+        t.name !== "dash_demo.orders"
+          ? t
+          : {
+              ...t,
+              columns: t.columns.map((c) =>
+                c.name === "ordered_at" ? { ...c, pgType: "date" } : c,
+              ),
+            },
+      ),
+    });
+    const valid = validateQuery(
+      querySpec.parse({
+        dimensions: [month],
+        measures: [{ formula: "PREVIOUSPERIOD(SUM(order_items.quantity))" }],
+        filters: [{ field: month.field, op: "gte", values: ["2026-01-01"] }],
+      }),
+      dated,
+    );
+    if (!valid.ok) throw new Error(valid.errors.join("; "));
+    const planned = planJoins(valid.query, dated);
+    if (!planned.ok) throw new Error(planned.errors.join("; "));
+    const result = compileQuery(valid.query, planned.plan, tenantPolicies, { tenantIds: [1, 2] });
+    expect(result.ok && result.query.text).toContain(
+      `(("t1"."ordered_at" + interval '1 month'))::date >= $6`,
     );
   });
 
