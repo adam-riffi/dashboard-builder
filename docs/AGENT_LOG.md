@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m10/02-checker · #93
+- Done: `check.ts` types the M10 functions (ADR 0013):
+  - `CALCULATE(m, condition, …)`: aggregate `m`; row-level true/false conditions, or `ALL(field)`, which is allowed only there;
+  - `PREVIOUSPERIOD(m)` and `RUNNINGSUM(m)` (a number): aggregate `m`, not nested in each other;
+  - `TIME_FUNCTIONS` and `calls()` are exported for the time-axis rule and the compiler;
+  - `FUNCTIONS` grows, so the formula editor completes the new names.
+- Tests: written first: 9 accepted formulas, the typed `ALL` condition, and 10 errors with their spans (`check.test.ts`).
+- Scope/decisions: until the compiler PRs land, the gateway answers these formulas with an error. Changeset (core minor).
+- Next: time functions need a time axis (#94).
+
 ## 2026-10-20 · claude · stack/m10/01-adr · #92
 - Done: ADR 0013 adds `CALCULATE` (with `ALL`), `PREVIOUSPERIOD` and `RUNNINGSUM` to the formula language: their typing, the time-axis rule, how filters apply, and the SQL (FILTER clauses in one statement; a two-stage compile for time functions and `ALL`). DESIGN.md §6 names them.
 - Tests: none (docs).
@@ -370,16 +380,3 @@ Entry format:
 - Scope/decisions: the drag helper scrolls the source into view and waits 100 ms after a drop (dnd-kit ignores clicks for 50 ms after one). The test clicks the completion because CodeMirror ignores Enter for 75 ms after the list opens.
 - Next: an independent review of M5 (#44–#52), then the merge loop and a production check.
   - Known issue (pre-M5, task suggested): gateway requests on a fresh deployment can hang to the 300 s function limit. The 2026-10-08 production smoke failed that way; production itself is fine once warm.
-
-## 2026-10-08 · claude · stack/m5/08-demo-builder · #51
-- Done: the demo's dashboards page (`apps/demo/app/dashboards.tsx`, inside the signed-in session):
-  - "Your dashboards" from `/api/dashboards`;
-  - "New dashboard" starts from the sample spec with a fresh UUID and opens the builder;
-  - Save `PUT`s and switches to the viewer;
-  - an open dashboard has Edit, Delete and Close;
-  - with nothing open, the sample dashboard shows, as before.
-
-  The layout imports `react-grid-layout/css/styles.css`, which is now a demo dependency.
-- Tests: Playwright `e2e/dashboards.spec.ts` (CI, with Supabase): create, rename, save, reload, reopen with live data, delete, gone after reload.
-- Scope/decisions: no deep links (state only); the sample stays the default view, so the smoke test still holds.
-- Next: stack/m5/09-builder-e2e (M5 acceptance: drag and drop, the formula editor, builder screenshots).
