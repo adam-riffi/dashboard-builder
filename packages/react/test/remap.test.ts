@@ -254,6 +254,7 @@ describe("ambiguous references (M9)", () => {
     visuals: [visual("kpi", "kpi", { value: [{ name: "Count" }] })],
   });
 
+  // With nothing else in the dashboard to tell the schemas apart, they come alphabetically.
   it("reports a table.column that became ambiguous, each schema's column first", () => {
     const [ref] = lostRefs(counted, twoSchemas);
     expect(ref).toEqual({
@@ -265,6 +266,24 @@ describe("ambiguous references (M9)", () => {
     expect(replacements(ref as LostRef, counted, twoSchemas).slice(0, 2)).toEqual([
       "archive.orders.id",
       "dash_demo.orders.id",
+    ]);
+  });
+
+  it("offers first the schema the dashboard already reads", () => {
+    const withBar = dashboard({
+      measures: counted.measures,
+      visuals: [
+        ...counted.visuals,
+        visual("bar", "bar", {
+          category: [{ field: "dash_demo.products.category" }],
+          value: [{ name: "Count" }],
+        }),
+      ],
+    });
+    const [ref] = lostRefs(withBar, twoSchemas);
+    expect(replacements(ref as LostRef, withBar, twoSchemas).slice(0, 2)).toEqual([
+      "dash_demo.orders.id",
+      "archive.orders.id",
     ]);
   });
 
