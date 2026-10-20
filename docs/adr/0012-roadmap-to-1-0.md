@@ -31,7 +31,7 @@ That cleanup touches a shared Supabase project: its anonymous sign-ins belong to
   - **M14 Release 1.0:** the release workflow, a docs pass, version 1.0.0, the first publish.
 - **Versions:** the packages stay unpublished at 0.x until M14. Changesets accumulate, and M14 bumps them to 1.0.0.
 - **Inactive guests:**
-  - **What the job deletes:** a weekly pg_cron job deletes this app's own data for guests unseen for 30 days, meaning their memberships and dashboards, plus dashboards left without a membership for 30 days.
+  - **What the job deletes:** a weekly pg_cron job deletes this app's own data for guests unseen for 30 days, meaning their memberships and dashboards, plus dashboards that have no membership and haven't been updated for 30 days.
   - **Last seen:** `dash.memberships.last_seen_at` records it, refreshed at most once a day when the guest's scope is resolved.
   - **Auth users:** deleting anonymous users stays with `portfolio-infra`.
 

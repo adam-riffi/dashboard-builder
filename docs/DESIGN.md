@@ -230,6 +230,7 @@ Vercel project rooted at `apps/demo` (Next.js, Node runtime for gateway routes),
 - Scope creep in the builder: v1 limits visuals to four and filters to equality, ranges and lists.
 - Formula language design can sprawl: v1 grammar is fixed in §6; additions need an ADR.
 - Supabase anonymous users accumulate: a weekly job deletes this app's data (memberships and dashboards) for guests unseen for 30 days; deleting the anonymous users of the shared project stays with `portfolio-infra` ([ADR 0012](adr/0012-roadmap-to-1-0.md)).
+
 ## 15. Definition of done
 
 - [ ] Demo script in §3 works on the production URL.
