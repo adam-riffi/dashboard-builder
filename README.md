@@ -60,7 +60,10 @@ flowchart TB
 
 - **Contract inference.** The allowlisted tables are read from `pg_catalog`. Column roles (id, time, measure, dimension) come from types, keys and statistics, and the relationships from foreign keys. The contract carries a schema hash, its version. Statistics stay on the server, since they ignore RLS.
 - **Join paths.** A query's measures share one fact table. Every other table it reads is reached through many-to-one relationships, by the shortest unambiguous path. Paths that would fan out and double-count are refused.
-- **Formulas.** `DIVIDE([Revenue], [Orders])` goes through a lexer, a Pratt parser and a checker. The checker assigns row or aggregate levels, inlines named measures, and reports errors at their spans. A renderer then emits SQL with casts and `nullif` for safe division.
+- **Formulas.** `DIVIDE([Revenue], [Orders])` goes through a lexer, a Pratt parser and a checker. The checker assigns row or aggregate levels, inlines named measures, and reports errors at their spans. A renderer then emits SQL with casts and `nullif` for safe division. Beyond the aggregates, the language has these functions ([ADR 0013](docs/adr/0013-formula-additions-m10.md)):
+  - `CALCULATE([m], condition)` compiles to `FILTER (WHERE …)` clauses.
+  - `PREVIOUSPERIOD([m])` and `RUNNINGSUM([m])` compile in two stages: a grouped CTE, a self-join one bucket earlier, and a window. This is right across buckets without data.
+  - `CALCULATE([m], ALL(field))` totals at a coarser grain, for shares.
 - **Cache keys.** `sha256(scope hash, contract version, compiled SQL, parameters)`. The compiled SQL is keyed rather than the request, because two dashboards may give one measure name two meanings. An entry serves a request only while it is younger than that dashboard's refresh interval.
 - **Cross-filtering.** A click becomes a filter on every other visual's query, while the clicked visual only highlights. A category gives an equality; a time point gives its period's `[start, next start)` in UTC.
 
