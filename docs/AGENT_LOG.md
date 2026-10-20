@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m10/07-demo-and-docs · #98
+- Done: the demo offers four host measures built on M10:
+  - "Revenue, previous period" (`PREVIOUSPERIOD([Revenue])`);
+  - "Revenue growth" (`[Revenue] - PREVIOUSPERIOD([Revenue])`);
+  - "Running orders" (`RUNNINGSUM([Orders])`);
+  - "Share of revenue" (`DIVIDE([Revenue], CALCULATE([Revenue], ALL(products.category)))`).
+
+  The README's algorithms section and core's README document the new functions.
+- Tests: written first. The e2e "a line of revenue growth by day draws from PREVIOUSPERIOD" builds the line in the builder on the live stack (CI), saves it, sees it drawn, and deletes it. The four measures pass the gateway's startup vetting against the demo's golden contract (checked locally).
+- Scope/decisions: the sample dashboard and its screenshot baselines are unchanged; the builder's fixture uses its own contract. No changeset (the demo isn't published).
+- Next: the M10 review, merges, HANDOFF.
+
 ## 2026-10-20 · claude · stack/m10/06-all · #97
 - Done: `ALL` compiles (ADR 0013).
   - A `CALCULATE` with `ALL(field)` adds the field to the stage's lifted set. Its aggregates go to a total CTE `w<k>`, one per set of lifted fields, grouped by the other dimensions, without the filters on those fields (policies stay).
@@ -352,13 +364,3 @@ Entry format:
   - Supavisor saw the killed instance's only connection idle, so they waited outside the database.
   - Locally, a cold postgres.js client (gateway options) under concurrent first queries never hung against PGlite, with or without 70 ms latency.
 - Next: read the stage from the next fresh deployment's logs (within an hour; Hobby keeps one), then fix the cause.
-
-## 2026-10-08 · claude · stack/m5/13-dashboard-cap · #56
-- Done: the demo's store findings of the M5 review (finding 3 and nits 13, 14, 17).
-  - At most 20 dashboards per user; a new one past the cap gets 409, while existing ones still save.
-  - PUT refuses an oversized body from its `content-length` (413) before signing in or reading it.
-  - The dashboards page opens the viewer only after a save the store accepted. A 409 says to delete one; anything else says the save failed. Opening a vanished dashboard says so and refreshes the list.
-  - ADR 0009 (the host stores dashboards) records M5's §7 changes; DESIGN.md §8 now says the host's store sets `app.user_id`.
-- Tests: integration (CI): the cap and updates at the cap. e2e: refused saves (404, 409) reported, with the builder still open (CI, signed in); 413 from the declared size (also passes locally).
-- Scope/decisions: the cap is per user (`ponytail:` a global quota if anonymous sign-ups are abused).
-- Next: CI green on #52–#56, then the M5 merge loop and a production check.

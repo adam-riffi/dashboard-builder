@@ -42,6 +42,23 @@ export default defineGateway({
     },
     { name: "Orders", formula: "COUNTDISTINCT(order_items.order_id)", format: "number" },
     { name: "Average order value", formula: "DIVIDE([Revenue], [Orders])", format: "currency" },
+    // M10 (ADR 0013): time intelligence and shares, for a line by day or a table by category.
+    {
+      name: "Revenue, previous period",
+      formula: "PREVIOUSPERIOD([Revenue])",
+      format: "currency",
+    },
+    {
+      name: "Revenue growth",
+      formula: "[Revenue] - PREVIOUSPERIOD([Revenue])",
+      format: "currency",
+    },
+    { name: "Running orders", formula: "RUNNINGSUM([Orders])", format: "number" },
+    {
+      name: "Share of revenue",
+      formula: "DIVIDE([Revenue], CALCULATE([Revenue], ALL(products.category)))",
+      format: "percent",
+    },
   ],
   // Per function instance; keyed by scope and compiled query (DESIGN.md §6, ADR 0010).
   cache: memoryCache({ maxBytes: 50_000_000 }),
