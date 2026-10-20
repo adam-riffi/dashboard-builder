@@ -109,6 +109,29 @@ describe("executeQuery", () => {
     expect(result.data).toEqual([["south"], [20]]);
   });
 
+  it("evaluates CALCULATE on the rows that meet its conditions (ADR 0013)", async () => {
+    const { query, limit } = compiled(
+      {
+        dimensions: [region],
+        measures: [
+          { formula: 'CALCULATE(SUM(sales.amount), sales.channel = "web")' },
+          { formula: "CALCULATE(COUNT(sales.id), sales.refunded)" },
+        ],
+      },
+      { tenantIds: [1, 2, 3] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2,3" },
+    });
+    // north: web 10 + web 30; south: one refunded store sale; east: web 40.
+    expect(result.data).toEqual([
+      ["east", "north", "south"],
+      [40, 40, null],
+      [0, 0, 1],
+    ]);
+  });
+
   it("caps rows at the limit and reports truncation", async () => {
     const { query, limit } = compiled(
       {

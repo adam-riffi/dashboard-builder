@@ -330,6 +330,27 @@ describe("compileQuery with formulas", () => {
       '((min("t0"."ordered_at") < max("t0"."ordered_at")) and (count("t0"."id") >= $2::numeric))',
       [1],
     ],
+    // CALCULATE: each aggregate inside gets the conditions as a FILTER clause (ADR 0013).
+    [
+      "CALCULATE(SUM(order_items.quantity), order_items.quantity > 1)",
+      'sum("t0"."quantity") filter (where ("t0"."quantity" > $2::numeric))',
+      [1],
+    ],
+    [
+      "CALCULATE(COUNTDISTINCT(order_items.order_id), order_items.quantity > 1)",
+      'count(distinct "t0"."order_id") filter (where ("t0"."quantity" > $2::numeric))',
+      [1],
+    ],
+    [
+      "CALCULATE(CALCULATE(COUNT(order_items.id), order_items.quantity > 1), order_items.unit_price < 10)",
+      'count("t0"."id") filter (where ("t0"."unit_price" < $2::numeric) and ("t0"."quantity" > $3::numeric))',
+      [10, 1],
+    ],
+    [
+      "DIVIDE(CALCULATE(SUM(order_items.quantity), order_items.quantity > 1), SUM(order_items.quantity))",
+      '((sum("t0"."quantity") filter (where ("t0"."quantity" > $2::numeric)))::numeric / nullif(sum("t0"."quantity"), 0))',
+      [1],
+    ],
   ])("compiles %s", (formula, sql, values) => {
     const query = compileFormulas(formula);
     expect(query.text.split("\n")[0]).toEqual(`select ${sql} as "m0"`);
