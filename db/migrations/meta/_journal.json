@@ -29,6 +29,13 @@
       "when": 1791323105928,
       "tag": "0003_pin_tick_search_path",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792522200814,
+      "tag": "0004_forget_inactive_guests",
+      "breakpoints": true
     }
   ]
 }

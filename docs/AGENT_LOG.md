@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m9/06-guest-cleanup · #91
+- Done: migration `0004_forget_inactive_guests` (DESIGN.md §14, ADR 0012):
+  - adds `dash.memberships.last_seen_at`;
+  - adds `dash.forget_inactive_guests()` (pinned empty `search_path`, execute revoked from public), which deletes the memberships and dashboards of guests unseen for 30 days, plus dashboards left without a membership for 30 days, and trims its own pg_cron history;
+  - schedules it as `dash_forget_guests` on Mondays at 04:00 UTC.
+  - `tenantsOf` refreshes `last_seen_at` only when it is over a day old.
+- Tests: written first in `db/test/guests.test.ts` (what is deleted and kept; the job's schedule; last seen refreshed at most daily); the search_path check now covers `dash` too. Integration, so they run in CI.
+- Scope/decisions: this app's data only; anonymous auth users stay with portfolio-infra (Georges' choice). DESIGN.md §8 updated. No changeset (the demo and db aren't published).
+- Next: the M9 review, merges, HANDOFF.
+
 ## 2026-10-20 · claude · stack/m9/05-demo-deadline · #90
 - Done: the gateway's read deadline moves to `packages/gateway/src/deadline.ts` as the exported `withDeadline(source, stage, run)`: 5 s, then a fresh connection and one retry. The gateway's own reads use it unchanged. The demo wraps its scope lookup (`tenantsOf` in `resolveScope`) and its dashboard storage route with it, so a lost connection no longer hangs them until `maxDuration`.
 - Tests: written first. `deadline.test.ts` covers answering in time, replacing a stuck connection and retrying once, and giving up after the second try or without a reset (a branch that wasn't tested before). The gateway's existing deadline tests pass.
@@ -375,16 +385,3 @@ Entry format:
 - Tests: `db/test/dashboards.test.ts` in the CI integration suite: the owner saves, updates, lists, reads and deletes; another user sees nothing and changes nothing; request parsing. A Playwright `@smoke` test: the route answers 401 without a token.
 - Scope/decisions: the route lives in the demo, not the gateway (DESIGN §7). `@adam-riffi/dash-core` is now a dev dependency of `db` for its test.
 - Next: stack/m5/08-demo-builder.
-
-## 2026-10-08 · claude · stack/m5/06-formula-editor · #49
-- Done:
-  - **`<MeasureEditor>`** in the builder's field column: the dashboard's measures with Edit and Remove; a form with name, format and a CodeMirror 6 formula input.
-    - Completions: functions, tables, `table.` columns, `[Measure]` names.
-    - The checker's errors are underlined at their spans and listed as text.
-    - Apply stays off for invalid or duplicate names and for formulas with errors.
-    - Renaming rewrites visuals and formulas through `upsertMeasure`.
-  - Pure `completionsAt` and `diagnosticsOf` (the editor's sources).
-  - Core exports `FUNCTIONS`.
-- Tests: `packages/react/test/formula-editor.test.ts`: completion contexts (columns after a dot, names in brackets, functions/tables/keywords, nothing in strings or after numbers) and diagnostics at spans. `packages/react/test/measures.test.tsx`: apply gating, rename with format, errors shown, name rules, removal. CodeMirror runs in jsdom.
-- Scope/decisions: CodeMirror 6 (state, view, autocomplete, lint) added (DESIGN §6). The completion implementation landed in the same commit as the editor tests, after its own failing test commit.
-- Next: stack/m5/07-dashboard-store.
