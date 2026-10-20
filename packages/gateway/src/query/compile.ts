@@ -25,13 +25,18 @@ const AGGREGATES = new Set(["SUM", "AVG", "MIN", "MAX", "COUNT"]);
  * Renders a checked formula as a Postgres expression (DESIGN.md §6). Every binary operation is
  * parenthesized; literals are bound with a cast so Postgres never infers an integer type for
  * them; division is numeric so integers do not truncate, and `DIVIDE` returns null on zero.
+ * `filter` is the row condition of the `CALCULATE`s around this node (ADR 0013): every aggregate
+ * inside gets it as `filter (where …)`.
  */
 export function renderFormula(
   t: Typed,
   ref: (table: string, column: string) => string,
   bind: (value: unknown) => string,
+  filter?: string,
 ): string {
-  const r = (e: Typed) => renderFormula(e, ref, bind);
+  const r = (e: Typed) => renderFormula(e, ref, bind, filter);
+  const filtered = (aggregate: string) =>
+    filter === undefined ? aggregate : `${aggregate} filter (where ${filter})`;
   switch (t.kind) {
     case "number":
       return `${bind(t.value)}::numeric`;
@@ -48,10 +53,20 @@ export function renderFormula(
       return `(${r(t.left)} ${t.op === "AND" || t.op === "OR" ? t.op.toLowerCase() : t.op} ${r(t.right)})`;
     case "call": {
       const [a, b, c] = t.args as [Typed, Typed | undefined, Typed | undefined];
-      if (AGGREGATES.has(t.name)) return `${t.name.toLowerCase()}(${r(a)})`;
+      if (AGGREGATES.has(t.name)) return filtered(`${t.name.toLowerCase()}(${r(a)})`);
       switch (t.name) {
         case "COUNTDISTINCT":
-          return `count(distinct ${r(a)})`;
+          return filtered(`count(distinct ${r(a)})`);
+        case "CALCULATE": {
+          // ponytail: ALL needs the two-stage compile (ADR 0013), which comes next.
+          if (t.args.some((c) => c.kind === "call" && c.name === "ALL")) {
+            throw new Error("no SQL for function ALL");
+          }
+          // Conditions are row-level: they render without the surrounding filter, then join it.
+          const conditions = t.args.slice(1).map((c) => renderFormula(c, ref, bind));
+          const all = filter === undefined ? conditions : [filter, ...conditions];
+          return renderFormula(a, ref, bind, all.join(" and "));
+        }
         case "DIVIDE":
           return `((${r(a)})::numeric / nullif(${r(b as Typed)}, 0))`;
         case "IF":
