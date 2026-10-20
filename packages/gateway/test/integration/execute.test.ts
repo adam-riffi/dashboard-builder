@@ -132,6 +132,54 @@ describe("executeQuery", () => {
     ]);
   });
 
+  it("divides by ALL's total for shares, keeping the filters on other fields (ADR 0013)", async () => {
+    const share = {
+      formula: "DIVIDE(SUM(sales.amount), CALCULATE(SUM(sales.amount), ALL(sales.region)))",
+    };
+    const shares = async (filters: QuerySpec["filters"]) => {
+      const { query, limit } = compiled(
+        { dimensions: [region], measures: [share], filters },
+        { tenantIds: [1, 2, 3] },
+      );
+      return executeQuery(reader, query, { limit, settings: { "app.tenant_ids": "1,2,3" } });
+    };
+    // Amounts: east 40, north 10 + 30, south 20, so 100 in all.
+    expect((await shares([])).data).toEqual([
+      ["east", "north", "south"],
+      [0.4, 0.4, 0.2],
+    ]);
+    // Web sales only: south has none, and the total is 80.
+    const web = await shares([{ field: "fx_exec.sales.channel", op: "in", values: ["web"] }]);
+    expect(web.data).toEqual([
+      ["east", "north"],
+      [0.5, 0.5],
+    ]);
+    // A filter on the region itself is lifted for the total: shares of all regions.
+    const some = await shares([
+      { field: "fx_exec.sales.region", op: "in", values: ["north", "south"] },
+    ]);
+    expect(some.data).toEqual([
+      ["north", "south"],
+      [0.4, 0.2],
+    ]);
+  });
+
+  it("answers a total-only measure in one row, even when the query's filter matches nothing", async () => {
+    const { query, limit } = compiled(
+      {
+        measures: [{ formula: "CALCULATE(SUM(sales.amount), ALL(sales.region))" }],
+        filters: [{ field: "fx_exec.sales.region", op: "in", values: ["nowhere"] }],
+      },
+      { tenantIds: [1, 2, 3] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2,3" },
+    });
+    expect(result.data).toEqual([[100]]);
+    expect(result.meta.truncated).toBe(false);
+  });
+
   it("caps rows at the limit and reports truncation", async () => {
     const { query, limit } = compiled(
       {

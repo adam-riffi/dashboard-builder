@@ -118,6 +118,11 @@ const MIXED = "a row value cannot be mixed with aggregates; aggregate it, e.g. S
 /** The functions that read the query's time axis (ADR 0013). */
 export const TIME_FUNCTIONS = new Set(["PREVIOUSPERIOD", "RUNNINGSUM"]);
 
+const LIFTS = new Set(["ALL"]);
+const PREVIOUS = new Set(["PREVIOUSPERIOD"]);
+// ponytail: a previous period of a total needs ALL's CTE over the previous window too.
+const COMBINE = "ALL and PREVIOUSPERIOD don't combine in one measure yet";
+
 /** Whether a checked formula calls any of `names`, anywhere in it. */
 export function calls(t: Typed, names: ReadonlySet<string>): boolean {
   return (t.kind === "call" && names.has(t.name)) || children(t).some((c) => calls(c, names));
@@ -285,6 +290,7 @@ function checkMeasure(
       }
       if (calls(arg, TIME_FUNCTIONS))
         return report("PREVIOUSPERIOD and RUNNINGSUM cannot be nested", at);
+      if (e.name === "PREVIOUSPERIOD" && calls(arg, LIFTS)) return report(COMBINE, at);
       if (e.name === "RUNNINGSUM" && arg.type !== "number") {
         return report(`RUNNINGSUM needs a number, not ${A[arg.type]}`, at);
       }
@@ -378,6 +384,10 @@ function checkMeasure(
       return report(usage, measureArg);
     }
     const args = [m, ...(conditions as Typed[])];
+    const lifts = args.some((c) => c.kind === "call" && LIFTS.has(c.name));
+    if (lifts && calls(m, PREVIOUS)) {
+      return report(COMBINE, measureArg);
+    }
     return { kind: "call", name: "CALCULATE", args, type: m.type, level: "aggregate" };
   }
 

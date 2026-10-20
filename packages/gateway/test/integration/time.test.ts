@@ -1,9 +1,10 @@
 import { planJoins, type QuerySpec, querySpec, validateQuery } from "@adam-riffi/dash-core";
+import fc from "fast-check";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inferContract } from "../../src/contract/index.ts";
 import { introspect } from "../../src/contract/introspect.ts";
-import { compileQuery } from "../../src/query/compile.ts";
+import { compileQuery, type Policy } from "../../src/query/compile.ts";
 import { executeQuery } from "../../src/query/execute.ts";
 
 // PREVIOUSPERIOD and RUNNINGSUM against what the plain measure says (ADR 0013): each bucket's
@@ -25,11 +26,12 @@ beforeAll(async () => {
     create schema fx_time;
     create table fx_time.sales (
       id int primary key, region text not null, amount numeric(10, 2) not null,
-      sold_at timestamptz not null
+      sold_at timestamptz not null, channel text not null, tenant_id int not null
     );
     insert into fx_time.sales
     select g, (array['north', 'south', 'east'])[1 + g % 3], (g * 37) % 100,
-      timestamptz '2026-01-01' + ((g * g) % 181) * interval '1 day' + (g % 24) * interval '1 hour'
+      timestamptz '2026-01-01' + ((g * g) % 181) * interval '1 day' + (g % 24) * interval '1 hour',
+      (array['web', 'store'])[1 + g % 2], 1 + g % 4
     from generate_series(1, 300) g;
   `);
   contract = inferContract(await introspect(admin, tables), { tables });
@@ -37,12 +39,16 @@ beforeAll(async () => {
 
 afterAll(() => admin.end());
 
-async function run(spec: Partial<QuerySpec> & Pick<QuerySpec, "measures">) {
+async function run(
+  spec: Partial<QuerySpec> & Pick<QuerySpec, "measures">,
+  scope: Record<string, unknown> = {},
+  policies: Policy[] = [],
+) {
   const valid = validateQuery(querySpec.parse(spec), contract);
   if (!valid.ok) throw new Error(valid.errors.join("; "));
   const plan = planJoins(valid.query, contract);
   if (!plan.ok) throw new Error(plan.errors.join("; "));
-  const compiled = compileQuery(valid.query, plan.plan, [], {});
+  const compiled = compileQuery(valid.query, plan.plan, policies, scope);
   if (!compiled.ok) throw new Error(compiled.errors.join("; "));
   return executeQuery(admin, compiled.query, { limit: valid.query.limit, settings: {} });
 }
@@ -130,5 +136,93 @@ describe("PREVIOUSPERIOD and RUNNINGSUM against the plain measure", () => {
     );
     expect(gapped).toBeGreaterThan(0);
     expect(days.data[1]?.[gapped]).toBeNull();
+  });
+});
+
+describe("CALCULATE and ALL against the plain measure (M10 review)", () => {
+  const values = { region: ["north", "south", "east"], channel: ["web", "store"] } as const;
+
+  it("CALCULATE equals the measure with its condition as a query filter", async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.constantFrom("region", "channel"),
+        fc.constantFrom(...values.region),
+        fc.constantFrom(...values.channel),
+        async (by, region, channel) => {
+          const [field, value] = by === "region" ? ["channel", channel] : ["region", region];
+          const dimensions = [{ field: `fx_time.sales.${by}` }];
+          const calculated = await run({
+            dimensions,
+            measures: [{ formula: `CALCULATE(${amount}, sales.${field} = "${value}")` }],
+          });
+          const filtered = await run({
+            dimensions,
+            measures: [{ formula: amount }],
+            filters: [{ field: `fx_time.sales.${field}`, op: "in", values: [value] }],
+          });
+          const expected = new Map(
+            (filtered.data[0] ?? []).map((k, i) => [k, Number(filtered.data[1]?.[i])]),
+          );
+          (calculated.data[0] ?? []).forEach((k, i) => {
+            const v = calculated.data[1]?.[i];
+            expect(v === null ? null : Number(v)).toBe(expected.get(k) ?? null);
+          });
+        },
+      ),
+      { numRuns: 10 },
+    );
+  });
+
+  it.each([
+    ["region", "channel"],
+    ["channel", "region"],
+  ])("ALL(%s) equals the measure grouped by %s alone", async (lifted, kept) => {
+    const byKept = await run({
+      dimensions: [{ field: `fx_time.sales.${kept}` }],
+      measures: [{ formula: amount }],
+    });
+    const totals = await run({
+      dimensions: [{ field: `fx_time.sales.${lifted}` }, { field: `fx_time.sales.${kept}` }],
+      measures: [{ formula: `CALCULATE(${amount}, ALL(sales.${lifted}))` }],
+    });
+    const expected = new Map(
+      (byKept.data[0] ?? []).map((k, i) => [k, Number(byKept.data[1]?.[i])]),
+    );
+    expect(totals.data[1]?.length).toBeGreaterThan(0);
+    (totals.data[1] ?? []).forEach((k, i) => {
+      expect(Number(totals.data[2]?.[i])).toBe(expected.get(k));
+    });
+  });
+
+  it("applies the row policies inside every CTE: the previous window and the total too", async () => {
+    // Without RLS here, only the gateway's own policy narrows the rows to tenants 1 and 2.
+    const policies: Policy[] = [{ table: "fx_time.sales", column: "tenant_id", in: "tenantIds" }];
+    const scope = { tenantIds: [1, 2] };
+    const month = [{ field: soldAt, timeGrain: "month" as const }];
+    const plain = await run(
+      { dimensions: month, measures: [{ formula: amount }] },
+      scope,
+      policies,
+    );
+    const timed = await run(
+      {
+        dimensions: month,
+        measures: [
+          { formula: `PREVIOUSPERIOD(${amount})` },
+          { formula: `CALCULATE(${amount}, ALL(sales.sold_at))` },
+        ],
+      },
+      scope,
+      policies,
+    );
+    const scoped = (plain.data[1] ?? []).map(Number);
+    const total = scoped.reduce((a, b) => a + b, 0);
+    const everything = await run({ measures: [{ formula: amount }] });
+    expect(total).toBeLessThan(Number(everything.data[0]?.[0]));
+    (timed.data[0] ?? []).forEach((_, i) => {
+      const before = timed.data[1]?.[i];
+      expect(before === null ? null : Number(before)).toBe(i === 0 ? null : scoped[i - 1]);
+      expect(Number(timed.data[2]?.[i])).toBe(total);
+    });
   });
 });
