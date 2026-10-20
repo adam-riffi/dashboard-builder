@@ -136,6 +136,13 @@ const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const quoteTable = (table: string) => table.split(".").map(quote).join(".");
 
 /**
+ * `a` equals `b`, nulls included, in a form Postgres can hash-join: `is not distinct from` can't
+ * be hashed or merged, so joining grouped CTEs with it plans a nested loop (M10 review).
+ */
+const sameKey = (a: string, b: string) =>
+  `coalesce(${a}::text, '') = coalesce(${b}::text, '') and (${a} is null) = (${b} is null)`;
+
+/**
  * Compiles a validated, planned query to parameterized Postgres SQL (DESIGN.md §6). Every table in
  * the query that has a policy gets a mandatory `column = any($n)` predicate bound to the caller's
  * scope; a policy whose scope list is missing fails closed. Values are never part of the text.
@@ -204,7 +211,9 @@ export function compileQuery(
       const base = ref(f.table, f.column.name);
       const shifted =
         shift !== undefined && shift.table === f.table && shift.column === f.column.name;
-      const column = shifted ? `(${base} + interval '${shift.step}')` : base;
+      // A Postgres `date` plus an interval is a timestamp: cast back, so values compare as before.
+      const moved = `(${base} + interval '${shift?.step}')`;
+      const column = !shifted ? base : f.column.pgType === "date" ? `(${moved})::date` : moved;
       // postgres.js mangles boolean lists (a list of booleans is typed as one boolean, and
       // strings in an inferred boolean[] all become 'f'), so booleans go as an array literal.
       const list = () =>
@@ -305,7 +314,7 @@ export function compileQuery(
   const previousWindow = { table: axis.table, column: axis.column.name, step };
   const joinPrevious = [
     `("p".${quote(`d${t}`)} + interval '${step}') = ${g(t)}`,
-    ...others.map((i) => `"p".${quote(`d${i}`)} is not distinct from ${g(i)}`),
+    ...others.map((i) => sameKey(`"p".${quote(`d${i}`)}`, g(i))),
   ].join(" and ");
   const lines = [
     'with "g" as (',
