@@ -28,8 +28,14 @@ export type Compilation = { ok: true; query: CompiledQuery } | { ok: false; erro
 const OPERATORS = { gt: ">", gte: ">=", lt: "<", lte: "<=" } as const;
 const AGGREGATES = new Set(["SUM", "AVG", "MIN", "MAX", "COUNT"]);
 /** The functions that need a grouped CTE and an outer query (ADR 0013). */
-const TWO_STAGE = new Set(["PREVIOUSPERIOD", "RUNNINGSUM"]);
+const TWO_STAGE = new Set(["PREVIOUSPERIOD", "RUNNINGSUM", "ALL"]);
 const PREVIOUS = new Set(["PREVIOUSPERIOD"]);
+/** A column, as `ALL` names it and filters and dimensions hold it. */
+interface Field {
+  table: string;
+  column: string;
+}
+
 /** One bucket of each grain as an interval; Postgres has no 'quarter' interval unit. */
 const STEP: Record<TimeGrain, string> = {
   day: "1 day",
@@ -45,9 +51,13 @@ const STEP: Record<TimeGrain, string> = {
  * `RUNNINGSUM` becomes a window along the time axis.
  */
 export interface Stage {
-  /** Records an aggregate's SQL as a CTE column and returns the outer reference to it. */
-  column: (sql: string, previous: boolean) => string;
+  /**
+   * Records an aggregate's SQL as a CTE column and returns the outer reference to it: in `g`,
+   * in `p` for the previous window, or in a total CTE for the fields `ALL` lifted.
+   */
+  column: (sql: string, previous: boolean, lifted: Field[]) => string;
   previous: boolean;
+  lifted: Field[];
   /** The outer references of the time axis and of the other dimensions. */
   time: string;
   others: string[];
@@ -72,7 +82,7 @@ export function renderFormula(
   const row = (e: Typed) => renderFormula(e, ref, bind);
   const filtered = (aggregate: string) => {
     const sql = filter === undefined ? aggregate : `${aggregate} filter (where ${filter})`;
-    return stage ? stage.column(sql, stage.previous) : sql;
+    return stage ? stage.column(sql, stage.previous, stage.lifted) : sql;
   };
   switch (t.kind) {
     case "number":
@@ -95,14 +105,24 @@ export function renderFormula(
         case "COUNTDISTINCT":
           return filtered(`count(distinct ${row(a)})`);
         case "CALCULATE": {
-          // ponytail: ALL needs the two-stage compile (ADR 0013), which comes next.
-          if (t.args.some((c) => c.kind === "call" && c.name === "ALL")) {
-            throw new Error("no SQL for function ALL");
-          }
+          const isLift = (c: Typed) => c.kind === "call" && c.name === "ALL";
+          const lifts = t.args.slice(1).filter(isLift);
           // Conditions are row-level: they render without the surrounding filter, then join it.
-          const conditions = t.args.slice(1).map(row);
+          const conditions = t.args
+            .slice(1)
+            .filter((c) => !isLift(c))
+            .map(row);
           const all = filter === undefined ? conditions : [filter, ...conditions];
-          return renderFormula(a, ref, bind, all.join(" and "), stage);
+          let inner = stage;
+          if (lifts.length > 0) {
+            if (!stage) throw new Error("ALL needs the two-stage compile");
+            const fields = lifts.map((l) => l.kind === "call" && l.args[0]);
+            const lifted = fields.flatMap((f) =>
+              f && f.kind === "column" ? [{ table: f.table, column: f.column }] : [],
+            );
+            inner = { ...stage, lifted: [...stage.lifted, ...lifted] };
+          }
+          return renderFormula(a, ref, bind, all.length > 0 ? all.join(" and ") : undefined, inner);
         }
         case "PREVIOUSPERIOD":
           if (!stage) throw new Error("PREVIOUSPERIOD needs the two-stage compile");
@@ -206,8 +226,12 @@ export function compileQuery(
    * The filters' predicates. `shift` moves one column a bucket later before comparing, so the
    * filter selects the window one bucket earlier (PREVIOUSPERIOD, ADR 0013).
    */
-  const filterPredicates = (shift?: { table: string; column: string; step: string }) =>
-    query.filters.map((f) => {
+  const filterPredicates = (
+    shift?: { table: string; column: string; step: string },
+    lifted: Field[] = [],
+  ) =>
+    query.filters.flatMap((f) => {
+      if (lifted.some((l) => l.table === f.table && l.column === f.column.name)) return [];
       const base = ref(f.table, f.column.name);
       const shifted =
         shift !== undefined && shift.table === f.table && shift.column === f.column.name;
@@ -280,17 +304,31 @@ export function compileQuery(
     return { ok: true, query: { text: lines.join("\n"), params, columns } };
   }
 
-  // Two stages (ADR 0013): `g` groups the aggregates, `p` the ones read one bucket earlier, and
-  // the outer query renders each measure over them. validateQuery made sure of one time axis.
+  // Two stages (ADR 0013): `g` groups the aggregates, `p` the ones read one bucket earlier, `w…`
+  // the totals `ALL` lifts fields from, and the outer query renders each measure over them.
+  // validateQuery made sure of one time axis wherever a time function needs it.
   const t = query.dimensions.findIndex((d) => d.timeGrain !== undefined);
-  const axis = query.dimensions[t] as ValidQuery["dimensions"][number];
-  const step = STEP[axis.timeGrain as TimeGrain];
+  const axis = query.dimensions[t];
+  const step = axis?.timeGrain ? STEP[axis.timeGrain] : "";
   const current: string[] = [];
   const previous: string[] = [];
+  /** ALL's totals, one CTE per set of lifted fields, in the order the measures need them. */
+  const totals = new Map<string, { lifted: Field[]; aggregates: string[] }>();
   const others = query.dimensions.flatMap((_, i) => (i === t ? [] : [i]));
   const g = (i: number) => `"g".${quote(`d${i}`)}`;
   const stage: Stage = {
-    column: (sql, earlier) => {
+    column: (sql, earlier, lifted) => {
+      if (lifted.length > 0) {
+        const key = lifted
+          .map((f) => `${f.table}.${f.column}`)
+          .sort()
+          .join(",");
+        const total = totals.get(key) ?? { lifted, aggregates: [] };
+        totals.set(key, total);
+        total.aggregates.push(sql);
+        const name = quote(`w${[...totals.keys()].indexOf(key)}`);
+        return `${name}.${quote(`c${total.aggregates.length - 1}`)}`;
+      }
       const list = earlier ? previous : current;
       list.push(sql);
       return earlier
@@ -298,37 +336,69 @@ export function compileQuery(
         : `"g".${quote(`a${list.length - 1}`)}`;
     },
     previous: false,
+    lifted: [],
     time: g(t),
     others: others.map(g),
   };
   const measures = query.measures.map(
     (m, i) => `${renderFormula(m.expr, ref, bind, undefined, stage)} as ${quote(`m${i}`)}`,
   );
-  const grouped = (aggregates: string[], prefix: string, predicates: string[]) => [
-    `select ${[...dimensions, ...aggregates.map((sql, k) => `${sql} as ${quote(`${prefix}${k}`)}`)].join(", ")}`,
+  /** A grouped CTE body over `kept` dimensions (all of them unless `ALL` lifted some). */
+  const grouped = (
+    aggregates: string[],
+    prefix: string,
+    predicates: string[],
+    kept = query.dimensions.map((_, i) => i),
+  ) => [
+    `select ${[...kept.map((i) => dimensions[i]), ...aggregates.map((sql, k) => `${sql} as ${quote(`${prefix}${k}`)}`)].join(", ")}`,
     ...from,
     ...where(predicates),
-    ...groupBy,
+    ...(kept.length > 0 ? [`group by ${kept.map((_, j) => j + 1).join(", ")}`] : []),
   ];
   const usesPrevious = query.measures.some((m) => calls(m.expr, PREVIOUS));
-  const previousWindow = { table: axis.table, column: axis.column.name, step };
+  const previousCte = (): string[] => {
+    if (!usesPrevious || !axis) return [];
+    const window = { table: axis.table, column: axis.column.name, step };
+    return [
+      '), "p" as (',
+      ...grouped(previous, "b", [...policyPredicates(), ...filterPredicates(window)]),
+    ];
+  };
   const joinPrevious = [
     `("p".${quote(`d${t}`)} + interval '${step}') = ${g(t)}`,
     ...others.map((i) => sameKey(`"p".${quote(`d${i}`)}`, g(i))),
   ].join(" and ");
+  // The policies always apply; ALL lifts the grouping and the filters on its fields only.
+  const keptBy = (lifted: Field[]) =>
+    query.dimensions.flatMap((d, i) =>
+      lifted.some((f) => f.table === d.table && f.column === d.column.name) ? [] : [i],
+    );
+  const totalCtes = () =>
+    [...totals.values()].flatMap(({ lifted, aggregates }, k) => [
+      `), ${quote(`w${k}`)} as (`,
+      ...grouped(
+        aggregates,
+        "c",
+        [...policyPredicates(), ...filterPredicates(undefined, lifted)],
+        keptBy(lifted),
+      ),
+    ]);
+  const totalJoins = [...totals.values()].map(({ lifted }, k) => {
+    const w = quote(`w${k}`);
+    const kept = keptBy(lifted);
+    const on = kept.map((i) => `${w}.${quote(`d${i}`)} is not distinct from ${g(i)}`);
+    return `left join ${w} on ${on.length > 0 ? on.join(" and ") : "true"}`;
+  });
   const lines = [
     'with "g" as (',
     ...grouped(current, "a", [...policyPredicates(), ...filterPredicates()]),
-    ...(usesPrevious
-      ? [
-          '), "p" as (',
-          ...grouped(previous, "b", [...policyPredicates(), ...filterPredicates(previousWindow)]),
-        ]
-      : []),
+    ...previousCte(),
+    ...totalCtes(),
     ")",
     `select ${[...query.dimensions.map((_, i) => `${g(i)} as ${quote(`d${i}`)}`), ...measures].join(", ")}`,
     'from "g"',
     ...(usesPrevious ? [`left join "p" on ${joinPrevious}`] : []),
+    ...totalJoins,
     ...orderAndLimit(),
   ];
   return { ok: true, query: { text: lines.join("\n"), params, columns } };

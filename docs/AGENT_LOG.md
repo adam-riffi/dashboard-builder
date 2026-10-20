@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m10/06-all · #97
+- Done: `ALL` compiles (ADR 0013).
+  - A `CALCULATE` with `ALL(field)` adds the field to the stage's lifted set. Its aggregates go to a total CTE `w<k>`, one per set of lifted fields, grouped by the other dimensions, without the filters on those fields (policies stay).
+  - The CTE is joined back with `is not distinct from` on the kept dimensions, or `on true` when none are left. A `CALCULATE` with only `ALL` adds no FILTER clause.
+  - The checker refuses `ALL` with `PREVIOUSPERIOD` in one measure.
+- Tests: written first. Golden SQL: a share by status with a lifted status filter; a total joined back by month. Integration (CI): shares by region are 0.4/0.4/0.2, a web-only filter still applies (0.5/0.5), and a filter on region itself is lifted for the total (0.4/0.2). Two checker errors.
+- Scope/decisions: a previous period of a total would need a total CTE over the previous window; deferred, with a clear error (`ponytail:` note). Changeset (core patch, gateway minor).
+- Next: demo measures and docs (#98).
+
 ## 2026-10-20 · claude · stack/m10/05-two-stage · #96
 - Done: the two-stage compile (ADR 0013).
   - `renderFormula` takes a `Stage`: an aggregate becomes a column of `g`, or of `p` inside `PREVIOUSPERIOD`, and `RUNNINGSUM` becomes `sum(…) over (partition by <other dims> order by <time> rows between unbounded preceding and current row)`.
@@ -346,12 +355,3 @@ Entry format:
 - Tests: integration (CI): the cap and updates at the cap. e2e: refused saves (404, 409) reported, with the builder still open (CI, signed in); 413 from the declared size (also passes locally).
 - Scope/decisions: the cap is per user (`ponytail:` a global quota if anonymous sign-ups are abused).
 - Next: CI green on #52–#56, then the M5 merge loop and a production check.
-
-## 2026-10-08 · claude · stack/m5/12-builder-entry · #55
-- Done: the builder has its own entry, `@adam-riffi/dash-react/builder` (M5 review finding 9).
-  - The main entry keeps the provider and the viewer; the package declares `"sideEffects": false`.
-  - The demo loads the builder with `next/dynamic` when someone edits, so the home page's chunks hold no CodeMirror, react-grid-layout or dnd-kit (checked in the build's client manifest).
-  - DESIGN.md §7 names the entry.
-- Tests: `test/entry.test.ts` (written first) follows the main entry's imports and finds none of the builder's libraries; the builder entry exports `DashboardBuilder`. The builder fixture e2e passes locally.
-- Scope/decisions: `@types/node` is now a dev dependency of the react package, for the test that reads its sources.
-- Next: #56, a cap on saved dashboards per user (review finding 3), with the demo store's nits and ADR 0009.
