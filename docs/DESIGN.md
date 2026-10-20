@@ -168,6 +168,12 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 | M6 Live and fast | cross-filter coordinator; interval refresh with ETag; result and contract caches; "Under the hood" drawer | Cached query p95 < 150 ms; cross-filter E2E passes |
 | M7 Ship | demo polish and onboarding; README, GIF, architecture diagram; npm release via Changesets | Definition of done (§15) |
 | M8 Schema changes (v1.1, [ADR 0011](adr/0011-schema-changes-milestone.md)) | query validation and join planning shared with the browser; selections skip visuals that can't reach their field; one refresh timer per dashboard; lost-field detection, ranked replacements and a builder repair panel; scatter visual | E2E: a dashboard with a lost field is repaired in the builder; scatter screenshot. Unit: one request per refresh after a selection |
+| M9 Hardening ([ADR 0012](adr/0012-roadmap-to-1-0.md)) | rows without a value sort last; gateway unit coverage; repair of fields that became ambiguous; a read deadline for the demo's own database; weekly cleanup of inactive guests' data | Gateway unit lines ≥ 93%; the cleanup job is scheduled and deletes only inactive guests' rows (integration) |
+| M10 Formula power | two-stage compile; `PREVIOUSPERIOD`, `RUNNINGSUM`; `CALCULATE`; `ALL` | Golden SQL; equivalence property over the new functions |
+| M11 Map and multi-fact | map visual; chasm traps through per-fact pre-aggregation | Map screenshot; a two-fact query matches the reference |
+| M12 Your own data | Source interface; DuckDB dialect; declared relationships; REST/JSON source; DuckDB-WASM transport; CSV upload; Arrow IPC | E2E: a dashboard on an uploaded CSV |
+| M13 Shared cache and push | async cache and Redis adapter; global rate limit; server-sent events | Cache hits across instances; a pushed refresh in E2E |
+| M14 Release 1.0 | release workflow; docs pass; 1.0.0; first npm publish | Definition of done (§15) |
 
 ## 10. Testing strategy
 
@@ -223,7 +229,7 @@ Vercel project rooted at `apps/demo` (Next.js, Node runtime for gateway routes),
 
 - Scope creep in the builder: v1 limits visuals to four and filters to equality, ranges and lists.
 - Formula language design can sprawl: v1 grammar is fixed in §6; additions need an ADR.
-- Supabase anonymous users accumulate: a weekly job deletes anonymous users inactive for 30 days and their dashboards.
+- Supabase anonymous users accumulate: a weekly job deletes this app's data (memberships and dashboards) for guests unseen for 30 days; deleting the anonymous users of the shared project stays with `portfolio-infra` ([ADR 0012](adr/0012-roadmap-to-1-0.md)).
 ## 15. Definition of done
 
 - [ ] Demo script in §3 works on the production URL.
