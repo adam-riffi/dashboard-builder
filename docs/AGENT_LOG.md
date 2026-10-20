@@ -19,7 +19,7 @@ Entry format:
   - a fake client answers introspection and runs compiled queries, so the query path, the cache hit, explain, a failed query, POST /query's and the contract's 304s, and health run without a database;
   - `jwtAuth` rejects a malformed token before fetching keys.
   - The react tests get a 15 s timeout: a file's first jsdom test went past 5 s under `pnpm check`'s parallel load.
-- Tests: gateway unit lines 90.02% → 98.89% (`gateway.ts` 75% → 97.7%), above main's 93.15%.
+- Tests: gateway unit lines 90.02% → 98.89% (`gateway.ts` 75% → 97.7%), above main's 93.15%. The gateway's coverage floor is now 93% (M9 review).
 - Scope/decisions: tests only; no changeset.
 - Next: repair a field that became ambiguous (#89).
 
