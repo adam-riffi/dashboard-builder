@@ -57,6 +57,12 @@ describe("dash.forget_inactive_guests()", () => {
     expect(await count("dashboards", fresh)).toBe(1);
   });
 
+  it("is the scheduler's alone: the app role cannot run it", async () => {
+    await expect(app`select dash.forget_inactive_guests()`).rejects.toMatchObject({
+      code: "42501",
+    });
+  });
+
   it("runs weekly through pg_cron", async () => {
     const [job] = await admin`select schedule, command from cron.job
       where jobname = 'dash_forget_guests'`;

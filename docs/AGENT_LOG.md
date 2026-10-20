@@ -20,7 +20,7 @@ Entry format:
   - adds `dash.forget_inactive_guests()` (pinned empty `search_path`, execute revoked from public), which deletes the memberships and dashboards of guests unseen for 30 days, plus dashboards left without a membership for 30 days, and trims its own pg_cron history;
   - schedules it as `dash_forget_guests` on Mondays at 04:00 UTC.
   - `tenantsOf` refreshes `last_seen_at` only when it is over a day old.
-- Tests: written first in `db/test/guests.test.ts` (what is deleted and kept; the job's schedule; last seen refreshed at most daily); the search_path check now covers `dash` too. Integration, so they run in CI.
+- Tests: written first in `db/test/guests.test.ts` (what is deleted and kept; the job's schedule; last seen refreshed at most daily; from the M9 review, the app role can't run the function); the search_path check now covers `dash` too. Integration, so they run in CI.
 - Scope/decisions: this app's data only; anonymous auth users stay with portfolio-infra (Georges' choice). DESIGN.md §8 updated. No changeset (the demo and db aren't published).
 - Next: the M9 review, merges, HANDOFF.
 
