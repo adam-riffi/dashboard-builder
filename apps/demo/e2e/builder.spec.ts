@@ -70,6 +70,29 @@ test("a visitor builds and saves a dashboard (M5 acceptance)", async ({ page }) 
   await page.getByRole("button", { name: "Delete dashboard" }).click();
 });
 
+// M10 acceptance (ADR 0013): a host measure built on PREVIOUSPERIOD draws on a line by day, on the
+// live data.
+test("a line of revenue growth by day draws from PREVIOUSPERIOD", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New dashboard" }).click();
+  await page.getByRole("textbox", { name: "Dashboard title" }).fill("Growth");
+  await page.getByRole("button", { name: "Add Line" }).click();
+  await drag(
+    page,
+    page.getByRole("button", { name: "Ordered at, time" }),
+    page.getByRole("group", { name: "Axis", exact: true }),
+  );
+  await drag(
+    page,
+    page.getByRole("button", { name: "Revenue growth", exact: true }),
+    page.getByRole("group", { name: "Value", exact: true }),
+  );
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Growth" })).toBeVisible();
+  await expect(page.locator('[data-visual="line-1"] [data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Delete dashboard" }).click();
+});
+
 // M8 acceptance (ADR 0011): a dashboard saved before a column was renamed is repaired in the
 // builder, from the replacement it suggests.
 test("the builder repairs a field the schema lost", async ({ page }) => {
