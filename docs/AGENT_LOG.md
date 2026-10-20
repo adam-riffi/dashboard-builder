@@ -14,6 +14,17 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m10/05-two-stage · #96
+- Done: the two-stage compile (ADR 0013).
+  - `renderFormula` takes a `Stage`: an aggregate becomes a column of `g`, or of `p` inside `PREVIOUSPERIOD`, and `RUNNINGSUM` becomes `sum(…) over (partition by <other dims> order by <time> rows between unbounded preceding and current row)`.
+  - `compileQuery` builds `g`, then `p` over the window one bucket earlier: filters on the time axis's column compare `col + interval '1 <grain>'`, and quarters are 3 months. `p` is joined on `p.d + interval = g.d` and `is not distinct from` on the other dimensions. The outer query sorts (nulls last) and limits.
+  - Queries without time functions take the old path, so their SQL is byte-identical.
+- Tests: written first.
+  - Golden SQL: `PREVIOUSPERIOD` with a shifted date filter, `RUNNINGSUM` partitioned by status, the join on other dimensions.
+  - Integration (`time.test.ts`, CI): 300 sales on about half the days of a half-year. By day, week and month, with and without a region, each bucket's previous period equals the plain value one grain earlier and its running sum the plain values so far. A date filter's window still reads the month before, and a day after a gap gets no previous value.
+- Scope/decisions: the policies and filters are bound again for each CTE. Changeset (gateway minor).
+- Next: `ALL` for shares of a total (#97).
+
 ## 2026-10-20 · claude · stack/m10/04-calculate · #95
 - Done: `renderFormula` takes the filter context of the `CALCULATE`s around a node. Every aggregate (and `COUNTDISTINCT`) inside renders as `agg(x) filter (where …)`, and nested conditions join outer-first with `and`. The query stays one statement, so other queries compile exactly as before (ADR 0013).
 - Tests: written first. Golden SQL for a condition, `COUNTDISTINCT`, nested `CALCULATE`s and a share-like ratio (`compile.test.ts`); an integration test on the sales fixture (web sales per region, refunded counts) in CI.
@@ -344,17 +355,3 @@ Entry format:
 - Tests: `test/entry.test.ts` (written first) follows the main entry's imports and finds none of the builder's libraries; the builder entry exports `DashboardBuilder`. The builder fixture e2e passes locally.
 - Scope/decisions: `@types/node` is now a dev dependency of the react package, for the test that reads its sources.
 - Next: #56, a cap on saved dashboards per user (review finding 3), with the demo store's nits and ADR 0009.
-
-## 2026-10-08 · claude · stack/m5/11-builder-previews · #54
-- Done: builder previews no longer refetch the whole dashboard on every edit (M5 review finding 2).
-  - Each visual's answer is cached under its own query and the dashboard measures that query reaches (`measuresFor`, through the lexer).
-  - Queries asked for in the same tick go out as one request (`batched` in the provider), so a dashboard still loads in one (ADR 0008). An edit asks only for the visuals it changed, and a measure no visual uses asks for nothing.
-  - Each visual keeps its latest answer on screen while its next one is on the way, so tiles no longer flash to loading.
-- Tests: `test/previews.test.tsx` (written first):
-  - one request on load;
-  - an edited measure asks again for its one visual, with only its measures;
-  - a title or an unused measure asks nothing;
-  - the answer stays while an edit is asked for;
-  - per-visual answers and reasons (ported from the removed `answersByVisual` tests).
-- Scope/decisions: `answersByVisual` is removed (no single request to split any more); Rows is not debounced, since one keystroke now refetches one visual.
-- Next: #55, the builder's own entry point (review finding 9).
