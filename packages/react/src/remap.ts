@@ -193,9 +193,18 @@ export function replacements(lost: LostRef, spec: DashboardSpec, contract: DataC
   const table = lost.name.slice(0, dot);
   const column = lost.name.slice(dot + 1);
   const role = roleFor(lost.usages[0], spec);
-  // A field that became ambiguous is most likely one schema's column of the same name.
+  // A field that became ambiguous is most likely one schema's column of the same name, and most
+  // likely in the schema the dashboard reads most (alphabetical when nothing tells them apart).
   const resolved = resolveField(lost.name.split("."), contract);
-  const first = !resolved.ok && resolved.reason === "ambiguous" ? resolved.choices : [];
+  const used = schemasIn(spec, contract);
+  const schemaOf = (field: string) => field.slice(0, field.indexOf("."));
+  const first = (!resolved.ok && resolved.reason === "ambiguous" ? resolved.choices : [])
+    .map((name, order) => ({ name, order }))
+    .sort(
+      (a, b) =>
+        (used.get(schemaOf(b.name)) ?? 0) - (used.get(schemaOf(a.name)) ?? 0) || a.order - b.order,
+    )
+    .map((c) => c.name);
   const columns = contract.tables
     .flatMap((t) => t.columns.map((c) => ({ table: t.name, column: c })))
     .filter((c) => lost.usages.every((u) => fits(u, c.table, c.column, spec)));
@@ -211,6 +220,31 @@ export function replacements(lost: LostRef, spec: DashboardSpec, contract: DataC
     })),
   ).map((c) => c.name);
   return [...first, ...rest.filter((name) => !first.includes(name))];
+}
+
+/** How many of the dashboard's fields each schema holds, counting only those that resolve. */
+function schemasIn(spec: DashboardSpec, contract: DataContract): Map<string, number> {
+  const counts = new Map<string, number>();
+  const add = (path: string[]) => {
+    const r = resolveField(path, contract);
+    if (!r.ok) return;
+    const schema = r.table.name.slice(0, r.table.name.indexOf("."));
+    counts.set(schema, (counts.get(schema) ?? 0) + 1);
+  };
+  const fromFormula = (formula: string) => {
+    for (const r of refsIn(formula)) if (r.kind === "field") add(r.path);
+  };
+  for (const v of spec.visuals) {
+    for (const items of Object.values(v.slots)) {
+      for (const i of items) {
+        if ("field" in i) add(i.field.split("."));
+        else if ("formula" in i) fromFormula(i.formula);
+      }
+    }
+  }
+  for (const f of spec.filters) add(f.field.split("."));
+  for (const m of spec.measures) fromFormula(m.formula);
+  return counts;
 }
 
 /** A formula with each reference to the lost field or measure written as `to`. */

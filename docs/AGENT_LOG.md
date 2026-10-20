@@ -15,7 +15,7 @@ Entry format:
 ---
 
 ## 2026-10-20 · claude · stack/m9/04-ambiguous-refs · #89
-- Done: `resolveField` returns `choices` (each schema's column that exists) for an ambiguous `table.column`. `lostRefs` reports such a reference as written, and `replacements` puts the choices first, so the repair panel fixes it with one Apply (M8 review, N3).
+- Done: `resolveField` returns `choices` (each schema's column that exists) for an ambiguous `table.column`. `lostRefs` reports such a reference as written, and `replacements` puts the choices first, ranked by the schema the dashboard already reads most (alphabetical when nothing tells them apart, M9 review), so the repair panel usually fixes it with one Apply (M8 review, N3).
 - Tests: written first: `check.test.ts` (choices) and `remap.test.ts` (an `archive.orders` table makes `orders.id` ambiguous; it is reported, offered both schemas, and rewritten to `dash_demo.orders.id`).
 - Scope/decisions: ADR 0011's "not covered" line is updated. Changeset (core and react patch).
 - Next: the demo's own reads give up after 5 s (#90).
