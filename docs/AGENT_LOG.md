@@ -14,6 +14,12 @@ Entry format:
 
 ---
 
+## 2026-10-20 · claude · stack/m10/04-calculate · #95
+- Done: `renderFormula` takes the filter context of the `CALCULATE`s around a node. Every aggregate (and `COUNTDISTINCT`) inside renders as `agg(x) filter (where …)`, and nested conditions join outer-first with `and`. The query stays one statement, so other queries compile exactly as before (ADR 0013).
+- Tests: written first. Golden SQL for a condition, `COUNTDISTINCT`, nested `CALCULATE`s and a share-like ratio (`compile.test.ts`); an integration test on the sales fixture (web sales per region, refunded counts) in CI.
+- Scope/decisions: `ALL` still throws until the two-stage compile (#97). Changeset (gateway minor).
+- Next: `PREVIOUSPERIOD` and `RUNNINGSUM` (#96).
+
 ## 2026-10-20 · claude · stack/m10/03-time-axis-rule · #94
 - Done: `validateQuery` refuses a measure that uses `PREVIOUSPERIOD` or `RUNNINGSUM` unless the query has exactly one dimension with a time grain: "measures[i]: PREVIOUSPERIOD needs one time axis: a date field grouped by day, week, month, quarter or year" (ADR 0013). It runs in core, so the builder's tiles and the browser's cross-filter reach check see it too.
 - Tests: written first in `validate.test.ts`: one axis beside another dimension is accepted; no dimension, a dimension without a grain, or two time axes are refused; a named measure names its function.
@@ -352,18 +358,3 @@ Entry format:
   - per-visual answers and reasons (ported from the removed `answersByVisual` tests).
 - Scope/decisions: `answersByVisual` is removed (no single request to split any more); Rows is not debounced, since one keystroke now refetches one visual.
 - Next: #55, the builder's own entry point (review finding 9).
-
-## 2026-10-08 · claude · stack/m5/10-builder-review-fixes · #53
-- Done: the builder findings of the M5 review (posted on #52).
-  - Measures: a host measure's name is refused (ADR 0007), "New measure" is disabled at 50, formulas are capped at 2,000 characters, names at 100.
-  - Save stamps the contract's version and validates the spec; issues show in an alert instead of reaching the host.
-  - The dashboard title follows the host's spec unless it is being edited, and the demo keys the builder by dashboard.
-  - Each tile title is a "Select X" button, so the wells can be reached from the keyboard.
-  - Smaller fixes:
-    - Rows takes whole numbers, and clearing it removes the limit;
-    - picked measures show as pressed;
-    - the layout is clamped to the spec's bounds;
-    - a measure rename goes through the lexer, so strings keep their text.
-- Tests: unit and component tests for each finding (`builder`, `fields`, `measures`, `canvas`); the fixture builder e2e passes locally.
-- Scope/decisions: none.
-- Next: #54, builder previews per visual and a separate builder entry point (review findings 2 and 9).
