@@ -164,6 +164,22 @@ describe("executeQuery", () => {
     ]);
   });
 
+  it("answers a total-only measure in one row, even when the query's filter matches nothing", async () => {
+    const { query, limit } = compiled(
+      {
+        measures: [{ formula: "CALCULATE(SUM(sales.amount), ALL(sales.region))" }],
+        filters: [{ field: "fx_exec.sales.region", op: "in", values: ["nowhere"] }],
+      },
+      { tenantIds: [1, 2, 3] },
+    );
+    const result = await executeQuery(reader, query, {
+      limit,
+      settings: { "app.tenant_ids": "1,2,3" },
+    });
+    expect(result.data).toEqual([[100]]);
+    expect(result.meta.truncated).toBe(false);
+  });
+
   it("caps rows at the limit and reports truncation", async () => {
     const { query, limit } = compiled(
       {

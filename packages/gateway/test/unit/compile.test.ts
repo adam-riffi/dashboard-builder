@@ -563,8 +563,36 @@ describe("compileQuery in two stages (ADR 0013)", () => {
     expect(lines).toContain(
       `select date_trunc('month', "t1"."ordered_at") as "d0", sum("t0"."quantity") as "c0"`,
     );
-    expect(lines).toContain('left join "w0" on "w0"."d0" is not distinct from "g"."d0"');
+    expect(lines).toContain(
+      `left join "w0" on coalesce("w0"."d0"::text, '') = coalesce("g"."d0"::text, '') and ("w0"."d0" is null) = ("g"."d0" is null)`,
+    );
     expect(lines).toContain('select "g"."d0" as "d0", "g"."d1" as "d1", "w0"."c0" as "m0"');
+  });
+
+  it("groups a measure that is only ALL's total into one row, matches or not", () => {
+    const result = compile({
+      measures: [{ formula: "CALCULATE(SUM(order_items.quantity), ALL(orders.status))" }],
+      filters: [{ field: "dash_demo.orders.status", op: "in", values: ["paid"] }],
+    });
+    expect(result.ok && result.query.text).toBe(
+      [
+        'with "g" as (',
+        "select",
+        ...from,
+        'where "t0"."tenant_id" = any($1) and "t1"."tenant_id" = any($2) and "t1"."status" = any($3)',
+        "group by ()",
+        '), "w0" as (',
+        'select sum("t0"."quantity") as "c0"',
+        ...from,
+        'where "t0"."tenant_id" = any($4) and "t1"."tenant_id" = any($5)',
+        "group by ()",
+        ")",
+        'select "w0"."c0" as "m0"',
+        'from "g"',
+        'left join "w0" on true',
+        "limit $6",
+      ].join("\n"),
+    );
   });
 
   it("compiles queries without time functions in one statement, as before", () => {

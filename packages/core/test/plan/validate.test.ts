@@ -244,6 +244,16 @@ describe("formula and named measures", () => {
   });
 });
 
+describe("ALL's field (M10 review)", () => {
+  it("doesn't count when finding the fact table", () => {
+    const result = validateQuery(
+      spec({ measures: [{ formula: "CALCULATE(COUNT(orders.id), ALL(order_items.product_id))" }] }),
+      contract,
+    );
+    expect(result.ok && result.query.measures[0]?.tables).toEqual(["dash_demo.orders"]);
+  });
+});
+
 describe("time functions need a time axis (ADR 0013)", () => {
   const named = new Map([["Revenue", "SUM(order_items.quantity * order_items.unit_price)"]]);
   const validate = (s: Partial<QuerySpec> & Pick<QuerySpec, "measures">) =>
