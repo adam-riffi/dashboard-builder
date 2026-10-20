@@ -98,6 +98,11 @@ const ARITY: Record<string, [number, number]> = {
   COALESCE: [2, Number.POSITIVE_INFINITY],
   ROUND: [1, 2],
   DATE_TRUNC: [2, 2],
+  // M10 (ADR 0013)
+  CALCULATE: [2, Number.POSITIVE_INFINITY],
+  ALL: [1, 1],
+  PREVIOUSPERIOD: [1, 1],
+  RUNNINGSUM: [1, 1],
 };
 /** The formula language's functions (DESIGN.md §6), for editors' completions. */
 export const FUNCTIONS = Object.keys(ARITY);
@@ -109,6 +114,14 @@ const A: Record<FieldType, string> = {
   boolean: "a true/false value",
 };
 const MIXED = "a row value cannot be mixed with aggregates; aggregate it, e.g. SUM(...)";
+
+/** The functions that read the query's time axis (ADR 0013). */
+export const TIME_FUNCTIONS = new Set(["PREVIOUSPERIOD", "RUNNINGSUM"]);
+
+/** Whether a checked formula calls any of `names`, anywhere in it. */
+export function calls(t: Typed, names: ReadonlySet<string>): boolean {
+  return (t.kind === "call" && names.has(t.name)) || children(t).some((c) => calls(c, names));
+}
 
 /** The direct subexpressions of a checked node. */
 export const children = (t: Typed): Typed[] =>
@@ -246,6 +259,12 @@ function checkMeasure(
     if (e.args.length < bounds[0] || e.args.length > bounds[1]) {
       return report(arity(e.name, bounds), e);
     }
+    if (e.name === "ALL") {
+      const usage =
+        "ALL only works as a CALCULATE condition, e.g. CALCULATE([Revenue], ALL(table.column))";
+      return report(usage, e);
+    }
+    if (e.name === "CALCULATE") return calculate(e);
     const typed = e.args.map(visit);
     if (!typed.every((t) => t !== undefined)) return undefined;
     const args = typed as Typed[];
@@ -258,6 +277,19 @@ function checkMeasure(
       type,
       level,
     });
+
+    if (TIME_FUNCTIONS.has(e.name)) {
+      const [arg, at] = first;
+      if (arg.level !== "aggregate") {
+        return report(`${e.name} needs a measure, e.g. ${e.name}([Revenue])`, at);
+      }
+      if (calls(arg, TIME_FUNCTIONS))
+        return report("PREVIOUSPERIOD and RUNNINGSUM cannot be nested", at);
+      if (e.name === "RUNNINGSUM" && arg.type !== "number") {
+        return report(`RUNNINGSUM needs a number, not ${A[arg.type]}`, at);
+      }
+      return node(arg.type, "aggregate");
+    }
 
     if (AGGREGATES.has(e.name)) {
       const [arg, at] = first;
@@ -333,6 +365,41 @@ function checkMeasure(
     }
     if (!level || errors.length > before) return undefined;
     return node(type, level);
+  }
+
+  /** `CALCULATE(m, condition, …)`: `m` on the rows that also meet each condition (ADR 0013). */
+  function calculate(e: Expr & { kind: "call" }): Typed | undefined {
+    const [measureArg, ...rest] = e.args as [Expr, ...Expr[]];
+    const m = visit(measureArg);
+    const conditions = rest.map(condition);
+    if (!m || !conditions.every((c) => c !== undefined)) return undefined;
+    if (m.level !== "aggregate") {
+      const usage = "CALCULATE needs a measure, e.g. CALCULATE(SUM(table.column), condition)";
+      return report(usage, measureArg);
+    }
+    const args = [m, ...(conditions as Typed[])];
+    return { kind: "call", name: "CALCULATE", args, type: m.type, level: "aggregate" };
+  }
+
+  /** A row-level true/false value, or `ALL(field)`, which lifts the field's grouping and filters. */
+  function condition(c: Expr): Typed | undefined {
+    if (c.kind === "call" && c.name === "ALL") {
+      if (c.args.length !== 1) return report(arity("ALL", ARITY.ALL as [number, number]), c);
+      const [f] = c.args as [Expr];
+      if (f.kind !== "field") return report("ALL takes a field, e.g. ALL(table.column)", f);
+      const column = field(f);
+      if (!column) return undefined;
+      return { kind: "call", name: "ALL", args: [column], type: "boolean", level: "constant" };
+    }
+    const t = visit(c);
+    if (!t) return undefined;
+    if (t.level === "aggregate") {
+      return report("CALCULATE's conditions are about each row, not aggregates", c);
+    }
+    if (t.type !== "boolean") {
+      return report(`CALCULATE's conditions are true/false values, not ${A[t.type]}`, c);
+    }
+    return t;
   }
 
   function visit(e: Expr): Typed | undefined {
