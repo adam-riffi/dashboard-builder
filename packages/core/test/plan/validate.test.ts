@@ -243,3 +243,43 @@ describe("formula and named measures", () => {
     ]);
   });
 });
+
+describe("time functions need a time axis (ADR 0013)", () => {
+  const named = new Map([["Revenue", "SUM(order_items.quantity * order_items.unit_price)"]]);
+  const validate = (s: Partial<QuerySpec> & Pick<QuerySpec, "measures">) =>
+    validateQuery(spec(s), contract, named);
+  const growth = { formula: "[Revenue] - PREVIOUSPERIOD([Revenue])" };
+  const byDay = { field: "dash_demo.orders.ordered_at", timeGrain: "day" as const };
+  const status = { field: "dash_demo.orders.status" };
+  const axis = "needs one time axis: a date field grouped by day, week, month, quarter or year";
+
+  it("accepts a time function on a query with one time axis, beside other dimensions", () => {
+    expect(validate({ dimensions: [byDay], measures: [growth] }).ok).toBe(true);
+    expect(
+      validate({ dimensions: [status, byDay], measures: [{ formula: "RUNNINGSUM([Revenue])" }] })
+        .ok,
+    ).toBe(true);
+  });
+
+  it.each([
+    ["no dimension", []],
+    ["a dimension without a grain", [status]],
+    [
+      "two time axes",
+      [byDay, { field: "dash_demo.customers.created_at", timeGrain: "month" as const }],
+    ],
+  ])("refuses %s", (_, dimensions) => {
+    expect(validate({ dimensions, measures: [growth] })).toEqual({
+      ok: false,
+      errors: [`measures[0]: PREVIOUSPERIOD ${axis}`],
+    });
+  });
+
+  it("names the function, also inside a named measure", () => {
+    const running = new Map([...named, ["Running", "RUNNINGSUM([Revenue])"]]);
+    expect(validateQuery(spec({ measures: [{ name: "Running" }] }), contract, running)).toEqual({
+      ok: false,
+      errors: [`measures[0]: RUNNINGSUM ${axis}`],
+    });
+  });
+});
