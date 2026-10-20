@@ -32,6 +32,7 @@ export const GET = createGateway(config), POST = GET;
 
 - **Policies:** give every allowlisted table that holds tenant rows a policy. A query is filtered only on the tables it joins.
 - **Runtime:** the gateway runs on Node.js 20 or later. It uses `node:crypto`, `Buffer` and a TCP connection to Postgres, so it doesn't run on Edge or Workers runtimes.
+- **Deadlines:** the gateway's reads give up after 5 s, then get a fresh connection and one more try. `withDeadline(source, stage, run)` does the same for your own calls, such as the lookup in `resolveScope`. Use it only for calls that are safe to repeat.
 
 Then render the builder and viewer from [`@adam-riffi/dash-react`](https://www.npmjs.com/package/@adam-riffi/dash-react).
 

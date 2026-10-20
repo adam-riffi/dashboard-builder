@@ -1,4 +1,5 @@
-import { AuthError, authenticate } from "@adam-riffi/dash-gateway";
+import { AuthError, authenticate, withDeadline } from "@adam-riffi/dash-gateway";
+import type postgres from "postgres";
 import config, { appDb } from "../../../../dash.config";
 import {
   deleteDashboard,
@@ -21,6 +22,13 @@ export const maxDuration = 30;
  * removes one. The visitor is the verified JWT's subject; rows are owner-only (ADR 0001).
  */
 type Context = { params: Promise<{ id?: string[] }> };
+
+/**
+ * The visitor's dashboards with the gateway's 5 s deadline and one retry: a lost connection
+ * behind the pooler would otherwise hang until `maxDuration`. Saving is an upsert and deleting
+ * is by key, so a retry is safe.
+ */
+const db = <T>(run: (sql: postgres.Sql) => Promise<T>) => withDeadline(appDb, "dashboards", run);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const json = (body: unknown, status = 200) =>
@@ -54,8 +62,8 @@ async function handle(
 
 export const GET = (request: Request, context: Context) =>
   handle(request, context, async (user, id) => {
-    if (id === undefined) return json({ dashboards: await listDashboards(appDb(), user) });
-    const dashboard = await getDashboard(appDb(), user, id);
+    if (id === undefined) return json({ dashboards: await db((sql) => listDashboards(sql, user)) });
+    const dashboard = await db((sql) => getDashboard(sql, user, id));
     return dashboard ? json(dashboard) : json({ error: "Not found" }, 404);
   });
 
@@ -68,7 +76,7 @@ export const PUT = async (request: Request, context: Context) => {
     if (id === undefined) return json({ error: "Not found" }, 404);
     const parsed = parseSave(await request.text());
     if (!parsed.ok) return json({ error: parsed.error, issues: parsed.issues }, parsed.status);
-    const saved = await saveDashboard(appDb(), user, id, parsed.spec);
+    const saved = await db((sql) => saveDashboard(sql, user, id, parsed.spec));
     if (saved === "full") {
       return json({ error: `You keep ${MAX_DASHBOARDS_PER_USER} dashboards already` }, 409);
     }
@@ -79,7 +87,8 @@ export const PUT = async (request: Request, context: Context) => {
 export const DELETE = (request: Request, context: Context) =>
   handle(request, context, async (user, id) => {
     if (id === undefined) return json({ error: "Not found" }, 404);
-    return (await deleteDashboard(appDb(), user, id))
-      ? new Response(null, { status: 204 })
-      : json({ error: "Not found" }, 404);
+    // Gone either way: a retry after a slow first attempt finds nothing left to delete, and
+    // row-level security hides other visitors' dashboards, so nothing leaks.
+    await db((sql) => deleteDashboard(sql, user, id));
+    return new Response(null, { status: 204 });
   });
