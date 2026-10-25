@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-25 · claude · stack/m11/04-compile-facts · #103
+- Done: `compileQuery` compiles plans with `facts` (ADR 0014).
+  - Each aggregate goes in the CTE `f<j>` of its fact, the one whose plan reaches all its tables (`Stage.column` now receives the aggregate). Each CTE groups by every dimension, with the policies of its own tables and all the query's filters.
+  - `k` is the union of the facts' dimension values; the outer query left-joins each fact on it with `sameKey` and renders the measures over the facts' columns. Without dimensions the one-row CTEs are cross-joined.
+  - Aliases are shared across facts (one per table), so a column renders the same in every CTE; single-fact SQL is unchanged. `grouped()` takes the fact it reads.
+- Tests: written first. Golden SQL (conformed dimension with a filter, policies in each CTE, sort and limit; a formula across facts without dimensions). Integration property on a `fx_facts` schema (stores, sales, refunds, independent tenants): each measure equals the same measure queried alone, for random dimensions, region filter and scope; a formula across facts equals the difference of its parts. The demo queries' SQL was also run read-only against the demo data, and each measure matched its own query.
+- Scope/decisions: changeset (gateway minor).
+- Next: demo returns, a second fact table (#104).
+
 ## 2026-10-25 · claude · stack/m11/03-plan-facts · #102
 - Done: `planJoins` falls back to one plan per fact table where v1 refused (ADR 0014): measures from tables that don't share a fact, and `SUM`, `AVG` or `COUNT` over a looked-up table.
   - Each aggregate's fact is the table it reads from which its other tables are reached; facts are sorted, and each plans its own joins to every dimension and filter (conformed dimensions) and to the tables of the `CALCULATE` conditions around its aggregates, with the same reachability and ambiguity errors.
@@ -355,12 +364,3 @@ Entry format:
 - Tests (written first): table-driven buckets for every grain, including year and month ends and a leap February; value selections; a property test (fast-check, now a react dev dependency with the shared setup) that a visual carries exactly the other visuals' selections.
 - Scope/decisions: buckets compile to `gte` and `lt` rather than `between`, which is inclusive at both ends.
 - Next: #65, selectable bars, lines and rows, wired into the viewer.
-
-## 2026-10-17 · claude · stack/m6/04-interval-refresh · #63
-- Done: saved dashboards refresh on their interval (DESIGN.md §6, M6 PR 4).
-  - `useDashboardAnswers(spec, { refresh })` refetches every visual each `refreshIntervalSec` (at least 5 s). The timers line up, so a refresh is one batched request, usually answered `304` (#62).
-  - Requests carry `maxAgeSec` = the interval (#61). The batcher never mixes ages.
-  - `DashboardViewer` refreshes; the builder's previews don't.
-- Tests: `test/refresh.test.tsx` (written first, fake timers): a refresh every interval, one request with `maxAgeSec`; answers stay on screen while a refresh is pending; builder previews never refetch on a timer. The #54 request assertion now includes `maxAgeSec: 60`.
-- Scope/decisions: no debounce or jitter; every visual on a page refreshes together.
-- Next: #64, the cross-filter coordinator.
