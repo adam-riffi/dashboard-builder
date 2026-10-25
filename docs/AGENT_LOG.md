@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-25 · claude · stack/m11/03-plan-facts · #102
+- Done: `planJoins` falls back to one plan per fact table where v1 refused (ADR 0014): measures from tables that don't share a fact, and `SUM`, `AVG` or `COUNT` over a looked-up table.
+  - Each aggregate's fact is the table it reads from which its other tables are reached; facts are sorted, and each plans its own joins to every dimension and filter (conformed dimensions), with the same reachability and ambiguity errors.
+  - `JoinPlan.facts` holds them; `base` and `joins` are the first. Single-fact plans are unchanged (`facts` undefined).
+  - Refused for now: `PREVIOUSPERIOD`, `RUNNINGSUM` or `ALL` with several facts, and an aggregate that reads no column (`COUNT(1)`).
+  - The gateway's `compileQuery` throws on a plan with `facts` until the next PR compiles it.
+- Tests: written first. Four tests asserted the two refusals ADR 0014 replaces and now assert the per-fact plans; new ones cover conformed dimensions, the time-function and `COUNT(1)` refusals, and unchanged single-fact plans. The gateway's host-measure refusal moved to a measure that still can't plan (one aggregate over two unrelated tables).
+- Scope/decisions: `AGGREGATES` exported from the formula checker. Changeset (core minor, gateway patch).
+- Next: one CTE per fact, joined on the dimensions (#103).
+
 ## 2026-10-25 · claude · stack/m11/02-map · #101
 - Done: the `map` built-in (ADR 0014): a `region` slot of alpha-2 country codes and a `value` slot.
   - `mapOption` shades countries with the accent (lighter for smaller values, empty ones outlined), labels the legend with compact min and max, and escapes the tooltip. Selection fades the other countries, and clicking a country cross-filters.
@@ -354,11 +364,3 @@ Entry format:
 - Tests: `test/refresh.test.tsx` (written first, fake timers): a refresh every interval, one request with `maxAgeSec`; answers stay on screen while a refresh is pending; builder previews never refetch on a timer. The #54 request assertion now includes `maxAgeSec: 60`.
 - Scope/decisions: no debounce or jitter; every visual on a page refreshes together.
 - Next: #64, the cross-filter coordinator.
-
-## 2026-10-17 · claude · stack/m6/03-query-etag · #62
-- Done: `304` for unchanged query results (DESIGN.md §6, M6 PR 3).
-  - `POST /query` answers carry an `ETag` from `resultsTag`: the results without timing and cache status. `If-None-Match` with that tag gets `304` and no body.
-  - `gatewayTransport` keeps the last tag and results per request body (at most 100) and returns the kept results on `304`.
-- Tests (written first): unit, the tag ignores `ms` and `cache` but changes with data, errors and order; transport, a repeated request sends the kept tag and a `304` yields the kept results; integration (CI), a repeated request with the tag gets `304` with the same tag and no body.
-- Scope/decisions: `304` answers a `POST`, as DESIGN.md §6 specifies; the client handles it itself, since browsers don't cache POSTs.
-- Next: #63, dashboards refresh on their interval.

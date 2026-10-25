@@ -1,11 +1,19 @@
 import type { DataContract, Relationship } from "../contract.ts";
-import { children, type Typed } from "../formula/check.ts";
+import { AGGREGATES, calls, children, type Typed } from "../formula/check.ts";
 import { tablesOf, type ValidQuery } from "./validate.ts";
 
-/** The base (fact) table and the joins to add, each from a table already in the query. */
-export interface JoinPlan {
+/** A fact table and the joins to add, each from a table already in the query. */
+export interface FactPlan {
   base: string;
   joins: Relationship[];
+}
+
+/**
+ * The base (fact) table and its joins. When the measures come from several fact tables,
+ * `facts` plans each one on its own, and `base` and `joins` are its first (ADR 0014).
+ */
+export interface JoinPlan extends FactPlan {
+  facts?: FactPlan[];
 }
 
 export type JoinPlanning = { ok: true; plan: JoinPlan } | { ok: false; errors: string[] };
@@ -39,6 +47,8 @@ function reach(base: string, outgoing: Map<string, Relationship[]>) {
 
 /** Aggregates whose result changes when the same row is seen several times. */
 const REPEAT_SENSITIVE = new Set(["SUM", "AVG", "COUNT"]);
+/** What a query over several fact tables can't do yet (ADR 0014). */
+const SINGLE_FACT_ONLY = new Set(["PREVIOUSPERIOD", "RUNNINGSUM", "ALL"]);
 
 /**
  * Join-path resolution (DESIGN.md §6, hand-written core). The base (fact) table is the one table
@@ -68,18 +78,103 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
     return r;
   };
 
+  /** The dimensions' and filters' tables, and `read`, other than `base`. */
+  const neededFrom = (base: string, read: string[]) =>
+    [...new Set([...[...query.dimensions, ...query.filters].map((f) => f.table), ...read])]
+      .filter((t) => t !== base)
+      .sort(compare);
+
+  /** The joins from `base` to every needed table, or why one can't be reached. */
+  const joinsFrom = (base: string, needed: string[]): FactPlan | { errors: string[] } => {
+    const { depth, paths, incoming } = from(base);
+    const unreachable = needed.flatMap((table) => {
+      if (!depth.has(table)) {
+        return connected(base, table, contract)
+          ? [
+              `${table}: reachable from ${base} only through one-to-many relationships (fan-out would repeat rows)`,
+            ]
+          : [`${table}: not related to ${base}`];
+      }
+      const count = paths.get(table) ?? 0;
+      if (count === 1) return [];
+      const edges = (incoming.get(table) ?? []).map((r) => `via ${via(r)}`).sort(compare);
+      return [
+        `${table}: ${count === 2 ? "two" : count} equally short paths from ${base} (${edges.join(", ")}); the join is ambiguous`,
+      ];
+    });
+    if (unreachable.length > 0) return { errors: unreachable };
+
+    // Walk each needed table back to the base; a table's single shortest edge is shared by all.
+    const joins = new Map<string, Relationship>();
+    for (const table of needed) {
+      for (let t = table; t !== base; ) {
+        const [edge] = incoming.get(t) ?? [];
+        if (!edge) break;
+        joins.set(t, edge);
+        t = edge.from.table;
+      }
+    }
+    const ordered = [...joins.values()].sort(
+      (a, b) =>
+        (depth.get(a.to.table) ?? 0) - (depth.get(b.to.table) ?? 0) || compare(via(a), via(b)),
+    );
+    return { base, joins: ordered };
+  };
+
+  /**
+   * Each aggregate on its own fact table, the one its argument reads from which its other tables
+   * are reached; one plan per fact, each reaching every dimension and filter (ADR 0014).
+   */
+  const perFact = (): JoinPlanning => {
+    if (query.measures.some((m) => calls(m.expr, SINGLE_FACT_ONLY))) {
+      return {
+        ok: false,
+        errors: [
+          "a query over several fact tables can't use PREVIOUSPERIOD, RUNNINGSUM or ALL yet",
+        ],
+      };
+    }
+    const errors: string[] = [];
+    const read = new Map<string, Set<string>>();
+    query.measures.forEach((m, i) => {
+      const walk = (t: Typed): void => {
+        if (!(t.kind === "call" && AGGREGATES.has(t.name))) {
+          children(t).forEach(walk);
+          return;
+        }
+        const tables = tablesOf(t);
+        const fact = tables.find((f) => tables.every((o) => from(f).depth.has(o)));
+        if (tables.length === 0) {
+          errors.push(
+            `measures[${i}]: ${t.name} reads no column; over several fact tables each aggregate needs one`,
+          );
+        } else if (fact === undefined) {
+          errors.push(
+            `measures[${i}]: ${t.name} reads ${tables.join(" and ")}, which don't reach each other`,
+          );
+        } else {
+          read.set(fact, new Set([...(read.get(fact) ?? []), ...tables]));
+        }
+      };
+      walk(m.expr);
+    });
+    if (errors.length > 0) return { ok: false, errors };
+    const facts: FactPlan[] = [];
+    for (const fact of [...read.keys()].sort(compare)) {
+      const planned = joinsFrom(fact, neededFrom(fact, [...(read.get(fact) ?? [])]));
+      if ("errors" in planned) errors.push(...planned.errors);
+      else facts.push(planned);
+    }
+    if (errors.length > 0) return { ok: false, errors };
+    const [first] = facts as [FactPlan, ...FactPlan[]];
+    return { ok: true, plan: facts.length > 1 ? { ...first, facts } : first };
+  };
+
   const measureTables = [...new Set(query.measures.flatMap((m) => m.tables))].sort(compare);
   const bases = measureTables.filter((t) => measureTables.every((o) => from(t).depth.has(o)));
   const [base] = bases;
-  if (measureTables.length > 0 && bases.length !== 1) {
-    const reason = bases.length === 0 ? "" : ", which reach each other";
-    return {
-      ok: false,
-      errors: [
-        `measures come from ${(bases.length === 0 ? measureTables : bases).join(" and ")}${reason}; a query has one fact table`,
-      ],
-    };
-  }
+  // Measures from tables that don't share one fact table: each fact on its own (ADR 0014).
+  if (measureTables.length > 0 && bases.length !== 1) return perFact();
   if (base === undefined) {
     return {
       ok: false,
@@ -87,65 +182,20 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
     };
   }
 
-  // A looked-up row is repeated once per fact row, which SUM, AVG and COUNT would count again.
-  const errors: string[] = [];
-  query.measures.forEach((m, i) => {
-    const walk = (t: Typed): void => {
-      if (t.kind === "call" && REPEAT_SENSITIVE.has(t.name)) {
-        const tables = tablesOf(t);
-        if (tables.length > 0 && !tables.includes(base)) {
-          errors.push(
-            `measures[${i}]: ${t.name} over ${tables.join(" and ")} would repeat each of its rows once per ${base} row; use COUNTDISTINCT, MIN or MAX, or a column of ${base}`,
-          );
-        }
-      } else children(t).forEach(walk);
-    };
-    walk(m.expr);
+  // A looked-up row is repeated once per fact row, which SUM, AVG and COUNT would count again:
+  // such aggregates are answered on their own table instead (ADR 0014; ADR 0007 refused them).
+  const repeats = query.measures.some((m) => {
+    const walk = (t: Typed): boolean =>
+      t.kind === "call" && REPEAT_SENSITIVE.has(t.name)
+        ? tablesOf(t).length > 0 && !tablesOf(t).includes(base)
+        : children(t).some(walk);
+    return walk(m.expr);
   });
-  if (errors.length > 0) return { ok: false, errors };
+  if (repeats) return perFact();
 
-  const needed = [
-    ...new Set([
-      ...[...query.dimensions, ...query.filters].map((f) => f.table),
-      ...query.measures.flatMap((m) => m.tables),
-    ]),
-  ]
-    .filter((t) => t !== base)
-    .sort(compare);
-  const { depth, paths, incoming } = from(base);
-
-  const unreachable = needed.flatMap((table) => {
-    if (!depth.has(table)) {
-      return connected(base, table, contract)
-        ? [
-            `${table}: reachable from ${base} only through one-to-many relationships (fan-out would repeat rows)`,
-          ]
-        : [`${table}: not related to ${base}`];
-    }
-    const count = paths.get(table) ?? 0;
-    if (count === 1) return [];
-    const edges = (incoming.get(table) ?? []).map((r) => `via ${via(r)}`).sort(compare);
-    return [
-      `${table}: ${count === 2 ? "two" : count} equally short paths from ${base} (${edges.join(", ")}); the join is ambiguous`,
-    ];
-  });
-  if (unreachable.length > 0) return { ok: false, errors: unreachable };
-
-  // Walk each needed table back to the base; a table's single shortest edge is shared by all.
-  const joins = new Map<string, Relationship>();
-  for (const table of needed) {
-    for (let t = table; t !== base; ) {
-      const [edge] = incoming.get(t) ?? [];
-      if (!edge) break;
-      joins.set(t, edge);
-      t = edge.from.table;
-    }
-  }
-  const ordered = [...joins.values()].sort(
-    (a, b) =>
-      (depth.get(a.to.table) ?? 0) - (depth.get(b.to.table) ?? 0) || compare(via(a), via(b)),
-  );
-  return { ok: true, plan: { base, joins: ordered } };
+  const planned = joinsFrom(base, neededFrom(base, measureTables));
+  if ("errors" in planned) return { ok: false, errors: planned.errors };
+  return { ok: true, plan: planned };
 }
 
 /** Whether two tables are related at all, ignoring the direction of relationships. */
