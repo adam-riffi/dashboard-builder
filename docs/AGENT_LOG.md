@@ -20,7 +20,12 @@ Entry format:
   - **Multi-fact queries:** one CTE per fact table, joined on the dimensions, used only where v1 refused ("one fact table", fan-trap guard); the demo's second fact is `returns`.
   - DESIGN.md §6 updated.
 - Tests: none (docs).
-- Scope/decisions: multi-fact queries can't use the time functions or `ALL` yet; queries v1 accepts compile as before.
+- Scope/decisions: multi-fact queries can't use the time functions or `ALL` yet.
+- Amended after the M11 review:
+  - Each aggregate is answered on its own table wherever that table reaches the query's dimensions, filters and conditions, so a measure keeps its value next to others. Otherwise v1's fact table answers it.
+  - Counts are 0 where a fact has no row.
+  - The known ceilings are recorded.
+  - DESIGN.md §6 allows `topojson-client`.
 - Next: the map visual (#101).
 
 ## 2026-10-20 · claude · docs/handoff-m10 · #99

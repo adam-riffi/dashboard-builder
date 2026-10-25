@@ -78,7 +78,7 @@ dashboard-builder/
 
 ## 6. Core algorithms and design decisions
 
-**Hand-written core:** contract inference, join-path resolution, policy injection, formula language (lexer, Pratt parser, type checker, SQL compiler), cache keying, cross-filter coordinator, field-well logic. Libraries allowed around it: `postgres` (postgres.js) driver, `jose` (JWT/JWKS), zod, React, dnd-kit (drag and drop), react-grid-layout, CodeMirror 6 (formula editor), Apache ECharts (chart drawing only), TanStack Query.
+**Hand-written core:** contract inference, join-path resolution, policy injection, formula language (lexer, Pratt parser, type checker, SQL compiler), cache keying, cross-filter coordinator, field-well logic. Libraries allowed around it: `postgres` (postgres.js) driver, `jose` (JWT/JWKS), zod, React, dnd-kit (drag and drop), react-grid-layout, CodeMirror 6 (formula editor), Apache ECharts (chart drawing only), `topojson-client` (decoding the map's geometry, [ADR 0014](adr/0014-map-and-multi-fact.md)), TanStack Query.
 
 **Contract inference.** Read `pg_catalog` for the allowlisted tables: columns, types, nullability, primary keys, foreign keys, and `pg_stats` estimates (row counts, distinct values). `information_schema` is avoided because it hides foreign keys from read-only roles. On sources where RLS applies to the source role, `pg_stats` is hidden, so distinct counts are unknown and `highCardinality` stays off. Statistics are used server-side only; `GET /contract` serves them as `null` because they ignore RLS ([ADR 0005](adr/0005-statistics-under-rls.md)). Assign each column a role:
 - `id`: primary keys, foreign keys, names whose last part is `id` (`customer_id`, `customerId`).
