@@ -20,7 +20,12 @@ Entry format:
   - `k` is the union of the facts' dimension values; the outer query left-joins each fact on it with `sameKey` and renders the measures over the facts' columns. Without dimensions the one-row CTEs are cross-joined.
   - Aliases are shared across facts (one per table), so a column renders the same in every CTE; single-fact SQL is unchanged. `grouped()` takes the fact it reads.
 - Tests: written first. Golden SQL (conformed dimension with a filter, policies in each CTE, sort and limit; a formula across facts without dimensions). Integration property on a `fx_facts` schema (stores, sales, refunds, independent tenants): each measure equals the same measure queried alone, for random dimensions, region filter and scope; a formula across facts equals the difference of its parts. The demo queries' SQL was also run read-only against the demo data, and each measure matched its own query.
-- Scope/decisions: changeset (gateway minor).
+- Review fixes (M11 review):
+  - **Own table:** `planJoins` answers each aggregate on its own table whenever that table reaches every dimension, filter and `CALCULATE` condition, so a measure keeps the value it has alone, whatever the other measures. Otherwise v1's fact table answers it (COUNTDISTINCT, MIN and MAX only over a looked-up table), and queries with time functions or `ALL` keep v1's plan.
+    - The review's case: Orders next to Refunds counted only the orders that had a return.
+    - The v1 test pinning `COUNTDISTINCT(orders.id)` over item rows changed, and so did the leakage property's ratio, which now reads `order_items.order_id`.
+  - **Counts:** a count is 0, not null, for a key only other facts have.
+- Scope/decisions: ADR 0014 amended in #100. Changeset (gateway minor; core's notes the new rule).
 - Next: demo returns, a second fact table (#104).
 
 ## 2026-10-25 · claude · stack/m11/03-plan-facts · #102
