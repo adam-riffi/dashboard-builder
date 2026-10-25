@@ -69,7 +69,9 @@ begin
     select t, i.id, i.quantity, i.quantity * i.unit_price, now()
     from dash_demo.order_items i
     join dash_demo.orders o on o.id = i.order_id
+    -- o.tenant_id lets the (tenant_id, ordered_at) index find the 30 days (M11 review).
     where i.tenant_id = t
+      and o.tenant_id = t
       and o.ordered_at > now() - interval '30 days'
       and not exists (select 1 from dash_demo.returns r where r.order_item_id = i.id)
     order by random()

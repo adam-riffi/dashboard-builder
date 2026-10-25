@@ -22,6 +22,7 @@ Entry format:
   - The demo gateway allowlists the table with its policy and adds the host measure "Refunds" (`SUM(returns.refunded_amount)`). DESIGN.md §8 lists the table.
 - Tests: written first. RLS on `returns` with the other tables; the seed's share (3–7%), whole lines, same tenant, dates; the cascade through the 90-day window; the tick's return on a tenth order. They run in CI (no Docker here).
 - Scope/decisions: the M1 golden contract keeps its four tables, since it pins the introspection of the original schema. No changeset (db and demo are private).
+- Review fix (M11 review): the tick's return also filters `orders.tenant_id`, so the `(tenant_id, ordered_at)` index serves its 30-day range. The `@smoke` test now counts 5 tables.
 - Next: revenue and refunds by category, and countries on a map (#105).
 
 ## 2026-10-25 · claude · stack/m11/04-compile-facts · #103
