@@ -1,9 +1,11 @@
 import {
   calls,
+  type FactPlan,
   type JoinPlan,
   type ResultColumn,
   type TimeGrain,
   type Typed,
+  tablesOf,
   type ValidQuery,
 } from "@adam-riffi/dash-core";
 
@@ -48,14 +50,15 @@ const STEP: Record<TimeGrain, string> = {
 /**
  * How a two-stage compile renders a measure over the grouped CTE `g` (ADR 0013): an aggregate
  * becomes one of its columns (or of `p`, the previous window, inside `PREVIOUSPERIOD`), and
- * `RUNNINGSUM` becomes a window along the time axis.
+ * `RUNNINGSUM` becomes a window along the time axis. Over several fact tables, an aggregate
+ * becomes a column of its fact's CTE instead (ADR 0014).
  */
 export interface Stage {
   /**
    * Records an aggregate's SQL as a CTE column and returns the outer reference to it: in `g`,
    * in `p` for the previous window, or in a total CTE for the fields `ALL` lifted.
    */
-  column: (sql: string, previous: boolean, lifted: Field[]) => string;
+  column: (sql: string, previous: boolean, lifted: Field[], aggregate: Typed) => string;
   previous: boolean;
   lifted: Field[];
   /** The outer references of the time axis and of the other dimensions. */
@@ -82,7 +85,7 @@ export function renderFormula(
   const row = (e: Typed) => renderFormula(e, ref, bind);
   const filtered = (aggregate: string) => {
     const sql = filter === undefined ? aggregate : `${aggregate} filter (where ${filter})`;
-    return stage ? stage.column(sql, stage.previous, stage.lifted) : sql;
+    return stage ? stage.column(sql, stage.previous, stage.lifted, t) : sql;
   };
   switch (t.kind) {
     case "number":
@@ -174,15 +177,16 @@ export function compileQuery(
   policies: Policy[],
   scope: Record<string, unknown>,
 ): Compilation {
-  // ponytail: the compile for several fact tables lands next (ADR 0014); never run one as one.
-  if (plan.facts) throw new Error("a query over several fact tables can't compile yet");
   const params: unknown[] = [];
   const bind = (value: unknown) => {
     params.push(value);
     return `$${params.length}`;
   };
 
-  const tables = [plan.base, ...plan.joins.map((j) => j.to.table)];
+  const facts = plan.facts ?? [plan];
+  const tablesIn = (f: FactPlan) => [f.base, ...f.joins.map((j) => j.to.table)];
+  // One alias per table across the facts, so a column reads the same in each fact's CTE.
+  const tables = [...new Set(facts.flatMap(tablesIn))];
   const alias = new Map(tables.map((t, i) => [t, quote(`t${i}`)]));
   const ref = (table: string, column: string) => `${alias.get(table)}.${quote(column)}`;
 
@@ -193,8 +197,8 @@ export function compileQuery(
   );
   if (errors.length > 0) return { ok: false, errors };
   /** The policies' predicates, bound again for each grouped query that reads the tables. */
-  const policyPredicates = () =>
-    tables.flatMap((table) =>
+  const policyPredicates = (read = tables) =>
+    read.flatMap((table) =>
       policies
         .filter((p) => p.table === table)
         .map((p) => `${ref(table, p.column)} = any(${bind(scope[p.in])})`),
@@ -258,9 +262,9 @@ export function compileQuery(
       }
     });
 
-  const from = [
-    `from ${quoteTable(plan.base)} as ${alias.get(plan.base)}`,
-    ...plan.joins.map((j) => {
+  const fromOf = (f: FactPlan) => [
+    `from ${quoteTable(f.base)} as ${alias.get(f.base)}`,
+    ...f.joins.map((j) => {
       const on = j.to.columns
         .map((c, i) => `${ref(j.to.table, c)} = ${ref(j.from.table, j.from.columns[i] as string)}`)
         .join(" and ");
@@ -291,6 +295,89 @@ export function compileQuery(
     return lines;
   };
 
+  /** A grouped CTE body over `kept` dimensions (all of them unless `ALL` lifted some). */
+  const grouped = (
+    aggregates: string[],
+    prefix: string,
+    predicates: string[],
+    kept = query.dimensions.map((_, i) => i),
+    source: FactPlan = plan,
+  ) => {
+    const select = [
+      ...kept.map((i) => dimensions[i]),
+      ...aggregates.map((sql, k) => `${sql} as ${quote(`${prefix}${k}`)}`),
+    ];
+    return [
+      select.length > 0 ? `select ${select.join(", ")}` : "select",
+      ...fromOf(source),
+      ...where(predicates),
+      // Without dimensions, `group by ()` still makes one row: one per fact row otherwise, and
+      // none when the filters match nothing (M10 review).
+      `group by ${kept.length > 0 ? kept.map((_, j) => j + 1).join(", ") : "()"}`,
+    ];
+  };
+  if (plan.facts) {
+    // Several facts (ADR 0014): each aggregate goes in the CTE `f…` of the fact its argument
+    // reads, the one whose plan reaches all its tables; the keys `k` are every fact's dimension
+    // values, and the outer query renders each measure over the facts' columns. The planner
+    // refuses time functions and ALL here, so `previous`, `lifted`, `time` and `others` are unused.
+    const read = facts.map(tablesIn);
+    const aggregates = facts.map(() => [] as string[]);
+    const stage: Stage = {
+      column: (sql, _previous, _lifted, aggregate) => {
+        const used = tablesOf(aggregate);
+        const j = facts.findIndex(
+          (f, j) => used.includes(f.base) && used.every((t) => read[j]?.includes(t)),
+        );
+        const list = aggregates[j];
+        if (!list) throw new Error(`no fact reads ${used.join(" and ")}`);
+        list.push(sql);
+        const column = `${quote(`f${j}`)}.${quote(`a${list.length - 1}`)}`;
+        // A key only other facts have counts nothing here: 0, as a count of no rows is.
+        const counts = aggregate.kind === "call" && aggregate.name.startsWith("COUNT");
+        return counts ? `coalesce(${column}, 0)` : column;
+      },
+      previous: false,
+      lifted: [],
+      time: "",
+      others: [],
+    };
+    const measures = query.measures.map(
+      (m, i) => `${renderFormula(m.expr, ref, bind, undefined, stage)} as ${quote(`m${i}`)}`,
+    );
+    const keys = query.dimensions.map((_, i) => quote(`d${i}`));
+    const ctes = facts.flatMap((f, j) => [
+      `${j === 0 ? "with" : "),"} ${quote(`f${j}`)} as (`,
+      ...grouped(
+        aggregates[j] ?? [],
+        "a",
+        [...policyPredicates(read[j]), ...filterPredicates()],
+        undefined,
+        f,
+      ),
+    ]);
+    const union = facts.map((_, j) => `select ${keys.join(", ")} from ${quote(`f${j}`)}`);
+    const lines = [
+      ...ctes,
+      ...(keys.length > 0
+        ? ['), "k" as (', ...union.flatMap((u, j) => (j > 0 ? ["union", u] : [u]))]
+        : []),
+      ")",
+      `select ${[...keys.map((k) => `"k".${k} as ${k}`), ...measures].join(", ")}`,
+      ...(keys.length > 0
+        ? [
+            'from "k"',
+            ...facts.map((_, j) => {
+              const f = quote(`f${j}`);
+              return `left join ${f} on ${keys.map((k) => sameKey(`${f}.${k}`, `"k".${k}`)).join(" and ")}`;
+            }),
+          ]
+        : [`from ${facts.map((_, j) => quote(`f${j}`)).join(", ")}`]),
+      ...orderAndLimit(),
+    ];
+    return { ok: true, query: { text: lines.join("\n"), params, columns } };
+  }
+
   if (!query.measures.some((m) => calls(m.expr, TWO_STAGE))) {
     const policyWhere = policyPredicates();
     const measures = query.measures.map(
@@ -298,7 +385,7 @@ export function compileQuery(
     );
     const lines = [
       `select ${[...dimensions, ...measures].join(", ")}`,
-      ...from,
+      ...fromOf(plan),
       ...where([...policyWhere, ...filterPredicates()]),
       ...groupBy,
       ...orderAndLimit(),
@@ -347,26 +434,6 @@ export function compileQuery(
   const measures = query.measures.map(
     (m, i) => `${renderFormula(m.expr, ref, bind, undefined, stage)} as ${quote(`m${i}`)}`,
   );
-  /** A grouped CTE body over `kept` dimensions (all of them unless `ALL` lifted some). */
-  const grouped = (
-    aggregates: string[],
-    prefix: string,
-    predicates: string[],
-    kept = query.dimensions.map((_, i) => i),
-  ) => {
-    const select = [
-      ...kept.map((i) => dimensions[i]),
-      ...aggregates.map((sql, k) => `${sql} as ${quote(`${prefix}${k}`)}`),
-    ];
-    return [
-      select.length > 0 ? `select ${select.join(", ")}` : "select",
-      ...from,
-      ...where(predicates),
-      // Without dimensions, `group by ()` still makes one row: one per fact row otherwise, and
-      // none when the filters match nothing (M10 review).
-      `group by ${kept.length > 0 ? kept.map((_, j) => j + 1).join(", ") : "()"}`,
-    ];
-  };
   const usesPrevious = query.measures.some((m) => calls(m.expr, PREVIOUS));
   const previousCte = (): string[] => {
     if (!usesPrevious || !axis) return [];

@@ -601,3 +601,78 @@ describe("compileQuery in two stages (ADR 0013)", () => {
     expect(result.ok && result.query.text.startsWith("select ")).toBe(true);
   });
 });
+
+describe("compileQuery over several fact tables (ADR 0014)", () => {
+  const status = { field: "dash_demo.orders.status" };
+  const keyed = (cte: string) =>
+    `left join "${cte}" on coalesce("${cte}"."d0"::text, '') = coalesce("k"."d0"::text, '') and ("${cte}"."d0" is null) = ("k"."d0" is null)`;
+
+  it("groups each fact in its own CTE, with its policies and every filter, joined on the dimensions", () => {
+    const result = compile({
+      dimensions: [status],
+      measures: [units, { formula: "COUNT(orders.id)" }],
+      filters: [{ field: status.field, op: "in", values: ["paid"] }],
+      sort: [{ by: "measure", index: 1, dir: "desc" }],
+      limit: 5,
+    });
+    expect(result.ok && result.query.text).toBe(
+      [
+        'with "f0" as (',
+        'select "t1"."status" as "d0", sum("t0"."quantity") as "a0"',
+        'from "dash_demo"."order_items" as "t0"',
+        'left join "dash_demo"."orders" as "t1" on "t1"."id" = "t0"."order_id"',
+        'where "t0"."tenant_id" = any($1) and "t1"."tenant_id" = any($2) and "t1"."status" = any($3)',
+        "group by 1",
+        '), "f1" as (',
+        'select "t1"."status" as "d0", count("t1"."id") as "a0"',
+        'from "dash_demo"."orders" as "t1"',
+        'where "t1"."tenant_id" = any($4) and "t1"."status" = any($5)',
+        "group by 1",
+        '), "k" as (',
+        'select "d0" from "f0"',
+        "union",
+        'select "d0" from "f1"',
+        ")",
+        // A key only another fact has counts nothing: 0, where a sum has no value.
+        'select "k"."d0" as "d0", "f0"."a0" as "m0", coalesce("f1"."a0", 0) as "m1"',
+        'from "k"',
+        keyed("f0"),
+        keyed("f1"),
+        'order by "m1" desc nulls last, 1',
+        "limit $6",
+      ].join("\n"),
+    );
+    expect(result.ok && result.query.params).toEqual([
+      [1, 2],
+      [1, 2],
+      ["paid"],
+      [1, 2],
+      ["paid"],
+      6,
+    ]);
+  });
+
+  it("renders a formula over several facts on their one-row CTEs when there are no dimensions", () => {
+    const result = compile({
+      measures: [{ formula: "SUM(order_items.quantity) / COUNT(orders.id)" }],
+    });
+    expect(result.ok && result.query.text).toBe(
+      [
+        'with "f0" as (',
+        'select sum("t0"."quantity") as "a0"',
+        'from "dash_demo"."order_items" as "t0"',
+        'where "t0"."tenant_id" = any($1)',
+        "group by ()",
+        '), "f1" as (',
+        'select count("t1"."id") as "a0"',
+        'from "dash_demo"."orders" as "t1"',
+        'where "t1"."tenant_id" = any($2)',
+        "group by ()",
+        ")",
+        'select (("f0"."a0")::numeric / coalesce("f1"."a0", 0)) as "m0"',
+        'from "f0", "f1"',
+        "limit $3",
+      ].join("\n"),
+    );
+  });
+});
