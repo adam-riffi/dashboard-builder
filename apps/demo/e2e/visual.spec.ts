@@ -49,6 +49,12 @@ test("the scatter fixture renders identically", async ({ page }) => {
   await expect(page).toHaveScreenshot("scatter.png", { fullPage: true });
 });
 
+test("the map fixture renders identically", async ({ page }) => {
+  await page.goto("/fixtures/map");
+  await settled(page, 1);
+  await expect(page).toHaveScreenshot("map.png", { fullPage: true });
+});
+
 test("the overview stacks to one column on a phone", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/fixtures/overview");

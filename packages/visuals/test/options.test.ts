@@ -1,6 +1,13 @@
 import type { QueryResult, ResultColumn } from "@adam-riffi/dash-core";
 import { describe, expect, it } from "vitest";
-import { barOption, chartLabel, formattersFor, lineOption, scatterOption } from "../src/index.ts";
+import {
+  barOption,
+  chartLabel,
+  formattersFor,
+  lineOption,
+  mapOption,
+  scatterOption,
+} from "../src/index.ts";
 
 const theme = { ink: "#111", muted: "#666", grid: "#ccc", palette: ["#e4572e", "#4c6a92"] };
 const result = (columns: ResultColumn[], data: unknown[][]): QueryResult => ({
@@ -133,6 +140,60 @@ describe("scatterOption", () => {
     expect(selected.series[0]?.data).toEqual([
       { value: [83495.78, 540], itemStyle: { opacity: 1 } },
       { value: [39402.8, 1200], itemStyle: { opacity: 0.35 } },
+    ]);
+  });
+});
+
+describe("mapOption (ADR 0014)", () => {
+  const country: ResultColumn = {
+    key: "d0",
+    kind: "dimension",
+    field: "s.customers.country",
+    type: "string",
+  };
+  const countries = result(
+    [country, revenue],
+    [
+      ["FR", "DE", "<b>"],
+      [300, 100, 50],
+    ],
+  );
+  const formatters = formattersFor(countries.columns, formats, "USD");
+  type Option = {
+    tooltip: { formatter: (p: { dataIndex: number; name: string }) => string };
+    visualMap: { min: number; max: number; inRange: { color: string[] } };
+    series: { type: string; map: string; data: unknown[] }[];
+  };
+  const option = mapOption(countries, formatters)(theme) as Option;
+
+  it("shades each country on the world map by value, named by its code", () => {
+    expect(option.series).toMatchObject([
+      {
+        type: "map",
+        map: "world",
+        data: [
+          { name: "FR", value: 300 },
+          { name: "DE", value: 100 },
+          { name: "<b>", value: 50 },
+        ],
+      },
+    ]);
+    expect(option.visualMap).toMatchObject({ min: 50, max: 300 });
+    expect(option.visualMap.inRange.color.at(-1)).toBe(theme.palette[0]);
+  });
+
+  it("names a country and its value in the tooltip, escaped, and countries without data plainly", () => {
+    expect(option.tooltip.formatter({ dataIndex: 0, name: "FR" })).toBe("FR: $300.00");
+    expect(option.tooltip.formatter({ dataIndex: 2, name: "<b>" })).toBe("&lt;b&gt;: $50.00");
+    expect(option.tooltip.formatter({ dataIndex: -1, name: "IT" })).toBe("IT");
+  });
+
+  it("fades the countries other than the selected one", () => {
+    const selected = mapOption(countries, formatters, "FR")(theme) as Option;
+    expect(selected.series[0]?.data).toEqual([
+      { name: "FR", value: 300, itemStyle: { opacity: 1 } },
+      { name: "DE", value: 100, itemStyle: { opacity: 0.35 } },
+      { name: "<b>", value: 50, itemStyle: { opacity: 0.35 } },
     ]);
   });
 });

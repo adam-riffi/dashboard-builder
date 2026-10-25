@@ -68,7 +68,7 @@ dashboard-builder/
 │   ├── core/       # types, contract schema, DashboardSpec schema, formula language, QuerySpec, query validation and join planning
 │   ├── gateway/    # server: config, sources/postgres, introspection, auth, policies, compiler, cache, handlers
 │   ├── react/      # provider, builder, viewer, cross-filter coordinator, hooks
-│   └── visuals/    # registry + KPI, bar, line, table, scatter plugins
+│   └── visuals/    # registry + KPI, bar, line, table, scatter, map plugins
 ├── apps/
 │   └── demo/       # Next.js app: Acme Shop, gateway route, Supabase auth, dashboard storage
 ├── db/             # migrations (dash, dash_demo), seed, pg_cron job

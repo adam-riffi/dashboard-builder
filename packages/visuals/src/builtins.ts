@@ -113,3 +113,23 @@ export const scatter: VisualDefinition<z.infer<typeof scatterOptions>> = {
     limit: options.limit,
   }),
 };
+
+/**
+ * Countries shaded by one measure on the world map (ADR 0014). The region holds ISO 3166-1
+ * alpha-2 codes; codes the map lacks still show in the text alternative.
+ */
+export const map: VisualDefinition<Record<string, never>> = {
+  type: "map",
+  label: "Map",
+  icon: "map",
+  slots: [
+    { name: "region", label: "Country", accepts: "dimension", min: 1, max: 1 },
+    { name: "value", label: "Value", accepts: "measure", min: 1, max: 1 },
+  ],
+  options: z.object({}).strict(),
+  toQuery: (slots) => ({
+    dimensions: fieldsOf(slots.region),
+    measures: measuresOf(slots.value),
+    filters: [],
+  }),
+};

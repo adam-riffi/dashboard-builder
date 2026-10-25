@@ -3,7 +3,14 @@
 import type { EChartsCoreOption } from "echarts/core";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { labelOf } from "./format.ts";
-import { barOption, chartLabel, lineOption, scatterOption, type Theme } from "./options.ts";
+import {
+  barOption,
+  chartLabel,
+  lineOption,
+  mapOption,
+  scatterOption,
+  type Theme,
+} from "./options.ts";
 import type { VisualProps } from "./plugin.ts";
 
 /**
@@ -175,11 +182,14 @@ function Chart({
   option,
   label,
   onPick,
+  world = false,
 }: {
   option: (theme: Theme) => EChartsCoreOption;
   label: string;
   /** A click on a data point, by its row. */
   onPick?: ((row: number) => void) | undefined;
+  /** Whether the chart draws on the world map, which loads before the chart is created. */
+  world?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<EChart | null>(null);
@@ -208,7 +218,8 @@ function Chart({
     // CSS variables change with the scheme; ECharts holds resolved colors, so draw again.
     const scheme = matchMedia("(prefers-color-scheme: dark)");
     import("./echarts.ts")
-      .then(({ init }) => {
+      .then(async ({ init, registerWorld }) => {
+        if (world) await registerWorld();
         if (gone) return;
         const created = init(el, undefined, { renderer: "svg" });
         created.on("click", (params) =>
@@ -231,7 +242,7 @@ function Chart({
       chart.current = null;
       delete el.dataset.ready;
     };
-  }, [draw]);
+  }, [draw, world]);
 
   useEffect(() => {
     latest.current = option;
@@ -261,9 +272,10 @@ function SelectableChart(
       f: VisualProps["formatters"],
       s?: unknown,
     ) => (theme: Theme) => EChartsCoreOption;
+    world?: boolean;
   },
 ) {
-  const { result, formatters, selected, onSelect, build } = props;
+  const { result, formatters, selected, onSelect, build, world } = props;
   const option = useMemo(
     () => build(result, formatters, selected),
     [build, result, formatters, selected],
@@ -272,7 +284,7 @@ function SelectableChart(
   const onPick = onSelect && ((row: number) => onSelect(result.data[0]?.[row]));
   return (
     <>
-      <Chart option={option} label={label} onPick={onPick} />
+      <Chart option={option} label={label} onPick={onPick} world={world ?? false} />
       <Pick {...props} />
     </>
   );
@@ -291,4 +303,9 @@ export function Line(props: VisualProps) {
 /** One point per category, placed by two measures. */
 export function Scatter(props: VisualProps) {
   return <SelectableChart {...props} build={scatterOption} />;
+}
+
+/** Countries on the world map, shaded by value. */
+export function WorldMap(props: VisualProps) {
+  return <SelectableChart {...props} build={mapOption} world />;
 }
