@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-25 · claude · fix/returns-dates · #106
+- Done: returns no longer pile up on one instant.
+  - `0005` dated each backfilled return one to fourteen days after its order, capped at now, so 814 of production's 3,296 returns carried the migration's timestamp. A chart of refunds by day would have shown a spike.
+  - Migration `0006_spread_return_dates` moves each of those to between its order and now, one to nine tenths of the way, picked by its item's id. `seed.sql` dates new databases the same way.
+  - Checked read-only on production before merging: 814 rows, each with a distinct new date between its order and now.
+- Tests: written first. The seed test: no instant holds more than two returns. It runs in CI.
+- Scope/decisions: no changeset (db only).
+- Next: HANDOFF after M11; then M12 (your own data).
+
 ## 2026-10-25 · claude · stack/m11/06-demo-and-docs · #105
 - Done: M11 acceptance on the live stack, and the docs.
   - E2E: a visitor builds a table of Revenue and Refunds by Category (two facts, `order_items` and `returns`) and a map of Revenue by Country, saves it, sees five categories with both amounts and the map's text alternative with FR, picks FR in the map's picker, sees the table change, then deletes the dashboard.
@@ -361,12 +370,3 @@ Entry format:
 - Tests: the e2e above (CI, local Supabase).
 - Scope/decisions: latency is measured in the browser, so it includes the route and authentication, not just the cache.
 - Next: an independent review of M6 (#60–#67), fixes, merges, then a production check (cross-filter, an order arriving within a minute, the drawer, `cache: "hit"` in the logs).
-
-## 2026-10-17 · claude · stack/m6/07-under-the-hood · #66
-- Done: the "Under the hood" drawer (DESIGN.md §2, §13; M6 PR 7).
-  - The gateway's `explain` option (off by default) adds `meta.explain = { sql, params, scope }` to each answer, on a copy, so cached entries stay as executed.
-  - `<DashboardViewer underTheHood>` adds a `<details>` drawer: the security context, then each visual's cache status, time, rows, SQL and parameters.
-  - The demo turns `explain` on (its own data, as §13 allows) and shows the drawer under its dashboards. The fixture gallery has no drawer, so its screenshots are unchanged.
-- Tests (written first): the drawer shows cache hit, time, rows, SQL and scope, and is absent without the prop; integration (CI), `explain` off gives no `meta.explain`, on gives the SQL, the policy's parameters and the scope.
-- Scope/decisions: the scope travels in each answer's `meta.explain` rather than a new top-level field; logs still carry only the scope hash.
-- Next: #67, M6 acceptance: cross-filter and live-refresh e2e, the drawer, and the cached-latency script.
