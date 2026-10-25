@@ -174,6 +174,8 @@ export function compileQuery(
   policies: Policy[],
   scope: Record<string, unknown>,
 ): Compilation {
+  // ponytail: the compile for several fact tables lands next (ADR 0014); never run one as one.
+  if (plan.facts) throw new Error("a query over several fact tables can't compile yet");
   const params: unknown[] = [];
   const bind = (value: unknown) => {
     params.push(value);

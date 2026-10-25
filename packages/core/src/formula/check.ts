@@ -84,7 +84,8 @@ export const MAX_FORMULA_NODES = 1_000;
 export const MAX_REFERENCE_DEPTH = 16;
 
 const GRAINS = ["day", "week", "month", "quarter", "year"];
-const AGGREGATES = new Set(["SUM", "AVG", "MIN", "MAX", "COUNT", "COUNTDISTINCT"]);
+/** The formula language's aggregates. */
+export const AGGREGATES = new Set(["SUM", "AVG", "MIN", "MAX", "COUNT", "COUNTDISTINCT"]);
 /** [fewest, most] arguments. */
 const ARITY: Record<string, [number, number]> = {
   SUM: [1, 1],

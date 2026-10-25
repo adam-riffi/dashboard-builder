@@ -196,9 +196,10 @@ describe("host measures (ADR 0007)", () => {
   });
 
   it("refuses a host measure that no query could plan, naming it", () => {
-    const measures = [{ name: "Bad", formula: "SUM(sales.amount) + COUNTDISTINCT(stores.id)" }];
+    // Two unrelated tables in one aggregate; in two, each is its own fact (ADR 0014).
+    const measures = [{ name: "Bad", formula: "SUM(sales.amount + stores.id)" }];
     expect(() => inferContract(shop, { tables, measures })).toThrow(
-      "measure Bad: measures come from s.sales and s.stores; a query has one fact table",
+      "measure Bad: measures[0]: SUM reads s.sales and s.stores, which don't reach each other",
     );
   });
 
