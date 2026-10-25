@@ -37,6 +37,10 @@ export function registerWorld(): Promise<void> {
       registerMap("world", countries as unknown as Parameters<typeof registerMap>[1]);
     },
   );
+  // A failed load (a chunk the network dropped) is tried again by the next map, not kept.
+  world.catch(() => {
+    world = undefined;
+  });
   return world;
 }
 

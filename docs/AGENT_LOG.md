@@ -21,6 +21,7 @@ Entry format:
   - The builder offers "Add Map"; demo fixture `map`.
 - Tests: written first: the map's query and registry; the option builder (codes, range, legend, escaped tooltip, fade); `geo.test.ts` for the date line. The screenshots come from CI's Linux artifact (`map.png`, and `builder.png` again for the new button).
 - Scope/decisions: `topojson-client` (ISC) is the one new runtime dependency; `world-atlas` and `i18n-iso-countries` are dev-only. AGENTS.md gains the `world` script. Changeset (visuals minor, react patch).
+- Review fix (M11 review): a failed geometry load is no longer cached, so the next map tries again (`world.test.ts`).
 - Next: plan each fact table on its own (#102).
 
 ## 2026-10-25 · claude · stack/m11/01-adr · #100
