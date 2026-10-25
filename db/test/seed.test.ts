@@ -50,6 +50,12 @@ describe("seed", () => {
     expect(r?.wrong).toBe(0);
   });
 
+  it("spreads returns over time instead of dating recent ones all at the seed", async () => {
+    const [r] = await admin`select max(n)::int as most from (
+      select count(*) as n from dash_demo.returns group by returned_at) as t`;
+    expect(r?.most).toBeLessThanOrEqual(2);
+  });
+
   it("is idempotent", async () => {
     const before = await counts();
     await seed(admin);
