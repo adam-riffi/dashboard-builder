@@ -123,7 +123,8 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
 
   /**
    * Each aggregate on its own fact table, the one its argument reads from which its other tables
-   * are reached; one plan per fact, each reaching every dimension and filter (ADR 0014).
+   * are reached; one plan per fact, each reaching every dimension and filter, and the tables of
+   * the `CALCULATE` conditions around its aggregates (ADR 0014).
    */
   const perFact = (): JoinPlanning => {
     if (query.measures.some((m) => calls(m.expr, SINGLE_FACT_ONLY))) {
@@ -137,9 +138,14 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
     const errors: string[] = [];
     const read = new Map<string, Set<string>>();
     query.measures.forEach((m, i) => {
-      const walk = (t: Typed): void => {
+      const walk = (t: Typed, around: string[]): void => {
+        if (t.kind === "call" && t.name === "CALCULATE") {
+          const [inner, ...conditions] = t.args as [Typed, ...Typed[]];
+          walk(inner, [...around, ...conditions.flatMap(tablesOf)]);
+          return;
+        }
         if (!(t.kind === "call" && AGGREGATES.has(t.name))) {
-          children(t).forEach(walk);
+          for (const c of children(t)) walk(c, around);
           return;
         }
         const tables = tablesOf(t);
@@ -153,10 +159,10 @@ export function planJoins(query: ValidQuery, contract: DataContract): JoinPlanni
             `measures[${i}]: ${t.name} reads ${tables.join(" and ")}, which don't reach each other`,
           );
         } else {
-          read.set(fact, new Set([...(read.get(fact) ?? []), ...tables]));
+          read.set(fact, new Set([...(read.get(fact) ?? []), ...tables, ...around]));
         }
       };
-      walk(m.expr);
+      walk(m.expr, []);
     });
     if (errors.length > 0) return { ok: false, errors };
     const facts: FactPlan[] = [];

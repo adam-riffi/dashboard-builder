@@ -16,11 +16,11 @@ Entry format:
 
 ## 2026-10-25 · claude · stack/m11/03-plan-facts · #102
 - Done: `planJoins` falls back to one plan per fact table where v1 refused (ADR 0014): measures from tables that don't share a fact, and `SUM`, `AVG` or `COUNT` over a looked-up table.
-  - Each aggregate's fact is the table it reads from which its other tables are reached; facts are sorted, and each plans its own joins to every dimension and filter (conformed dimensions), with the same reachability and ambiguity errors.
+  - Each aggregate's fact is the table it reads from which its other tables are reached; facts are sorted, and each plans its own joins to every dimension and filter (conformed dimensions) and to the tables of the `CALCULATE` conditions around its aggregates, with the same reachability and ambiguity errors.
   - `JoinPlan.facts` holds them; `base` and `joins` are the first. Single-fact plans are unchanged (`facts` undefined).
   - Refused for now: `PREVIOUSPERIOD`, `RUNNINGSUM` or `ALL` with several facts, and an aggregate that reads no column (`COUNT(1)`).
   - The gateway's `compileQuery` throws on a plan with `facts` until the next PR compiles it.
-- Tests: written first. Four tests asserted the two refusals ADR 0014 replaces and now assert the per-fact plans; new ones cover conformed dimensions, the time-function and `COUNT(1)` refusals, and unchanged single-fact plans. The gateway's host-measure refusal moved to a measure that still can't plan (one aggregate over two unrelated tables).
+- Tests: written first. Four tests asserted the two refusals ADR 0014 replaces and now assert the per-fact plans; new ones cover conformed dimensions, `CALCULATE` conditions joined per fact (and one a fact can't reach), the time-function and `COUNT(1)` refusals, and unchanged single-fact plans. The gateway's host-measure refusal moved to a measure that still can't plan (one aggregate over two unrelated tables).
 - Scope/decisions: `AGGREGATES` exported from the formula checker. Changeset (core minor, gateway patch).
 - Next: one CTE per fact, joined on the dimensions (#103).
 
