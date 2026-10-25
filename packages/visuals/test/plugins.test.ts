@@ -7,6 +7,7 @@ import {
   kpi,
   Line,
   line,
+  map,
   queryOf,
   registerVisual,
   scatter,
@@ -73,6 +74,18 @@ describe("built-in visuals", () => {
     expect(tooMany.ok).toBe(false);
     const noY = queryOf(scatter, visual({ category: [category], x: [revenue] }));
     expect(noY).toEqual({ ok: false, errors: ["Y: needs 1 measure"] });
+  });
+
+  it("asks a map for one value per country code, all of them", () => {
+    const country = { field: "dash_demo.customers.country" };
+    expect(queryOf(map, visual({ region: [country], value: [revenue] }))).toEqual({
+      ok: true,
+      query: { dimensions: [country], measures: [revenue], filters: [] },
+    });
+    expect(queryOf(map, visual({ region: [country] }))).toEqual({
+      ok: false,
+      errors: ["Value: needs 1 measure"],
+    });
   });
 
   it("asks a line chart for its time axis at the chosen grain, in time order", () => {
@@ -192,8 +205,8 @@ describe("plugins that misbehave", () => {
 });
 
 describe("registry", () => {
-  it("knows the five built-ins by type", () => {
-    expect(visuals().map((v) => v.type)).toEqual(["kpi", "bar", "line", "table", "scatter"]);
+  it("knows the six built-ins by type", () => {
+    expect(visuals().map((v) => v.type)).toEqual(["kpi", "bar", "line", "table", "scatter", "map"]);
     expect(getVisual("line")).toMatchObject({ ...line, render: Line });
     expect(getVisual("pie")).toBeUndefined();
   });
