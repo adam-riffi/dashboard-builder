@@ -152,6 +152,7 @@ Shared Supabase project `portfolio` (Paris, `eu-west-3`; ENGINEERING.md §11), s
 | `dash_demo.products` | `id`, `tenant_id`, `name`, `category`, `unit_price` | |
 | `dash_demo.orders` | `id`, `tenant_id`, `customer_id`, `ordered_at`, `status`, `channel` | Indexed on `(tenant_id, ordered_at)` |
 | `dash_demo.order_items` | `id`, `order_id`, `tenant_id`, `product_id`, `quantity`, `unit_price` | |
+| `dash_demo.returns` | `id`, `tenant_id`, `order_item_id`, `quantity`, `refunded_amount`, `returned_at` | A second fact table ([ADR 0014](adr/0014-map-and-multi-fact.md)): at most one return per item, refunded whole, deleted with its order; about one item in twenty, and one more on every tenth order of the tick |
 
 `dash_demo` tables carry RLS policies on `tenant_id = ANY(string_to_array(current_setting('app.tenant_ids', true), ',')::int[])`. A `pg_cron` job inserts one order a minute for a random tenant and deletes orders older than 90 days, keeping the schema near 40 MB, under the 50 MB budget ([ADR 0002](adr/0002-demo-order-rate.md)). Migrations use Drizzle Kit with the history table in `dash`.
 

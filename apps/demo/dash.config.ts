@@ -12,6 +12,7 @@ const tables = [
   "dash_demo.order_items",
   "dash_demo.products",
   "dash_demo.customers",
+  "dash_demo.returns",
 ];
 /** App data (memberships) as `dash_app`; demo data is read as `dash_reader` through `source`. */
 export const appDb = postgresSource({ url: process.env.DASH_APP_DATABASE_URL ?? "" });
@@ -33,7 +34,7 @@ export default defineGateway({
     const tenantIds = await withDeadline(appDb, "scope", (sql) => tenantsOf(sql, userId));
     return { userId, tenantIds };
   },
-  // Every dashboard can use these (ADR 0007); all three share order_items as their fact table.
+  // Every dashboard can use these (ADR 0007); all but Refunds have order_items as their fact table.
   measures: [
     {
       name: "Revenue",
@@ -59,6 +60,9 @@ export default defineGateway({
       formula: "DIVIDE([Revenue], CALCULATE([Revenue], ALL(products.category)))",
       format: "percent",
     },
+    // M11 (ADR 0014): a second fact table, so Revenue and Refunds by category are pre-aggregated
+    // on order_items and returns, then joined.
+    { name: "Refunds", formula: "SUM(returns.refunded_amount)", format: "currency" },
   ],
   // Per function instance; keyed by scope and compiled query (DESIGN.md §6, ADR 0010).
   cache: memoryCache({ maxBytes: 50_000_000 }),

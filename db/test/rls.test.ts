@@ -46,6 +46,8 @@ beforeAll(async () => {
       values (${id}, ${id}, ${id}, now(), 'paid', 'web')`;
     await admin`insert into dash_demo.order_items (id, order_id, tenant_id, product_id, quantity, unit_price)
       values (${id}, ${id}, ${id}, ${id}, 1, 10)`;
+    await admin`insert into dash_demo.returns (tenant_id, order_item_id, quantity, refunded_amount, returned_at)
+      values (${id}, ${id}, 1, 10, now())`;
   }
   await admin`truncate dash.dashboards`;
   for (const owner of [alice, bob]) {
@@ -60,7 +62,7 @@ afterAll(async () => {
   await Promise.all([admin.end(), reader.end(), app.end()]);
 });
 
-const tables = ["tenants", "customers", "products", "orders", "order_items"] as const;
+const tables = ["tenants", "customers", "products", "orders", "order_items", "returns"] as const;
 
 describe("dash_demo row-level security", () => {
   it.each(tables)("%s: dash_reader sees only rows of tenants in app.tenant_ids", async (table) => {

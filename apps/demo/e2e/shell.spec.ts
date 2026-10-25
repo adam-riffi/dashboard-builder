@@ -20,7 +20,7 @@ test("pages send the security headers @smoke", async ({ request }) => {
 
 test("a signed-in visitor sees the tables of the data contract @smoke", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText(/4 tables available/i)).toBeVisible();
+  await expect(page.getByText(/5 tables available/i)).toBeVisible();
 });
 
 test("saved dashboards are refused without a token @smoke", async ({ request }) => {
