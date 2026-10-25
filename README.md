@@ -59,7 +59,12 @@ flowchart TB
 **Key algorithms**
 
 - **Contract inference.** The allowlisted tables are read from `pg_catalog`. Column roles (id, time, measure, dimension) come from types, keys and statistics, and the relationships from foreign keys. The contract carries a schema hash, its version. Statistics stay on the server, since they ignore RLS.
-- **Join paths.** A query's measures share one fact table. Every other table it reads is reached through many-to-one relationships, by the shortest unambiguous path. Paths that would fan out and double-count are refused.
+- **Join paths.** Each aggregate is read from a fact table. Every other table it reads is reached through many-to-one relationships, by the shortest unambiguous path. Paths that would fan out and double-count are refused.
+- **Several fact tables** ([ADR 0014](docs/adr/0014-map-and-multi-fact.md)).
+  - **Its own table:** each aggregate is answered on its own table whenever that table reaches every dimension and filter, so a measure has the value it has alone, next to any others.
+  - **Fallback:** otherwise the table the other measures share answers it, like customers counted by product category through order items.
+  - **Combining:** measures from different tables, like the demo's Revenue (`order_items`) and Refunds (`returns`), are pre-aggregated per table in grouped CTEs, each with its own policies and every filter. They are then joined on the union of their dimension values. A count reads 0, and a sum is empty, where its table has no rows for a key.
+  - **Limit:** such queries can't use `PREVIOUSPERIOD`, `RUNNINGSUM` or `ALL` yet.
 - **Formulas.** `DIVIDE([Revenue], [Orders])` goes through a lexer, a Pratt parser and a checker. The checker assigns row or aggregate levels, inlines named measures, and reports errors at their spans. A renderer then emits SQL with casts and `nullif` for safe division. Beyond the aggregates, the language has these functions ([ADR 0013](docs/adr/0013-formula-additions-m10.md)):
   - `CALCULATE([m], condition)` compiles to `FILTER (WHERE …)` clauses.
   - `PREVIOUSPERIOD([m])` and `RUNNINGSUM([m])` compile in two stages: a grouped CTE, a second one over the window one bucket earlier joined on the bucket, and a window function. This is right across buckets without data. Both need a time axis (a date field grouped by day, week, month, quarter or year), so a KPI can't use them.

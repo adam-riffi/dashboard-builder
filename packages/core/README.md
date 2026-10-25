@@ -10,7 +10,7 @@ The shared core of [dashboard-builder](https://github.com/adam-riffi/dashboard-b
   - `RUNNINGSUM([Orders])` is a running total.
 
   The two time functions need a query with one time axis, a date field grouped by day, week, month, quarter or year.
-- **Query planning:** `validateQuery` resolves a `QuerySpec` against the contract and `planJoins` finds its fact table and join path. The gateway runs them on every query, and the React package runs them to decide which visuals a selection can filter.
+- **Query planning:** `validateQuery` resolves a `QuerySpec` against the contract and `planJoins` finds its fact table and join path. When the measures need several fact tables, `plan.facts` lists each fact with its own joins ([ADR 0014](../../docs/adr/0014-map-and-multi-fact.md)). The gateway runs them on every query, and the React package runs them to decide which visuals a selection can filter.
 
 You rarely install it directly: `@adam-riffi/dash-gateway` and `@adam-riffi/dash-react` depend on it.
 
