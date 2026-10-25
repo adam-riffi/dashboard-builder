@@ -8,8 +8,8 @@ import { compileQuery, type Policy } from "../../src/query/compile.ts";
 import { executeQuery } from "../../src/query/execute.ts";
 
 // Queries over several fact tables against each measure queried alone (ADR 0014): a measure's
-// value in the joined result is its own query's value for the same dimensions, or null where
-// its fact has no row for them.
+// value in the joined result is its own query's value for the same dimensions, or, where its
+// fact has no row for them, null (a count: 0).
 const adminUrl =
   process.env.DATABASE_URL_MIGRATIONS ?? "postgres://postgres:postgres@localhost:54322/postgres";
 if (!["localhost", "127.0.0.1", "[::1]"].includes(new URL(adminUrl).hostname)) {
@@ -105,7 +105,11 @@ describe("several fact tables against each measure alone", () => {
           const keys = new Set(alone.flatMap((a) => [...a.keys()]));
           expect(new Set(joined.keys())).toEqual(keys);
           for (const [key, values] of joined) {
-            expect(values).toEqual(alone.map((a) => a.get(key)?.[0] ?? null));
+            expect(values).toEqual(
+              alone.map(
+                (a, i) => a.get(key)?.[0] ?? (measures[i]?.formula.startsWith("COUNT") ? 0 : null),
+              ),
+            );
           }
         },
       ),

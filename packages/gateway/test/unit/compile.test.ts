@@ -633,7 +633,8 @@ describe("compileQuery over several fact tables (ADR 0014)", () => {
         "union",
         'select "d0" from "f1"',
         ")",
-        'select "k"."d0" as "d0", "f0"."a0" as "m0", "f1"."a0" as "m1"',
+        // A key only another fact has counts nothing: 0, where a sum has no value.
+        'select "k"."d0" as "d0", "f0"."a0" as "m0", coalesce("f1"."a0", 0) as "m1"',
         'from "k"',
         keyed("f0"),
         keyed("f1"),
@@ -668,7 +669,7 @@ describe("compileQuery over several fact tables (ADR 0014)", () => {
         'where "t1"."tenant_id" = any($2)',
         "group by ()",
         ")",
-        'select (("f0"."a0")::numeric / "f1"."a0") as "m0"',
+        'select (("f0"."a0")::numeric / coalesce("f1"."a0", 0)) as "m0"',
         'from "f0", "f1"',
         "limit $3",
       ].join("\n"),
