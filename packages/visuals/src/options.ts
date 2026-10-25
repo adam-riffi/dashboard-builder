@@ -143,6 +143,54 @@ export function scatterOption(result: QueryResult, formatters: Formatter[], sele
   });
 }
 
+/**
+ * Countries on the world map (registered as "world" when a map draws), shaded from the grid
+ * color to the accent by value; a selection keeps its country and fades the others.
+ */
+export function mapOption(result: QueryResult, formatters: Formatter[], selected?: unknown) {
+  const [codes = [], values = []] = result.data;
+  const [name = String, value = String] = formatters;
+  const numbers = values.map(Number).filter((v) => Number.isFinite(v));
+  const data = codes.map((code, row) => ({
+    name: String(code),
+    value: values[row],
+    ...(selected === undefined ? {} : { itemStyle: { opacity: code === selected ? 1 : 0.35 } }),
+  }));
+  // Countries without data have no row: ECharts gives them a negative index.
+  const tip = ({ dataIndex: row, name: region }: { dataIndex: number; name: string }) =>
+    row >= 0 && row < codes.length
+      ? `${escapeHtml(name(codes[row]))}: ${escapeHtml(value(values[row]))}`
+      : escapeHtml(region);
+  const min = numbers.length > 0 ? Math.min(...numbers) : 0;
+  const max = numbers.length > 0 ? Math.max(...numbers) : 0;
+  const compact = formatters[1]?.compact ?? String;
+  return (t: Theme): EChartsCoreOption => ({
+    textStyle: { color: t.ink },
+    tooltip: { trigger: "item", formatter: tip },
+    // The accent, lighter for smaller values: an empty country stays an outline.
+    visualMap: {
+      min,
+      max,
+      calculable: false,
+      left: 8,
+      bottom: 8,
+      text: [compact(max), compact(min)],
+      inRange: { color: [t.palette[0] ?? t.ink], colorAlpha: [0.25, 1] },
+      textStyle: { color: t.muted },
+    },
+    series: [
+      {
+        type: "map",
+        map: "world",
+        roam: false,
+        emphasis: { label: { show: false } },
+        itemStyle: { borderColor: t.grid, areaColor: "transparent" },
+        data,
+      },
+    ],
+  });
+}
+
 const SPOKEN_POINTS = 12;
 
 /** A chart's data in words, its text alternative: "Revenue by Category: Garden $83,495.78; …". */

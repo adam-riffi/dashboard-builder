@@ -315,6 +315,38 @@ const scatter: Fixture = {
   },
 };
 
+// Revenue by customer country on the world map: the map's screenshot (ADR 0014).
+const countryColumn: ResultColumn = {
+  key: "d0",
+  kind: "dimension",
+  field: "dash_demo.customers.country",
+  type: "string",
+};
+const map: Fixture = {
+  spec: dashboardSpec.parse({
+    specVersion: 1,
+    contractVersion: "0".repeat(64),
+    title: "Revenue by country",
+    layout: [{ i: "map-country", x: 0, y: 0, w: 12, h: 7 }],
+    visuals: [
+      {
+        id: "map-country",
+        type: "map",
+        slots: { region: [{ field: "dash_demo.customers.country" }], value: [{ name: "Revenue" }] },
+      },
+    ],
+  }),
+  answers: {
+    "map-country": answer(
+      [countryColumn, named("Revenue")],
+      [
+        ["US", "DE", "FR", "GB", "ES", "IN"],
+        [96210.5, 61480.2, 52310.75, 44120.1, 30210.4, 21034.9],
+      ],
+    ),
+  },
+};
+
 export const fixtures: Record<string, Fixture> = {
   overview,
   states,
@@ -322,4 +354,5 @@ export const fixtures: Record<string, Fixture> = {
   failed,
   lost,
   scatter,
+  map,
 };

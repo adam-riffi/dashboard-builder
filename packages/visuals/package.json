@@ -1,7 +1,7 @@
 {
   "name": "@adam-riffi/dash-visuals",
   "version": "0.0.0",
-  "description": "Visual plugins (KPI, bar, line, table, scatter) for the dashboard builder, drawn with ECharts.",
+  "description": "Visual plugins (KPI, bar, line, table, scatter, map) for the dashboard builder, drawn with ECharts.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,11 +28,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "world": "node scripts/world.mjs"
   },
   "dependencies": {
     "@adam-riffi/dash-core": "workspace:*",
     "echarts": "^6.1.0",
+    "topojson-client": "^3.1.0",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
@@ -40,9 +42,12 @@
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
+    "@types/topojson-client": "3.1.5",
     "@vitest/coverage-v8": "5.0.5",
+    "i18n-iso-countries": "7.14.0",
     "react": "19.3.1",
     "typescript": "7.0.2",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "world-atlas": "2.0.2"
   }
 }
