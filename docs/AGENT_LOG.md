@@ -14,6 +14,15 @@ Entry format:
 
 ---
 
+## 2026-10-25 · claude · stack/m11/01-adr · #100
+- Done: ADR 0014 for M11:
+  - **The map visual:** world countries by alpha-2 code, Natural Earth geometry loaded lazily, `topojson-client` as the one new runtime dependency.
+  - **Multi-fact queries:** one CTE per fact table, joined on the dimensions, used only where v1 refused ("one fact table", fan-trap guard); the demo's second fact is `returns`.
+  - DESIGN.md §6 updated.
+- Tests: none (docs).
+- Scope/decisions: multi-fact queries can't use the time functions or `ALL` yet; queries v1 accepts compile as before.
+- Next: the map visual (#101).
+
 ## 2026-10-20 · claude · docs/handoff-m10 · #99
 - Done: HANDOFF.md rewritten after M9 and M10 (#86–#98 merged; production checked: the cleanup job scheduled, growth equal to revenue minus the day before, shares summing to 100%).
 - Tests: none (docs).
@@ -350,12 +359,3 @@ Entry format:
   - integration (CI): a repeated query is a hit and another scope a miss; both isolation properties run every query twice through one shared cache.
 - Scope/decisions: key on the compiled SQL rather than the QuerySpec (ADR 0007); freshness travels with the request.
 - Next: #62, `304` for unchanged query results.
-
-## 2026-10-17 · claude · stack/m6/01-contract-cache · #60
-- Done: the contract cache (DESIGN.md §6, M6 PR 1).
-  - `cachedContract` in `packages/gateway/src/contract/cache.ts`: one introspection at a time, shared by concurrent requests; kept 60 s.
-  - After 60 s it checks again while the last contract keeps serving; failures are never kept.
-  - `/contract` and `/query` share it, so a request no longer introspects the database.
-- Tests: `test/unit/contract-cache.test.ts` (written first): concurrent first requests share one load; nothing reloads within 60 s; the stale contract serves while one check runs; a failed first load is retried; a failed later check keeps the last contract and is retried on the next request.
-- Scope/decisions: the cache is per function instance (memory), as planned; the fresh-deployment hang (#59) loses its per-request introspection.
-- Next: #61, the result cache scoped by security context.
