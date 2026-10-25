@@ -168,13 +168,14 @@ describe("fact tables of formula measures", () => {
     });
   });
 
-  it("lets duplicate-insensitive aggregates read the one side", () => {
+  it("answers duplicate-insensitive aggregates of the one side on its own table too (M11 review)", () => {
+    // v1 counted the orders over order_items rows; alone, the count is over all orders.
     expect(
-      describeJoins(demo, formulas("SUM(order_items.quantity) / COUNTDISTINCT(orders.id)")),
-    ).toEqual({
-      base: "dash_demo.order_items",
-      joins: ["dash_demo.order_items(order_id) -> dash_demo.orders(id)"],
-    });
+      describeFacts(demo, formulas("SUM(order_items.quantity) / COUNTDISTINCT(orders.id)")),
+    ).toEqual([
+      { base: "dash_demo.order_items", joins: [] },
+      { base: "dash_demo.orders", joins: [] },
+    ]);
   });
 
   it("counts the one side on its own table, inside one formula (ADR 0014)", () => {
@@ -300,6 +301,48 @@ describe("several fact tables (ADR 0014)", () => {
       errors: [
         "measures[0]: COUNT reads no column; over several fact tables each aggregate needs one",
       ],
+    });
+  });
+
+  it("answers a measure on its own table, as alone, whatever the other measures (M11 review)", () => {
+    // v1 counted orders over order_items rows here, and all orders without the units.
+    const query = valid(demo, {
+      dimensions: [status],
+      measures: [units, { formula: "COUNTDISTINCT(orders.id)" }],
+    });
+    expect(describeFacts(demo, query)).toEqual([
+      {
+        base: "dash_demo.order_items",
+        joins: ["dash_demo.order_items(order_id) -> dash_demo.orders"],
+      },
+      { base: "dash_demo.orders", joins: [] },
+    ]);
+  });
+
+  it("falls back to the query's fact table where a measure's own can't reach a dimension", () => {
+    const query = valid(demo, {
+      dimensions: [category],
+      measures: [units, { formula: "COUNTDISTINCT(customers.id)" }],
+    });
+    expect(describeJoins(demo, query)).toEqual({
+      base: "dash_demo.order_items",
+      joins: [
+        "dash_demo.order_items(order_id) -> dash_demo.orders(id)",
+        "dash_demo.order_items(product_id) -> dash_demo.products(id)",
+        "dash_demo.orders(customer_id) -> dash_demo.customers(id)",
+      ],
+    });
+    expect(describeFacts(demo, query)).toEqual([]);
+  });
+
+  it("keeps one fact table for the time functions, as in v1", () => {
+    const query = valid(demo, {
+      dimensions: [{ field: "dash_demo.orders.ordered_at", timeGrain: "day" }],
+      measures: [units, { formula: "PREVIOUSPERIOD(COUNTDISTINCT(orders.id))" }],
+    });
+    expect(describeJoins(demo, query)).toEqual({
+      base: "dash_demo.order_items",
+      joins: ["dash_demo.order_items(order_id) -> dash_demo.orders(id)"],
     });
   });
 

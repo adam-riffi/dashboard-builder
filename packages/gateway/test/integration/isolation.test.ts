@@ -140,11 +140,15 @@ const FORMULAS: { measure: Measure; joins: string[]; value: (rows: Row[]) => num
   { measure: { formula: REVENUE }, joins: ["products"], value: revenue },
   { measure: { name: "Revenue" }, joins: ["products"], value: revenue },
   {
-    measure: { formula: "ROUND(DIVIDE(SUM(order_items.quantity), COUNTDISTINCT(orders.id)), 2)" },
-    joins: ["orders"],
+    // Distinct orders of the fact's own rows: COUNTDISTINCT(orders.id) is answered on orders
+    // instead since M11 (ADR 0014), which facts.test.ts checks against each measure alone.
+    measure: {
+      formula: "ROUND(DIVIDE(SUM(order_items.quantity), COUNTDISTINCT(order_items.order_id)), 2)",
+    },
+    joins: [],
     value: (rows) => {
       const units = sum(rows.map((r) => r.item.quantity));
-      const count = new Set(rows.map((r) => r.order.id)).size;
+      const count = new Set(rows.map((r) => r.item.order)).size;
       return units === null ? null : Math.round((units * 100) / count) / 100;
     },
   },
