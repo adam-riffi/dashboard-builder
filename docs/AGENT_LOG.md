@@ -14,6 +14,16 @@ Entry format:
 
 ---
 
+## 2026-10-25 · claude · stack/m11/05-returns · #104
+- Done: `dash_demo.returns`, the demo's second fact table (ADR 0014), in migration `0005_demo_returns`.
+  - Columns `id`, `tenant_id`, `order_item_id` (unique, cascading from `order_items`), `quantity`, `refunded_amount`, `returned_at`. The grant and tenant policy for `dash_reader` match the other demo tables.
+  - About one item in twenty comes back, picked by `hashint8(id) % 20 = 0`, refunded whole, one to fourteen days after its order (capped at now). The migration backfills production's existing items; `seed.sql` does the same for a new database.
+  - `tick()` is replaced (with `search_path = ''` again, since `create or replace` resets it): every tenth order returns a recent item of the same tenant that hasn't come back yet. The 90-day window deletes returns through the cascade.
+  - The demo gateway allowlists the table with its policy and adds the host measure "Refunds" (`SUM(returns.refunded_amount)`). DESIGN.md §8 lists the table.
+- Tests: written first. RLS on `returns` with the other tables; the seed's share (3–7%), whole lines, same tenant, dates; the cascade through the 90-day window; the tick's return on a tenth order. They run in CI (no Docker here).
+- Scope/decisions: the M1 golden contract keeps its four tables, since it pins the introspection of the original schema. No changeset (db and demo are private).
+- Next: revenue and refunds by category, and countries on a map (#105).
+
 ## 2026-10-25 · claude · stack/m11/04-compile-facts · #103
 - Done: `compileQuery` compiles plans with `facts` (ADR 0014).
   - Each aggregate goes in the CTE `f<j>` of its fact, the one whose plan reaches all its tables (`Stage.column` now receives the aggregate). Each CTE groups by every dimension, with the policies of its own tables and all the query's filters.
@@ -361,11 +371,3 @@ Entry format:
 - Tests (written first): options highlight bars and points; in the viewer, a keyboard-chosen category filters the KPI but not the bar and its chip clears it; a table row filters the others and shows as pressed.
 - Scope/decisions: one value or bucket per visual; picking the same value again clears it.
 - Next: #66, the "Under the hood" drawer.
-
-## 2026-10-17 · claude · stack/m6/05-cross-filter-core · #64
-- Done: the cross-filter coordinator (DESIGN.md §6, M6 PR 5, hand-written core).
-  - `packages/react/src/crossfilter.ts`: `Selection` is one value of a field, or one time bucket at a grain. `filtersOf` makes an equality (`in`) for a value, and `[start, next start)` (`gte` and `lt`, ISO dates, UTC) for a bucket.
-  - `dashboardRequest(spec, selections)` adds every other visual's selection to each visual's query; the source visual's query is untouched.
-- Tests (written first): table-driven buckets for every grain, including year and month ends and a leap February; value selections; a property test (fast-check, now a react dev dependency with the shared setup) that a visual carries exactly the other visuals' selections.
-- Scope/decisions: buckets compile to `gte` and `lt` rather than `between`, which is inclusive at both ends.
-- Next: #65, selectable bars, lines and rows, wired into the viewer.
