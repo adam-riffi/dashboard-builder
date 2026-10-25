@@ -332,7 +332,10 @@ export function compileQuery(
         const list = aggregates[j];
         if (!list) throw new Error(`no fact reads ${used.join(" and ")}`);
         list.push(sql);
-        return `${quote(`f${j}`)}.${quote(`a${list.length - 1}`)}`;
+        const column = `${quote(`f${j}`)}.${quote(`a${list.length - 1}`)}`;
+        // A key only other facts have counts nothing here: 0, as a count of no rows is.
+        const counts = aggregate.kind === "call" && aggregate.name.startsWith("COUNT");
+        return counts ? `coalesce(${column}, 0)` : column;
       },
       previous: false,
       lifted: [],
