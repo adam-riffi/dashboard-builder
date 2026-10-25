@@ -258,6 +258,30 @@ describe("several fact tables (ADR 0014)", () => {
     });
   });
 
+  it("joins a CALCULATE condition's tables on the facts of the aggregates inside it", () => {
+    const query = valid(demo, {
+      measures: [units, { formula: 'CALCULATE(COUNT(orders.id), customers.country = "FR")' }],
+    });
+    expect(describeFacts(demo, query)).toEqual([
+      { base: "dash_demo.order_items", joins: [] },
+      {
+        base: "dash_demo.orders",
+        joins: ["dash_demo.orders(customer_id) -> dash_demo.customers"],
+      },
+    ]);
+  });
+
+  it("names a CALCULATE condition's table that an aggregate's fact can't reach", () => {
+    const query = valid(demo, {
+      measures: [units, { formula: "CALCULATE(COUNT(orders.id), order_items.quantity > 1)" }],
+    });
+    expect(describeFacts(demo, query)).toEqual({
+      errors: [
+        "dash_demo.order_items: reachable from dash_demo.orders only through one-to-many relationships (fan-out would repeat rows)",
+      ],
+    });
+  });
+
   it("refuses the time functions and ALL for now", () => {
     const query = valid(demo, {
       dimensions: [{ field: "dash_demo.orders.ordered_at", timeGrain: "day" }],
