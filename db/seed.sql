@@ -47,11 +47,14 @@ from (
 join dash_demo.products p on p.id = i.product_id
 on conflict do nothing;
 
--- About one item in twenty comes back, as in 0005_demo_returns (unique per item, so a second
--- run inserts nothing).
+-- About one item in twenty comes back, as in 0005_demo_returns and 0006_spread_return_dates
+-- (unique per item, so a second run inserts nothing): one to fourteen days after its order, or,
+-- past now, one to nine tenths of the way from its order to now.
 insert into dash_demo.returns (tenant_id, order_item_id, quantity, refunded_amount, returned_at)
 select i.tenant_id, i.id, i.quantity, i.quantity * i.unit_price,
-  least(now(), o.ordered_at + (1 + i.id % 14) * interval '1 day')
+  case when o.ordered_at + (1 + i.id % 14) * interval '1 day' <= now()
+    then o.ordered_at + (1 + i.id % 14) * interval '1 day'
+    else o.ordered_at + (now() - o.ordered_at) * ((1 + i.id % 9) / 10.0) end
 from dash_demo.order_items i
 join dash_demo.orders o on o.id = i.order_id
 where hashint8(i.id) % 20 = 0
