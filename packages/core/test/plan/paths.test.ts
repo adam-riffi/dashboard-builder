@@ -37,6 +37,17 @@ const describeJoins = (contract: DataContract, query: ValidQuery) => {
     : { errors: result.errors };
 };
 
+/** A plan's facts (ADR 0014): one per fact table, each with its joins; a single fact has none. */
+const describeFacts = (contract: DataContract, query: ValidQuery) => {
+  const result = planJoins(query, contract);
+  return result.ok
+    ? (result.plan.facts ?? []).map((f) => ({
+        base: f.base,
+        joins: f.joins.map((j) => `${j.from.table}(${j.from.columns}) -> ${j.to.table}`),
+      }))
+    : { errors: result.errors };
+};
+
 const units = { field: "dash_demo.order_items.quantity" };
 
 describe("planJoins", () => {
@@ -77,15 +88,15 @@ describe("planJoins", () => {
     });
   });
 
-  it("rejects a looked-up table's measure that would repeat its rows (ADR 0007)", () => {
+  it("plans a looked-up table's repeating measure on its own table instead (ADR 0014)", () => {
+    // ADR 0007 refused it; each fact now answers at its own grain.
     const query = valid(demo, {
       measures: [units, { field: "dash_demo.products.unit_price" }],
     });
-    expect(describeJoins(demo, query)).toEqual({
-      errors: [
-        "measures[1]: AVG over dash_demo.products would repeat each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
-      ],
-    });
+    expect(describeFacts(demo, query)).toEqual([
+      { base: "dash_demo.order_items", joins: [] },
+      { base: "dash_demo.products", joins: [] },
+    ]);
   });
 
   it("rejects ambiguous paths and names both relationships", () => {
@@ -166,20 +177,18 @@ describe("fact tables of formula measures", () => {
     });
   });
 
-  it("rejects SUM, AVG and COUNT over the one side, which would repeat its rows", () => {
-    expect(describeJoins(demo, formulas("SUM(order_items.quantity) / COUNT(orders.id)"))).toEqual({
-      errors: [
-        "measures[0]: COUNT over dash_demo.orders would repeat each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
-      ],
-    });
+  it("counts the one side on its own table, inside one formula (ADR 0014)", () => {
+    expect(describeFacts(demo, formulas("SUM(order_items.quantity) / COUNT(orders.id)"))).toEqual([
+      { base: "dash_demo.order_items", joins: [] },
+      { base: "dash_demo.orders", joins: [] },
+    ]);
   });
 
-  it("picks the query's fact table across measures, then applies the guard to each", () => {
-    expect(describeJoins(demo, formulas("SUM(order_items.quantity)", "COUNT(orders.id)"))).toEqual({
-      errors: [
-        "measures[1]: COUNT over dash_demo.orders would repeat each of its rows once per dash_demo.order_items row; use COUNTDISTINCT, MIN or MAX, or a column of dash_demo.order_items",
-      ],
-    });
+  it("counts the one side on its own table, across measures (ADR 0014)", () => {
+    expect(describeFacts(demo, formulas("SUM(order_items.quantity)", "COUNT(orders.id)"))).toEqual([
+      { base: "dash_demo.order_items", joins: [] },
+      { base: "dash_demo.orders", joins: [] },
+    ]);
   });
 
   it("lets measures over different tables share the fact table that reaches them", () => {
@@ -199,14 +208,13 @@ describe("fact tables of formula measures", () => {
     });
   });
 
-  it("rejects measures when none of their tables reaches the others", () => {
+  it("plans measures from tables that don't reach each other per fact (ADR 0014)", () => {
     expect(
-      describeJoins(demo, formulas("SUM(products.unit_price) + COUNTDISTINCT(orders.id)")),
-    ).toEqual({
-      errors: [
-        "measures come from dash_demo.orders and dash_demo.products; a query has one fact table",
-      ],
-    });
+      describeFacts(demo, formulas("SUM(products.unit_price) + COUNTDISTINCT(orders.id)")),
+    ).toEqual([
+      { base: "dash_demo.orders", joins: [] },
+      { base: "dash_demo.products", joins: [] },
+    ]);
   });
 
   it("gives field-less measures the query's fact table, and needs one", () => {
@@ -216,5 +224,64 @@ describe("fact tables of formula measures", () => {
     expect(describeJoins(demo, formulas("COUNT(1)"))).toEqual({
       errors: ["a query needs a measure that reads a column, to know its fact table"],
     });
+  });
+});
+
+describe("several fact tables (ADR 0014)", () => {
+  const status = { field: "dash_demo.orders.status" };
+  const category = { field: "dash_demo.products.category" };
+
+  it("plans each fact's joins to the dimensions they share", () => {
+    const query = valid(demo, {
+      dimensions: [status],
+      measures: [units, { formula: "COUNT(orders.id)" }],
+      filters: [{ field: "dash_demo.orders.status", op: "in", values: ["paid"] }],
+    });
+    expect(describeFacts(demo, query)).toEqual([
+      {
+        base: "dash_demo.order_items",
+        joins: ["dash_demo.order_items(order_id) -> dash_demo.orders"],
+      },
+      { base: "dash_demo.orders", joins: [] },
+    ]);
+  });
+
+  it("needs every dimension reachable from every fact, and names the one that isn't", () => {
+    const query = valid(demo, {
+      dimensions: [category],
+      measures: [units, { formula: "COUNT(orders.id)" }],
+    });
+    expect(describeFacts(demo, query)).toEqual({
+      errors: [
+        "dash_demo.products: reachable from dash_demo.orders only through one-to-many relationships (fan-out would repeat rows)",
+      ],
+    });
+  });
+
+  it("refuses the time functions and ALL for now", () => {
+    const query = valid(demo, {
+      dimensions: [{ field: "dash_demo.orders.ordered_at", timeGrain: "day" }],
+      measures: [units, { formula: "PREVIOUSPERIOD(COUNT(orders.id))" }],
+    });
+    expect(describeFacts(demo, query)).toEqual({
+      errors: ["a query over several fact tables can't use PREVIOUSPERIOD, RUNNINGSUM or ALL yet"],
+    });
+  });
+
+  it("needs a column in every aggregate, to know its fact table", () => {
+    const query = valid(demo, {
+      measures: [{ formula: "COUNT(1)" }, units, { formula: "COUNT(orders.id)" }],
+    });
+    expect(describeFacts(demo, query)).toEqual({
+      errors: [
+        "measures[0]: COUNT reads no column; over several fact tables each aggregate needs one",
+      ],
+    });
+  });
+
+  it("keeps single-fact plans exactly as they were", () => {
+    const query = valid(demo, { dimensions: [category], measures: [units] });
+    const result = planJoins(query, demo);
+    expect(result.ok && result.plan.facts).toBeUndefined();
   });
 });
