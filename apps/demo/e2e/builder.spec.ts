@@ -97,6 +97,58 @@ test("a line of revenue growth by day draws from PREVIOUSPERIOD", async ({ page 
   await page.getByRole("button", { name: "Delete dashboard" }).click();
 });
 
+// M11 acceptance (ADR 0014): Revenue and Refunds come from two fact tables (order_items and
+// returns), answered in one table; a map shades countries by revenue, and picking one filters
+// the table, on the live data.
+test("a table of revenue and refunds by category, filtered from a map of countries", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New dashboard" }).click();
+  await page.getByRole("textbox", { name: "Dashboard title" }).fill("Refunds by country");
+  await page.getByRole("button", { name: "Add Table" }).click();
+  await drag(
+    page,
+    page.getByRole("button", { name: "Category, dimension" }),
+    page.getByRole("group", { name: "Rows", exact: true }),
+  );
+  const values = page.getByRole("group", { name: "Values", exact: true });
+  await drag(page, page.getByRole("button", { name: "Revenue", exact: true }), values);
+  await drag(page, page.getByRole("button", { name: "Refunds", exact: true }), values);
+  await expect(values.getByRole("button", { name: "Remove Refunds from Values" })).toBeVisible();
+  await page.getByRole("button", { name: "Add Map" }).click();
+  await drag(
+    page,
+    page.getByRole("button", { name: "Country, dimension" }),
+    page.getByRole("group", { name: "Country", exact: true }),
+  );
+  await drag(
+    page,
+    page.getByRole("button", { name: "Revenue", exact: true }),
+    page.getByRole("group", { name: "Value", exact: true }),
+  );
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Refunds by country" })).toBeVisible();
+
+  // Five categories, each with an amount of revenue and of refunds.
+  const table = page.locator('[data-visual="table-1"]');
+  await expect(table).toHaveAttribute("data-state", "ready");
+  await expect(table.getByRole("columnheader", { name: "Refunds" })).toBeVisible();
+  await expect(table.getByRole("cell", { name: /^\$\d/ })).toHaveCount(10);
+  const map = page.locator('[data-visual="map-1"]');
+  await expect(map.locator('[data-ready="true"]')).toBeVisible();
+  await expect(map.locator('[role="img"]')).toHaveAttribute("aria-label", /FR \$\d/);
+
+  const before = await table.textContent();
+  const pick = page.getByRole("combobox", { name: "Filter by Country" });
+  await pick.selectOption({ label: "FR" });
+  await pick.press("Enter");
+  await expect(page.getByRole("button", { name: "Clear filter Country: FR" })).toBeVisible();
+  await expect(table).not.toHaveText(before ?? "");
+  await expect(table.getByRole("cell", { name: /^\$\d/ })).toHaveCount(10);
+  await page.getByRole("button", { name: "Delete dashboard" }).click();
+});
+
 // M8 acceptance (ADR 0011): a dashboard saved before a column was renamed is repaired in the
 // builder, from the replacement it suggests.
 test("the builder repairs a field the schema lost", async ({ page }) => {

@@ -14,6 +14,14 @@ Entry format:
 
 ---
 
+## 2026-10-25 · claude · stack/m11/06-demo-and-docs · #105
+- Done: M11 acceptance on the live stack, and the docs.
+  - E2E: a visitor builds a table of Revenue and Refunds by Category (two facts, `order_items` and `returns`) and a map of Revenue by Country, saves it, sees five categories with both amounts and the map's text alternative with FR, picks FR in the map's picker, sees the table change, then deletes the dashboard.
+  - The README's key algorithms describe several fact tables; the core README describes `plan.facts`.
+- Tests: the e2e runs in CI (no Docker here). `pnpm check` passes.
+- Scope/decisions: no changeset (demo and docs only).
+- Next: independent review of the M11 stack (#100–#105), merge and deploy, production check, handoff.
+
 ## 2026-10-25 · claude · stack/m11/05-returns · #104
 - Done: `dash_demo.returns`, the demo's second fact table (ADR 0014), in migration `0005_demo_returns`.
   - Columns `id`, `tenant_id`, `order_item_id` (unique, cascading from `order_items`), `quantity`, `refunded_amount`, `returned_at`. The grant and tenant policy for `dash_reader` match the other demo tables.
@@ -362,13 +370,3 @@ Entry format:
 - Tests (written first): the drawer shows cache hit, time, rows, SQL and scope, and is absent without the prop; integration (CI), `explain` off gives no `meta.explain`, on gives the SQL, the policy's parameters and the scope.
 - Scope/decisions: the scope travels in each answer's `meta.explain` rather than a new top-level field; logs still carry only the scope hash.
 - Next: #67, M6 acceptance: cross-filter and live-refresh e2e, the drawer, and the cached-latency script.
-
-## 2026-10-17 · claude · stack/m6/06-cross-filter-visuals · #65
-- Done: cross-filtering in the viewer (DESIGN.md §6, M6 PR 6).
-  - `VisualProps` gains `selected` and `onSelect` (the `events` of DESIGN.md §7's `render(result, options, events)`).
-  - Bars and lines select by click (ECharts `click`) or keyboard: a `<select>` per chart, hidden until focused (`.dash-pick`). The table's first-dimension cells become buttons.
-  - Highlighting: unselected bars fade to 35%; a selected period's point grows.
-  - `DashboardViewer` keeps one selection per visual. It builds each `Selection` from the result's first dimension column (a bucket at its grain for time columns), hands them to the coordinator (#64), and shows a "Clear filter" chip per selection. The builder passes no `onSelect`, so nothing changes there.
-- Tests (written first): options highlight bars and points; in the viewer, a keyboard-chosen category filters the KPI but not the bar and its chip clears it; a table row filters the others and shows as pressed.
-- Scope/decisions: one value or bucket per visual; picking the same value again clears it.
-- Next: #66, the "Under the hood" drawer.
